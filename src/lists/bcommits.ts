@@ -1,6 +1,6 @@
 import { ChildProcess, spawn } from 'child_process'
 import { Uri, events, ansiparse, BasicList, ListAction, ListContext, ListTask, Neovim, workspace } from 'coc.nvim'
-import { runCommand } from 'coc.nvim/lib/util'
+import { runCommand } from '../util'
 import { EventEmitter } from 'events'
 import readline from 'readline'
 import Manager from '../manager'
