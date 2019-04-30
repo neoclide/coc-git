@@ -26,7 +26,6 @@ class CommitsTask extends EventEmitter implements ListTask {
       let message = res.length > 5 ? (res[3].foreground == 'yellow' ? res[4].text : res[3].text) : null
       this.emit('data', {
         label: line,
-        filterText: message ? message.trim() : '',
         data: {
           root: this.root,
           commit: res.length > 5 ? res[1].text : null,
