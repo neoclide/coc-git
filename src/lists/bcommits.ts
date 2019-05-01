@@ -24,7 +24,8 @@ class CommitsTask extends EventEmitter implements ListTask {
     rl.on('line', line => {
       if (!line.length) return
       let res = ansiparse(line)
-      let message = res.length > 4 ? (res[2].foreground == 'yellow' ? res[3].text : res[2].text) : null
+      let idx = res.findIndex(o => o.foreground == 'yellow')
+      let message = idx == -1 ? null : res[idx + 1].text
       this.emit('data', {
         label: line,
         data: {

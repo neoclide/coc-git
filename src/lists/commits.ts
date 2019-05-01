@@ -23,7 +23,8 @@ class CommitsTask extends EventEmitter implements ListTask {
     rl.on('line', line => {
       if (!line.length) return
       let res = ansiparse(line)
-      let message = res.length > 5 ? (res[3].foreground == 'yellow' ? res[4].text : res[3].text) : null
+      let idx = res.findIndex(o => o.foreground == 'yellow')
+      let message = idx == -1 ? null : res[idx + 1].text
       this.emit('data', {
         label: line,
         data: {
@@ -114,6 +115,46 @@ export default class Commits extends BasicList {
       }
       await runCommand(`git reset ${opt} ${commit}`, { cwd: root })
     })
+    this.addAction('checkout', async item => {
+      let { root, commit } = item.data
+      if (!commit) return
+      await runCommand(`git checkout ${commit}`, { cwd: root })
+    })
+    this.addMultipleAction('revert', async items => {
+      let list = items.filter(item => item.data.commit != null)
+      if (!list.length) return
+      let arg = list.map(o => o.data.commit).join(' ')
+      await runCommand(`git revert ${arg}`, { cwd: list[0].data.root })
+    })
+    this.addMultipleAction('diff', async (items, context) => {
+      let list = items.filter(item => item.data.commit != null)
+      if (!list.length) {
+        nvim.command('pclose', true)
+        return
+      }
+      let arg: string
+      if (list.length == 1) {
+        arg = `${list[0].data.commit} HEAD`
+      } else {
+        arg = `${list[1].data.commit} ${list[0].data.commit}`
+      }
+      // await runCommand
+      let content = await runCommand(`git --no-pager diff ${arg}`, { cwd: list[0].data.root })
+      let lines = content.replace(/\n$/, '').split('\n')
+      let winid = context.listWindow.id
+      let mod = context.options.position == 'top' ? 'below' : 'above'
+      nvim.pauseNotification()
+      nvim.command('pclose', true)
+      nvim.command(`${mod} ${this.previewHeight}sp +setl\\ previewwindow [diff ${arg}]`, true)
+      nvim.command('setl winfixheight buftype=nofile foldmethod=syntax foldenable', true)
+      nvim.command('setl nobuflisted bufhidden=wipe', true)
+      nvim.command('setf git', true)
+      nvim.call('append', [0, lines], true)
+      nvim.command('normal! Gdd', true)
+      nvim.command(`exe 1`, true)
+      nvim.call('win_gotoid', [winid], true)
+      await nvim.resumeNotification()
+    }, { persist: true, reload: false })
     this.addMultipleAction('copy', async items => {
       let list = items.filter(item => item.data.message != null)
       let lines = list.map(o => o.data.message)
