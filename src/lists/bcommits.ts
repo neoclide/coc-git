@@ -151,9 +151,9 @@ export default class Bcommits extends BasicList {
       return
     }
     this.bufnr = buf.id
-    const args = ['log', '--pretty', '--color',
+    const args = ['--no-pager', 'log', '--pretty', '--color',
       `--format=%Cred%h%Creset -%C(yellow)%d%Creset %s %Cgreen(%cr) %C(bold blue)<%an>%Creset`,
-      '--abbrev-commit', '--date', 'relative', '--', file]
+      '--abbrev-commit', '--date=iso', '--', file]
     let task = new CommitsTask(root, file)
     task.start('git', args, root)
     return task

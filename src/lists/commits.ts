@@ -174,9 +174,9 @@ export default class Commits extends BasicList {
       throw new Error(`Can't resolve git root.`)
       return
     }
-    const args = ['log', '--graph', '--pretty', '--color',
-      `--format=%Cred%h%Creset -%C(yellow)%d%Creset %s %Cgreen(%cr) %C(bold blue)<%an>%Creset`,
-      '--abbrev-commit', '--date', 'relative']
+    const args = ['--no-pager', 'log', '--graph', '--pretty', '--color',
+      `--format=%Cred%h%Creset -%C(yellow)%d%Creset %s %Cgreen(%cd) %C(bold blue)<%an>%Creset`,
+      '--abbrev-commit', '--date=iso']
     let task = new CommitsTask(root)
     task.start('git', args, root)
     return task
