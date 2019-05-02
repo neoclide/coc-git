@@ -45,7 +45,7 @@ async function gitUntracked(cwd: string): Promise<number> {
   return out.split('\n').length
 }
 
-export async function gitStatus(cwd: string): Promise<string> {
+export async function gitStatus(cwd: string, character: string): Promise<string> {
   let res = await Promise.all([gitBranch(cwd), gitChanged(cwd), gitStaged(cwd), gitUntracked(cwd)])
   if (!res[0]) return ''
   let [branch, changed, staged, untracked] = res
@@ -54,5 +54,5 @@ export async function gitStatus(cwd: string): Promise<string> {
   if (staged[0]) more += 'x'
   if (staged[1]) more += '●'
   if (untracked) more += '…'
-  return `   ${branch}${more == '' ? ' ' : ' ' + more + ' '}`
+  return `  ${character ? character + ' ' : ''}${branch}${more == '' ? ' ' : ' ' + more + ' '}`
 }

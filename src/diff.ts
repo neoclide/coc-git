@@ -70,7 +70,6 @@ export function parseDiff(diffStr: string): Diff[] {
 }
 
 export async function getDiff(root: string, doc: Document): Promise<Diff[]> {
-  // git --no-pager show:[relative]
   if (doc.schema != 'file' || doc.buftype != '') return null
   const stagedFile = path.join(os.tmpdir(), `coc-${uuid()}`)
   const currentFile = path.join(os.tmpdir(), `coc-${uuid()}`)

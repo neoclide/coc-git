@@ -22,7 +22,78 @@
   "contributes": {
     "configuration": {
       "type": "object",
-      "properties": {}
+      "properties": {
+        "git.command": {
+          "type": "string",
+          "default": "git",
+          "description": "Command for git, could be absolute path of git executable."
+        },
+        "git.branchCharacter": {
+          "type": "string",
+          "default": "",
+          "description": "Branch character used with g:coc_git_branch"
+        },
+        "git.enableGutters": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable gutters in sign column."
+        },
+        "git.signOffset": {
+          "type": "number",
+          "default": 99,
+          "description": "Start offset of sign gutter, change to higher value to prevent overwrite by other plugin."
+        },
+        "git.changedSign.text": {
+          "type": "string",
+          "default": "~",
+          "description": "Text of changed sign."
+        },
+        "git.changedSign.hlGroup": {
+          "type": "string",
+          "default": "GruvboxAquaSign",
+          "description": "Highlight group for changed sign."
+        },
+        "git.addedSign.text": {
+          "type": "string",
+          "default": "+",
+          "description": "Text of added sign."
+        },
+        "git.addedSign.hlGroup": {
+          "type": "string",
+          "default": "GruvboxGreenSign",
+          "description": "Highlight group for added sign."
+        },
+        "git.removedSign.text": {
+          "type": "string",
+          "default": "_",
+          "description": "Text of removed sign."
+        },
+        "git.removedSign.hlGroup": {
+          "type": "string",
+          "default": "GruvboxRedSign",
+          "description": "Highlight group for removed sign."
+        },
+        "git.topRemovedSign.text": {
+          "type": "string",
+          "default": "‾",
+          "description": "Text of top removed sign."
+        },
+        "git.topRemovedSign.hlGroup": {
+          "type": "string",
+          "default": "GruvboxRedSign",
+          "description": "Highlight group for top removed sign."
+        },
+        "git.changeRemovedSign.text": {
+          "type": "string",
+          "default": "≃",
+          "description": "Text of change removed sign."
+        },
+        "git.changeRemovedSign.hlGroup": {
+          "type": "string",
+          "default": "GruvboxPurpleSign",
+          "description": "Highlight group for change removed sign."
+        }
+      }
     }
   },
   "author": "chemzqm@gmail.com",

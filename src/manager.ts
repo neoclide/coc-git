@@ -1,4 +1,4 @@
-import { Document, Uri, Documentation, FloatFactory, Neovim, workspace } from 'coc.nvim'
+import { Document, Uri, Disposable, Documentation, FloatFactory, Neovim, workspace, WorkspaceConfiguration, disposeAll } from 'coc.nvim'
 import { gitStatus } from './status'
 import path from 'path'
 import { getDiff } from './diff'
@@ -9,36 +9,48 @@ import { runCommandWithData } from './util'
 export default class DocumentManager {
   private cachedDiffs: Map<number, Diff[]> = new Map()
   private cachedSigns: Map<number, SignInfo[]> = new Map()
-  private signOffset = 99
   private floatFactory: FloatFactory
+  private config: WorkspaceConfiguration
+  private disposables: Disposable[] = []
   constructor(
     private nvim: Neovim,
     private resolver: Resolver
   ) {
+    this.floatFactory = new FloatFactory(nvim, workspace.env, false, 20, false, 300)
+    this.config = workspace.getConfiguration('git')
+    workspace.onDidChangeConfiguration(e => {
+      if (e.affectsConfiguration('git')) {
+        this.config = workspace.getConfiguration('git')
+      }
+    }, null, this.disposables)
     this.init().catch(e => {
       // tslint:disable-next-line: no-console
       console.error(e)
     })
-    this.floatFactory = new FloatFactory(nvim, workspace.env, false, 20, false, 300)
+  }
+
+  private get signOffset(): number {
+    return this.config.get<number>('signOffset', 99)
+  }
+
+  private get enableGutters(): boolean {
+    return this.config.get<boolean>('enableGutters', true)
   }
 
   private async init(): Promise<void> {
-    const { nvim } = this
-    const colorScheme = await nvim.getVar('colors_name')
-    nvim.pauseNotification()
-    nvim.command(`sign define CocGitChanged text=${'~'} texthl=CocGitChangedSign`, true)
-    nvim.command(`sign define CocGitAdded   text=${'+'} texthl=CocGitAddedSign`, true)
-    nvim.command(`sign define CocGitRemoved text=${'_'} texthl=CocGitRemovedSign`, true)
-    nvim.command(`sign define CocGitTopRemoved text=${'‾'} texthl=CocGitTopRemovedSign`, true)
-    nvim.command(`sign define CocGitBottomRemoved text=${'≃'} texthl=CocGitBottomRemovedSign`, true)
-    if (colorScheme == 'gruvbox') {
-      nvim.command(`hi default link CocGitBottomRemovedSign GruvboxPurpleSign`, true)
-      nvim.command(`hi default link CocGitTopRemovedSign GruvboxRedSign`, true)
-      nvim.command(`hi default link CocGitRemovedSign GruvboxRedSign`, true)
-      nvim.command(`hi default link CocGitChangedSign GruvboxAquaSign`, true)
-      nvim.command(`hi default link CocGitAddedSign GruvboxGreenSign`, true)
+    const { nvim, config } = this
+    if (this.enableGutters) {
+      let items = ['Changed', 'Added', 'Removed', 'TopRemoved', 'ChangeRemoved']
+      nvim.pauseNotification()
+      for (let item of items) {
+        let section = item[0].toLowerCase() + item.slice(1) + 'Sign'
+        let text = config.get<string>(`${section}.text`, '')
+        let hlGroup = config.get<string>(`${section}.hlGroup`, '')
+        nvim.command(`sign define CocGit${item} text=${text} texthl=CocGit${item}Sign`, true)
+        nvim.command(`hi default link CocGit${item}Sign ${hlGroup}`, true)
+      }
+      await nvim.resumeNotification()
     }
-    await nvim.resumeNotification()
   }
 
   public async refreshStatus(): Promise<void> {
@@ -50,10 +62,11 @@ export default class DocumentManager {
     } else {
       root = await this.resolver.resolveGitRoot()
     }
+    let character = this.config.get<string>('branchCharacter', '')
     if (!root) {
       nvim.setVar('coc_git_status', '', true)
     } else {
-      let status = await gitStatus(root)
+      let status = await gitStatus(root, character)
       if (workspace.bufnr != bufnr) return
       nvim.setVar('coc_git_status', status, true)
     }
@@ -139,7 +152,7 @@ export default class DocumentManager {
     if (!diffs || diffs.length == 0) {
       let buf = doc.buffer
       buf.setVar('coc_git_status', '', true)
-      if (cached && cached.length) {
+      if (cached && cached.length && this.enableGutters) {
         nvim.call('coc#util#unplace_signs', [bufnr, cached.map(o => o.signId)], true)
         this.cachedSigns.set(bufnr, [])
       }
@@ -193,12 +206,14 @@ export default class DocumentManager {
       let status = '  ' + `${items.join(' ')} `
       nvim.pauseNotification()
       doc.buffer.setVar('coc_git_status', status, true)
-      if (cached) nvim.call('coc#util#unplace_signs', [bufnr, cached.map(o => o.signId)], true)
-      this.cachedSigns.set(bufnr, signs)
-      for (let sign of signs) {
-        let name = this.getSignName(sign.changeType)
-        let cmd = `sign place ${sign.signId} line=${sign.lnum} name=${name} buffer=${bufnr}`
-        nvim.command(cmd, true)
+      if (this.enableGutters) {
+        if (cached) nvim.call('coc#util#unplace_signs', [bufnr, cached.map(o => o.signId)], true)
+        this.cachedSigns.set(bufnr, signs)
+        for (let sign of signs) {
+          let name = this.getSignName(sign.changeType)
+          let cmd = `sign place ${sign.signId} line=${sign.lnum} name=${name} buffer=${bufnr}`
+          nvim.command(cmd, true)
+        }
       }
       await nvim.resumeNotification()
     }
@@ -215,7 +230,7 @@ export default class DocumentManager {
       case 'topdelete':
         return 'CocGitTopRemoved'
       case 'bottomdelete':
-        return 'CocGitBottomRemoved'
+        return 'CocGitChangeRemoved'
     }
     return ''
   }
@@ -262,5 +277,9 @@ export default class DocumentManager {
         strictIndexing: false
       })
     }
+  }
+
+  public dispose(): void {
+    disposeAll(this.disposables)
   }
 }

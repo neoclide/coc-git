@@ -17,12 +17,13 @@ export async function activate(context: ExtensionContext): Promise<void> {
   try {
     which.sync('git')
   } catch (e) {
-    workspace.showMessage('git command required for coc-git', 'warning')
+    workspace.showMessage('git command required for coc-git', 'error')
     return
   }
   const { nvim } = workspace
   const resolver = new Resolver()
   const manager = new Manager(nvim, resolver)
+  subscriptions.push(manager)
 
   Promise.all(workspace.documents.map(doc => {
     return resolver.resolveGitRoot(doc)

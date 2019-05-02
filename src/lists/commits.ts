@@ -176,7 +176,7 @@ export default class Commits extends BasicList {
     }
     const args = ['--no-pager', 'log', '--graph', '--pretty', '--color',
       `--format=%Cred%h%Creset -%C(yellow)%d%Creset %s %Cgreen(%cd) %C(bold blue)<%an>%Creset`,
-      '--abbrev-commit', '--date=iso']
+      '--abbrev-commit', ...context.args]
     let task = new CommitsTask(root)
     task.start('git', args, root)
     return task

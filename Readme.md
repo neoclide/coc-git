@@ -25,6 +25,23 @@ In your vim/neovim, run command:
 - Keymaps for git chunks, including `<Plug>(coc-git-chunkinfo)` `<Plug>(coc-git-nextchunk)` & `<Plug>(coc-git-prevchunk)` ,
 - Commands for chunks, including `git.chunkInfo` `git.chunkStage` & `git.chunkUndo`
 
+## Configuration
+
+- `git.command`:Command for git, could be absolute path of git executable., default: `"git"`
+- `git.branchCharacter`:Branch character used with g:coc_git_branch, default: `""`
+- `git.enableGutters`:Enable gutters in sign column., default: `true`
+- `git.signOffset`:Start offset of sign gutter, change to higher value to prevent overwrite by other plugin., default: `99`
+- `git.changedSign.text`:Text of changed sign., default: `"~"`
+- `git.changedSign.hlGroup`:Highlight group for changed sign., default: `"GruvboxAquaSign"`
+- `git.addedSign.text`:Text of added sign., default: `"+"`
+- `git.addedSign.hlGroup`:Highlight group for added sign., default: `"GruvboxGreenSign"`
+- `git.removedSign.text`:Text of removed sign., default: `"_"`
+- `git.removedSign.hlGroup`:Highlight group for removed sign., default: `"GruvboxRedSign"`
+- `git.topRemovedSign.text`:Text of top removed sign., default: `"‾"`
+- `git.topRemovedSign.hlGroup`:Highlight group for top removed sign., default: `"GruvboxRedSign"`
+- `git.changeRemovedSign.text`:Text of change removed sign., default: `"≃"`
+- `git.changeRemovedSign.hlGroup`:Highlight group for change removed sign., default: `"GruvboxPurpleSign"`
+
 ## Usage
 
 ### Statusline integration

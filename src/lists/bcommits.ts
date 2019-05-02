@@ -145,7 +145,7 @@ export default class Bcommits extends BasicList {
       return
     }
     let file = path.relative(root, Uri.parse(doc.uri).fsPath)
-    const output = await runCommand(`git ls-files -- ${file}`)
+    const output = await runCommand(`git ls-files ${context.args.join(' ')} -- ${file}`)
     if (!output.trim()) {
       throw new Error(`${file} not indexed`)
       return

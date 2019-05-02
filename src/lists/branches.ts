@@ -72,7 +72,7 @@ export default class Branches implements IList {
       throw new Error(`Can't resolve git root.`)
       return
     }
-    let output = await runCommand('git branch --no-color -a', { cwd: root })
+    let output = await runCommand(`git branch --no-color -a ${context.args.join(' ')}`, { cwd: root })
     output = output.replace(/\s+$/, '')
     for (let line of output.split(/\r?\n/)) {
       let remote = line.slice(2).startsWith('remotes/')

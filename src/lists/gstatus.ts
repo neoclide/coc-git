@@ -132,7 +132,7 @@ export default class GStatus extends BasicList {
       throw new Error(`Can't resolve git root.`)
       return
     }
-    let output = await runCommand('git status --porcelain -uall', { cwd: root })
+    let output = await runCommand(`git status --porcelain -uall ${context.args.join(' ')}`, { cwd: root })
     output = output.replace(/\s+$/, '')
     if (!output) return []
     // let root = this.manager.refreshStatus
