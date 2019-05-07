@@ -3,7 +3,7 @@ import { ansiparse, BasicList, ListAction, ListContext, ListTask, Neovim } from 
 import { EventEmitter } from 'events'
 import readline from 'readline'
 import Manager from '../manager'
-import { runCommandWithData, runCommand } from '../util'
+import { showEmptyPreview, runCommandWithData, runCommand } from '../util'
 
 class CommitsTask extends EventEmitter implements ListTask {
   private process: ChildProcess
@@ -25,11 +25,13 @@ class CommitsTask extends EventEmitter implements ListTask {
       let res = ansiparse(line)
       let idx = res.findIndex(o => o.foreground == 'yellow')
       let message = idx == -1 ? null : res[idx + 1].text
+      let item = res.find(o => o.foreground == 'red' && o.text.length > 4)
+      let commit = item ? item.text : ''
       this.emit('data', {
         label: line,
         data: {
+          commit,
           root: this.root,
-          commit: res.length > 5 ? res[1].text : null,
           message: message ? message.trim() : null
         }
       })
@@ -55,15 +57,15 @@ export default class Commits extends BasicList {
   constructor(nvim: Neovim, private manager: Manager) {
     super(nvim)
     this.addAction('preview', async (item, context) => {
+      let winid = context.listWindow.id
+      let mod = context.options.position == 'top' ? 'below' : 'above'
       let { commit, root } = item.data
       if (!commit) {
-        await nvim.command('pclose')
+        await showEmptyPreview(mod, winid)
         return
       }
       let content = await runCommand(`git --no-pager show ${commit}`, { cwd: root })
       let lines = content.replace(/\n$/, '').split('\n')
-      let winid = context.listWindow.id
-      let mod = context.options.position == 'top' ? 'below' : 'above'
       nvim.pauseNotification()
       nvim.command('pclose', true)
       nvim.command(`${mod} ${this.previewHeight}sp +setl\\ previewwindow [commit ${commit}]`, true)

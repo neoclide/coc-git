@@ -10,6 +10,18 @@ export async function safeRun(cmd: string, opts: ExecOptions = {}): Promise<stri
   }
 }
 
+export async function showEmptyPreview(mod: string, winid: number): Promise<void> {
+  let { nvim } = workspace
+  nvim.pauseNotification()
+  nvim.command('pclose', true)
+  nvim.command(`${mod} 1new +setl\\ previewwindow`, true)
+  nvim.command('setl winfixheight buftype=nofile foldmethod=syntax foldenable', true)
+  nvim.command('setl nobuflisted bufhidden=wipe', true)
+  nvim.command('setf git', true)
+  nvim.call('win_gotoid', [winid], true)
+  await nvim.resumeNotification()
+}
+
 export function spawnCommand(cmd: string, args: string[], cwd: string): Promise<string> {
   const cp = spawn(cmd, args, { cwd })
   let res = ''

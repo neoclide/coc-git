@@ -48,7 +48,7 @@ export default class GStatus extends BasicList {
       try {
         await nvim.command(`Gcommit -v ${filesArg}`)
       } catch (e) {
-        workspace.showMessage(`Gcommit command failed, make sure fugitive installed.`)
+        workspace.showMessage(`Gcommit command failed, make sure fugitive installed.`, 'error')
       }
     })
 
