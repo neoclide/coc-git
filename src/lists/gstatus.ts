@@ -82,21 +82,18 @@ export default class GStatus extends BasicList {
 
     // preview the diff
     this.addAction('preview', async (item, context) => {
-      let { index_symbol, tree_symbol, root, relative } = item.data
-      if (index_symbol != 'M' && tree_symbol != 'M') {
-        // unable to diff
-        await nvim.command('pclose')
+      let { tree_symbol, root, relative } = item.data
+      if (tree_symbol != 'M') {
+        await this.previewLocation({
+          uri: Uri.file(path.join(root, relative)).toString(),
+          range: {
+            start: { line: 0, character: 0 },
+            end: { line: 0, character: 0 }
+          }
+        }, context)
         return
       }
-      let diffCached = false
-      if (index_symbol == 'M' && tree_symbol == 'M') {
-        let confirmed = await workspace.showPrompt(`Diff cached?`)
-        if (!confirmed) diffCached = false
-      } else if (index_symbol == 'M') {
-        diffCached = true
-      }
       let args = ['--no-pager', 'diff']
-      if (diffCached) args.push('--cached')
       let winid = context.listWindow.id
       let cmd = `git ${args.join(' ')} ${relative}`
       let content = await runCommand(cmd, { cwd: root })
