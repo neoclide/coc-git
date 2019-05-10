@@ -53,6 +53,7 @@ export default class Commits extends BasicList {
   public readonly description = 'Commits of current project.'
   public readonly defaultAction = 'show'
   public actions: ListAction[] = []
+  private cachedCommits: Map<string, string[]> = new Map()
 
   constructor(nvim: Neovim, private manager: Manager) {
     super(nvim)
@@ -64,8 +65,12 @@ export default class Commits extends BasicList {
         await showEmptyPreview(mod, winid)
         return
       }
-      let content = await runCommand(`git --no-pager show ${commit}`, { cwd: root })
-      let lines = content.replace(/\n$/, '').split('\n')
+      let lines = this.cachedCommits.get(commit)
+      if (!lines) {
+        let content = await runCommand(`git --no-pager show ${commit}`, { cwd: root })
+        lines = content.replace(/\n$/, '').split(/\r?\n/)
+        this.cachedCommits.set(commit, lines)
+      }
       nvim.pauseNotification()
       nvim.command('pclose', true)
       nvim.command(`${mod} ${this.previewHeight}sp +setl\\ previewwindow [commit ${commit}]`, true)
@@ -85,8 +90,12 @@ export default class Commits extends BasicList {
       if (hasFugitive) {
         await nvim.command(`Gedit ${commit}`)
       } else {
-        let content = await runCommand(`git --no-pager show ${commit}`, { cwd: root })
-        let lines = content.trim().split('\n')
+        let lines = this.cachedCommits.get(commit)
+        if (!lines) {
+          let content = await runCommand(`git --no-pager show ${commit}`, { cwd: root })
+          lines = content.replace(/\n$/, '').split(/\r?\n/)
+          this.cachedCommits.set(commit, lines)
+        }
         nvim.pauseNotification()
         nvim.command(`edit +setl\\ buftype=nofile [commit ${commit}]`, true)
         nvim.command('setl foldmethod=syntax nobuflisted bufhidden=wipe', true)
@@ -140,7 +149,6 @@ export default class Commits extends BasicList {
       } else {
         arg = `${list[1].data.commit} ${list[0].data.commit}`
       }
-      // await runCommand
       let content = await runCommand(`git --no-pager diff ${arg}`, { cwd: list[0].data.root })
       let lines = content.replace(/\n$/, '').split('\n')
       let winid = context.listWindow.id
