@@ -1,6 +1,7 @@
 import { Document, Uri, Disposable, Documentation, FloatFactory, Neovim, workspace, WorkspaceConfiguration, disposeAll } from 'coc.nvim'
 import { gitStatus } from './status'
 import path from 'path'
+import { getUrl } from './helper'
 import { getDiff } from './diff'
 import Resolver from './resolver'
 import { ChangeType, Diff, SignInfo } from './types'
@@ -311,6 +312,57 @@ export default class DocumentManager {
     output = await spawnCommand('git', ['--no-pager', 'show', commit], root)
     output = output.replace(/\s+$/, '')
     await this.showDoc(output, 'git')
+  }
+
+  public async browserOpen(action = 'open'): Promise<void> {
+    let { nvim } = this
+    let bufnr = await nvim.call('bufnr', '%')
+    let root = await this.resolveGitRoot(bufnr)
+    if (!root) {
+      workspace.showMessage(`not a git repository.`, 'warning')
+      return
+    }
+    // get remote list
+    let output = await safeRun('git remote', { cwd: root })
+    if (!output.trim()) {
+      workspace.showMessage(`No remote found`, 'warning')
+      return
+    }
+    let head = await safeRun('git symbolic-ref --short -q HEAD', { cwd: root })
+    head = head.trim()
+    if (!head.length) {
+      workspace.showMessage(`Failed on git symbolic-ref`, 'warning')
+      return
+    }
+    let line = await nvim.eval('line(".")') as number
+    let fullpath = await nvim.eval('expand("%:p")') as string
+    let relpath = path.relative(root, fullpath)
+    let names = output.trim().split(/\r?\n/)
+    let urls: string[] = []
+    for (let name of names) {
+      let uri = await safeRun(`git remote get-url ${name}`, { cwd: root })
+      if (!uri.length) continue
+      let url = getUrl(uri, head, relpath, line)
+      if (url) urls.push(url)
+    }
+    if (urls.length == 1) {
+      if (action == 'open') {
+        nvim.call('coc#util#open_url', [urls[0]], true)
+      } else {
+        nvim.command(`let @+ = '${urls[0]}'`, true)
+        workspace.showMessage('Copied url to clipboard')
+      }
+    } else if (urls.length > 1) {
+      let idx = await workspace.showQuickpick(urls, 'Select url:')
+      if (idx >= 0) {
+        if (action == 'open') {
+          nvim.call('coc#util#open_url', [urls[idx]], true)
+        } else {
+          nvim.command(`let @+ = '${urls[idx]}'`, true)
+          workspace.showMessage('Copied url to clipboard')
+        }
+      }
+    }
   }
 
   public dispose(): void {

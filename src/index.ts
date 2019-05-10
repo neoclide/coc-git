@@ -86,6 +86,14 @@ export async function activate(context: ExtensionContext): Promise<void> {
     await manager.showCommit()
   }))
 
+  subscriptions.push(commands.registerCommand('git.browserOpen', async () => {
+    await manager.browserOpen()
+  }))
+
+  subscriptions.push(commands.registerCommand('git.copyUrl', async () => {
+    await manager.browserOpen('copy')
+  }))
+
   subscriptions.push(listManager.registerList(new GStatus(nvim, manager)))
   subscriptions.push(listManager.registerList(new Branches(nvim, manager)))
   subscriptions.push(listManager.registerList(new Commits(nvim, manager)))

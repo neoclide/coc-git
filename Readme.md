@@ -71,6 +71,8 @@ set statusline^=%{get(g:,'coc_git_status','')}%{get(b:,'coc_git_status','')}
 
 - For `stage` and `undo` action of current chunk, open command list by
   `:CocCommand`, filter list by type `git`, select action by type `<CR>`.
+- Use `:CocCommand git.browserOpen` to open current line in your browser.
+  Support github only for now.
 
 ### Work with git lists
 
