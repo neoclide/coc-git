@@ -77,7 +77,8 @@ export async function getDiff(root: string, doc: Document): Promise<Diff[]> {
   let file = path.relative(root, fsPath)
   let res = await safeRun(`git --no-pager show :${file}`, { cwd: root })
   if (res == null) return null
-  await util.promisify(fs.writeFile)(stagedFile, res, 'utf8')
+  let staged = res.replace(/\r?\n$/, '').split(/\r?\n/).join('\n')
+  await util.promisify(fs.writeFile)(stagedFile, staged + '\n', 'utf8')
   await util.promisify(fs.writeFile)(currentFile, doc.getDocumentContent(), 'utf8')
   let output = await getStdout(`git --no-pager diff -p -U0 --no-color ${stagedFile} ${currentFile}`)
   if (!output) return null

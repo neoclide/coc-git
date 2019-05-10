@@ -94,6 +94,10 @@ export async function activate(context: ExtensionContext): Promise<void> {
     await manager.browserOpen('copy')
   }))
 
+  subscriptions.push(commands.registerCommand('git.diffCached', async () => {
+    await manager.diffCached()
+  }))
+
   subscriptions.push(listManager.registerList(new GStatus(nvim, manager)))
   subscriptions.push(listManager.registerList(new Branches(nvim, manager)))
   subscriptions.push(listManager.registerList(new Commits(nvim, manager)))

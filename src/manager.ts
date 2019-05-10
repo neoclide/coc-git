@@ -309,9 +309,8 @@ export default class DocumentManager {
       await this.showDoc('not committed yet!', 'txt')
       return
     }
-    output = await spawnCommand('git', ['--no-pager', 'show', commit], root)
-    output = output.replace(/\s+$/, '')
-    await this.showDoc(output, 'git')
+    await nvim.command('keepalt above sp')
+    await nvim.command(`Gedit ${commit}`)
   }
 
   public async browserOpen(action = 'open'): Promise<void> {
@@ -341,6 +340,7 @@ export default class DocumentManager {
     let urls: string[] = []
     for (let name of names) {
       let uri = await safeRun(`git remote get-url ${name}`, { cwd: root })
+      uri = uri.replace(/\s+$/, '')
       if (!uri.length) continue
       let url = getUrl(uri, head, relpath, line)
       if (url) urls.push(url)
@@ -363,6 +363,29 @@ export default class DocumentManager {
         }
       }
     }
+  }
+
+  public async diffCached(): Promise<void> {
+    let { nvim } = this
+    let bufnr = await nvim.call('bufnr', '%')
+    let root = await this.resolveGitRoot(bufnr)
+    if (!root) {
+      workspace.showMessage(`not a git repository.`, 'warning')
+      return
+    }
+    let res = await safeRun(`git diff --cached`, { cwd: root })
+    if (!res.trim()) {
+      workspace.showMessage('Empty diff')
+      return
+    }
+    nvim.pauseNotification()
+    nvim.command(`keepalt above new +setl\\ previewwindow`, true)
+    nvim.call('append', [0, res.split(/\r?\n/)], true)
+    nvim.command('normal! Gdd', true)
+    nvim.command(`exe 1`, true)
+    nvim.command('setfiletype git', true)
+    nvim.command('setl buftype=nofile nomodifiable bufhidden=wipe nobuflisted', true)
+    await nvim.resumeNotification()
   }
 
   public dispose(): void {

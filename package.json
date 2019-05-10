@@ -20,6 +20,36 @@
     "*"
   ],
   "contributes": {
+    "commands": [
+      {
+        "title": "Show chunk info under cursor",
+        "command": "git.chunkInfo"
+      },
+      {
+        "title": "Stage current chunk.",
+        "command": "git.chunkStage"
+      },
+      {
+        "title": "Undo current chunk.",
+        "command": "git.chunkUndo"
+      },
+      {
+        "title": "Show commit of current chunk.",
+        "command": "git.showCommit"
+      },
+      {
+        "title": "Open current line in browser, github url supported.",
+        "command": "git.browserOpen"
+      },
+      {
+        "title": "Copy url of current line to clipboard, github url supported.",
+        "command": "git.copyUrl"
+      },
+      {
+        "title": "Show cached diff in preview window.",
+        "command": "git.diffCached"
+      }
+    ],
     "configuration": {
       "type": "object",
       "properties": {
