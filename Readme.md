@@ -55,14 +55,18 @@ If you're not using statusline plugin, you can add them to statusline by:
 set statusline^=%{get(g:,'coc_git_status','')}%{get(b:,'coc_git_status','')}
 ```
 
-### Work with chunks of current buffer
+### Keymaps and commands
 
-- Create keymap for chunk jump and chunk information like:
+- Create keymappings like:
 
   ```vim
+  " navigate chunks of current buffer
   nmap [g <Plug>(coc-git-prevchunk)
   nmap ]g <Plug>(coc-git-nextchunk)
+  " show chunk diff at current position
   nmap gs <Plug>(coc-git-chunkinfo)
+  " show commit ad current position
+  nmap gc <Plug>(coc-git-commit)
   ```
 
 - For `stage` and `undo` action of current chunk, open command list by

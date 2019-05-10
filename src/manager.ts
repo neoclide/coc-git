@@ -4,7 +4,7 @@ import path from 'path'
 import { getDiff } from './diff'
 import Resolver from './resolver'
 import { ChangeType, Diff, SignInfo } from './types'
-import { runCommandWithData } from './util'
+import { runCommandWithData, safeRun, spawnCommand } from './util'
 
 export default class DocumentManager {
   private cachedDiffs: Map<number, Diff[]> = new Map()
@@ -96,20 +96,23 @@ export default class DocumentManager {
     })
   }
 
+  public async showDoc(content: string, filetype = 'diff'): Promise<void> {
+    if (workspace.env.floating) {
+      let docs: Documentation[] = [{ content, filetype }]
+      await this.floatFactory.create(docs, false)
+    } else {
+      const lines = ['``` ' + filetype]
+      lines.push(...content.split('\n'))
+      lines.push('```')
+      this.nvim.call('coc#util#preview_info', [lines], true)
+    }
+  }
+
   public async chunkInfo(): Promise<void> {
     let diff = await this.getCurrentChunk()
-    let { nvim } = this
     if (diff) {
-      if (workspace.env.floating) {
-        let docs: Documentation[] = [{ content: diff.head + '\n' + diff.lines.join('\n'), filetype: 'diff' }]
-        await this.floatFactory.create(docs, false)
-      } else {
-        const lines = ['``` diff']
-        lines.push(diff.head)
-        lines.push(...diff.lines)
-        lines.push('```')
-        nvim.call('coc#util#preview_info', [lines], true)
-      }
+      let content = diff.head + '\n' + diff.lines.join('\n')
+      await this.showDoc(content, 'diff')
     }
   }
 
@@ -277,6 +280,37 @@ export default class DocumentManager {
         strictIndexing: false
       })
     }
+  }
+
+  // show commit of current line in floating window
+  public async showCommit(): Promise<void> {
+    let { nvim } = this
+    let bufnr = await nvim.call('bufnr', '%')
+    let root = await this.resolveGitRoot(bufnr)
+    if (!root) {
+      workspace.showMessage(`not a git repository.`, 'warning')
+      return
+    }
+    let fullpath = await nvim.eval('expand("%:p")') as string
+    let relpath = path.relative(root, fullpath)
+    let res = await safeRun(`git ls-files -- ${relpath}`, { cwd: root })
+    if (!res.length) {
+      workspace.showMessage(`"${relpath}" not indexed.`, 'warning')
+      return
+    }
+    let line = await nvim.eval('line(".")') as number
+    let args = ['--no-pager', 'blame', '-l', '--root', '-t', `-L${line},${line}`, relpath]
+    let output = await spawnCommand('git', args, root)
+    output = output.trim()
+    if (!output.length) return
+    let commit = output.match(/^\S+/)[0]
+    if (/^0+$/.test(commit)) {
+      await this.showDoc('not committed yet!', 'txt')
+      return
+    }
+    output = await spawnCommand('git', ['--no-pager', 'show', commit], root)
+    output = output.replace(/\s+$/, '')
+    await this.showDoc(output, 'git')
   }
 
   public dispose(): void {

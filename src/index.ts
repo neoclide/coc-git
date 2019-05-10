@@ -56,15 +56,19 @@ export async function activate(context: ExtensionContext): Promise<void> {
 
   subscriptions.push(workspace.registerKeymap(['n'], 'git-nextchunk', async () => {
     await manager.nextChunk()
-  }))
+  }, { sync: false }))
 
   subscriptions.push(workspace.registerKeymap(['n'], 'git-prevchunk', async () => {
     await manager.prevChunk()
-  }))
+  }, { sync: false }))
 
   subscriptions.push(workspace.registerKeymap(['n'], 'git-chunkinfo', async () => {
     await manager.chunkInfo()
-  }))
+  }, { sync: false }))
+
+  subscriptions.push(workspace.registerKeymap(['n'], 'git-commit', async () => {
+    await manager.showCommit()
+  }, { sync: false }))
 
   subscriptions.push(commands.registerCommand('git.chunkInfo', async () => {
     await manager.chunkInfo()
@@ -76,6 +80,10 @@ export async function activate(context: ExtensionContext): Promise<void> {
 
   subscriptions.push(commands.registerCommand('git.chunkUndo', async () => {
     await manager.chunkUndo()
+  }))
+
+  subscriptions.push(commands.registerCommand('git.showCommit', async () => {
+    await manager.showCommit()
   }))
 
   subscriptions.push(listManager.registerList(new GStatus(nvim, manager)))

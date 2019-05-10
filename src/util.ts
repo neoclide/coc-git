@@ -76,7 +76,7 @@ export function runCommand(cmd: string, opts: ExecOptions = {}, timeout?: number
         reject(new Error(`exited with ${err.code}\n${stderr}`))
         return
       }
-      resolve(stdout)
+      resolve(stdout.replace(/\s+$/, ''))
     })
   })
 }
