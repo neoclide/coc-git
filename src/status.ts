@@ -45,14 +45,22 @@ async function gitUntracked(cwd: string): Promise<number> {
   return out.split('\n').length
 }
 
-export async function gitStatus(cwd: string, character: string): Promise<string> {
+interface Decorator {
+  changedDecorator: string
+  conflictedDecorator: string
+  stagedDecorator: string
+  untrackedDecorator: string
+}
+
+export async function gitStatus(cwd: string, character: string, decorator: Decorator): Promise<string> {
   let res = await Promise.all([gitBranch(cwd), gitChanged(cwd), gitStaged(cwd), gitUntracked(cwd)])
   if (!res[0]) return ''
   let [branch, changed, staged, untracked] = res
   let more = ''
-  if (changed) more += '+'
-  if (staged[0]) more += 'x'
-  if (staged[1]) more += '●'
-  if (untracked) more += '…'
-  return `  ${character ? character + ' ' : ''}${branch}${more == '' ? ' ' : ' ' + more + ' '}`
+  const { changedDecorator, conflictedDecorator, stagedDecorator, untrackedDecorator } = decorator
+  if (changed) more += changedDecorator
+  if (staged[0]) more += conflictedDecorator
+  if (staged[1]) more += stagedDecorator
+  if (untracked) more += untrackedDecorator
+  return `  ${character ? character + ' ' : ''}${branch}${more == '' ? ' ' : more + ' '}`
 }
