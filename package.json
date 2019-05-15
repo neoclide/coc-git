@@ -63,6 +63,26 @@
           "default": "",
           "description": "Branch character used with g:coc_git_branch"
         },
+        "git.changedDecorator": {
+          "type": "string",
+          "default": "*",
+          "description": "Git changed decorator used with g:coc_git_branch"
+        },
+        "git.conflictedDecorator": {
+          "type": "string",
+          "default": "x",
+          "description": "Git conflicted decorator used with g:coc_git_branch"
+        },
+        "git.stagedDecorator": {
+          "type": "string",
+          "default": "●",
+          "description": "Git staged decorator used with g:coc_git_branch"
+        },
+        "git.untrackedDecorator": {
+          "type": "string",
+          "default": "…",
+          "description": "Git untracked decorator used with g:coc_git_branch"
+        },
         "git.enableGutters": {
           "type": "boolean",
           "default": true,

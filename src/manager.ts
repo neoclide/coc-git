@@ -67,7 +67,16 @@ export default class DocumentManager {
     if (!root) {
       nvim.setVar('coc_git_status', '', true)
     } else {
-      let status = await gitStatus(root, character)
+      const changedDecorator = this.config.get<string>('changedDecorator', '*')
+      const conflictedDecorator = this.config.get<string>('conflictedDecorator', 'x')
+      const stagedDecorator = this.config.get<string>('stagedDecorator', '●')
+      const untrackedDecorator = this.config.get<string>('untrackedDecorator', '…')
+      let status = await gitStatus(root, character, {
+        changedDecorator,
+        conflictedDecorator,
+        stagedDecorator,
+        untrackedDecorator,
+      })
       if (workspace.bufnr != bufnr) return
       nvim.setVar('coc_git_status', status, true)
     }
