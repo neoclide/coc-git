@@ -5,7 +5,7 @@ import { getUrl } from './helper'
 import { getDiff } from './diff'
 import Resolver from './resolver'
 import { ChangeType, Diff, SignInfo } from './types'
-import { runCommandWithData, safeRun, spawnCommand } from './util'
+import { runCommand, runCommandWithData, safeRun, spawnCommand } from './util'
 
 export default class DocumentManager {
   private cachedDiffs: Map<number, Diff[]> = new Map()
@@ -319,7 +319,22 @@ export default class DocumentManager {
       return
     }
     await nvim.command('keepalt above sp')
-    await nvim.command(`Gedit ${commit}`)
+
+    let hasFugitive = await nvim.getVar('loaded_fugitive')
+    if (hasFugitive) {
+      await nvim.command(`Gedit ${commit}`)
+    } else {
+      let content = await runCommand(`git --no-pager show ${commit}`, { cwd: root })
+      let lines = content.trim().split('\n')
+      nvim.pauseNotification()
+      nvim.command(`edit +setl\\ buftype=nofile [commit ${commit}]`, true)
+      nvim.command('setl foldmethod=syntax nobuflisted bufhidden=wipe', true)
+      nvim.command('setf git', true)
+      nvim.call('append', [0, lines], true)
+      nvim.command('normal! Gdd', true)
+      nvim.command(`exe 1`, true)
+      await nvim.resumeNotification()
+    }
   }
 
   public async browserOpen(action = 'open'): Promise<void> {
