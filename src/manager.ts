@@ -1,4 +1,4 @@
-import { Document, Uri, Disposable, Documentation, FloatFactory, Neovim, workspace, WorkspaceConfiguration, disposeAll } from 'coc.nvim'
+import { Document, events, Uri, Disposable, Documentation, FloatFactory, Neovim, workspace, WorkspaceConfiguration, disposeAll } from 'coc.nvim'
 import { gitStatus } from './status'
 import path from 'path'
 import { getUrl } from './helper'
@@ -6,6 +6,7 @@ import { getDiff } from './diff'
 import Resolver from './resolver'
 import { ChangeType, Diff, SignInfo } from './types'
 import { runCommand, runCommandWithData, safeRun, spawnCommand } from './util'
+import debounce from 'debounce'
 
 interface FoldSettings {
   foldmethod: string
@@ -21,6 +22,8 @@ export default class DocumentManager {
   private floatFactory: FloatFactory
   private config: WorkspaceConfiguration
   private disposables: Disposable[] = []
+  private virtualTextSrcId: number
+  private curseMoveTs: number
   constructor(
     private nvim: Neovim,
     private resolver: Resolver
@@ -36,6 +39,43 @@ export default class DocumentManager {
       // tslint:disable-next-line: no-console
       console.error(e)
     })
+    let blame = this.config.get<boolean>('addGlameToVirtualText', false)
+    if (blame && workspace.isNvim) {
+      nvim.createNamespace('coc-git').then(srcId => {
+        this.virtualTextSrcId = srcId
+      }, _e => {
+        // noop
+      })
+      events.on('CursorHold', this.showBlameInfo, this, this.disposables)
+      events.on('CursorMoved', () => {
+        this.curseMoveTs = Date.now()
+      }, null, this.disposables)
+    }
+  }
+
+  private async showBlameInfo(bufnr: number): Promise<void> {
+    let { virtualTextSrcId, nvim } = this
+    if (!virtualTextSrcId) return
+    let ts = Date.now()
+    let blame = this.config.get<boolean>('addGlameToVirtualText', false)
+    if (!blame) return
+    let doc = workspace.getDocument(bufnr)
+    if (!doc || doc.schema != 'file' || doc.isIgnored) return
+    let root = await this.resolveGitRoot(bufnr)
+    if (!root || this.curseMoveTs > ts) return
+    let lnum = await nvim.call('line', '.')
+    let filepath = Uri.parse(doc.uri).fsPath
+    let relpath = path.relative(root, filepath)
+    let res = await safeRun(`git --no-pager blame -b --root -L${lnum},${lnum} --date relative ${relpath}`)
+    if (!res) return
+    let match = res.split(/\r?\n/)[0].match(/^\w+\s\((.+?)\s*\d+\)/)
+    if (!match) return
+    if (workspace.insertMode || this.curseMoveTs > ts) return
+    let buffer = nvim.createBuffer(bufnr)
+    let modified = await buffer.getOption('modified')
+    if (modified) return
+    await nvim.request('nvim_buf_clear_namespace', [buffer, virtualTextSrcId, 0, -1])
+    await buffer.setVirtualText(virtualTextSrcId, lnum - 1, [[match[1], 'CocCodeLens']])
   }
 
   private get signOffset(): number {
