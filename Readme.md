@@ -84,6 +84,7 @@ set statusline^=%{get(g:,'coc_git_status','')}%{get(b:,'coc_git_status','')}
   `:CocCommand`, filter list by type `git`, select action by type `<CR>`.
 - Use `:CocCommand git.browserOpen` to open current line in your browser.
   Support github only for now.
+- Use `:CocCommand git.toggleGutters` to enable/disable gutters.
 
 ### Work with git lists
 

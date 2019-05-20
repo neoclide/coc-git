@@ -102,6 +102,10 @@ export async function activate(context: ExtensionContext): Promise<void> {
     await manager.toggleGutters()
   }))
 
+  subscriptions.push(commands.registerCommand('git.foldUnchanged', async () => {
+    await manager.toggleFold()
+  }))
+
   subscriptions.push(listManager.registerList(new GStatus(nvim, manager)))
   subscriptions.push(listManager.registerList(new Branches(nvim, manager)))
   subscriptions.push(listManager.registerList(new Commits(nvim, manager)))
