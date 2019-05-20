@@ -100,7 +100,7 @@
         },
         "git.changedSign.hlGroup": {
           "type": "string",
-          "default": "GruvboxAquaSign",
+          "default": "DiffChange",
           "description": "Highlight group for changed sign."
         },
         "git.addedSign.text": {
@@ -110,7 +110,7 @@
         },
         "git.addedSign.hlGroup": {
           "type": "string",
-          "default": "GruvboxGreenSign",
+          "default": "DiffAdd",
           "description": "Highlight group for added sign."
         },
         "git.removedSign.text": {
@@ -120,7 +120,7 @@
         },
         "git.removedSign.hlGroup": {
           "type": "string",
-          "default": "GruvboxRedSign",
+          "default": "DiffDelete",
           "description": "Highlight group for removed sign."
         },
         "git.topRemovedSign.text": {
@@ -130,7 +130,7 @@
         },
         "git.topRemovedSign.hlGroup": {
           "type": "string",
-          "default": "GruvboxRedSign",
+          "default": "DiffDelete",
           "description": "Highlight group for top removed sign."
         },
         "git.changeRemovedSign.text": {
@@ -140,7 +140,7 @@
         },
         "git.changeRemovedSign.hlGroup": {
           "type": "string",
-          "default": "GruvboxPurpleSign",
+          "default": "DiffChange",
           "description": "Highlight group for change removed sign."
         }
       }

@@ -32,15 +32,26 @@ In your vim/neovim, run command:
 - `git.enableGutters`:Enable gutters in sign column., default: `true`
 - `git.signOffset`:Start offset of sign gutter, change to higher value to prevent overwrite by other plugin., default: `99`
 - `git.changedSign.text`:Text of changed sign., default: `"~"`
-- `git.changedSign.hlGroup`:Highlight group for changed sign., default: `"GruvboxAquaSign"`
+- `git.changedSign.hlGroup`:Highlight group for changed sign., default: `"DiffChange"`
 - `git.addedSign.text`:Text of added sign., default: `"+"`
-- `git.addedSign.hlGroup`:Highlight group for added sign., default: `"GruvboxGreenSign"`
+- `git.addedSign.hlGroup`:Highlight group for added sign., default: `"DiffAdd"`
 - `git.removedSign.text`:Text of removed sign., default: `"_"`
-- `git.removedSign.hlGroup`:Highlight group for removed sign., default: `"GruvboxRedSign"`
+- `git.removedSign.hlGroup`:Highlight group for removed sign., default: `"DiffDelete"`
 - `git.topRemovedSign.text`:Text of top removed sign., default: `"‾"`
-- `git.topRemovedSign.hlGroup`:Highlight group for top removed sign., default: `"GruvboxRedSign"`
+- `git.topRemovedSign.hlGroup`:Highlight group for top removed sign., default: `"DiffDelete"`
 - `git.changeRemovedSign.text`:Text of change removed sign., default: `"≃"`
-- `git.changeRemovedSign.hlGroup`:Highlight group for change removed sign., default: `"GruvboxPurpleSign"`
+- `git.changeRemovedSign.hlGroup`:Highlight group for change removed sign., default: `"DiffDelete"`
+
+**Note** for user from [vim-gitgutter](https://github.com/airblade/vim-gitgutte),
+if your have highlight groups defined for vim-gitgutter, you can use:
+
+```json
+"git.addedSign.hlGroup": "GitGutterAdd",
+"git.changedSign.hlGroup": "GitGutterChange",
+"git.removedSign.hlGroup": "GitGutterDelete",
+"git.topRemovedSign.hlGroup": "GitGutterDelete",
+"git.changeRemovedSign.hlGroup": "GitGutterChangeDelete",
+```
 
 ## Usage
 
