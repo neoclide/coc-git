@@ -54,6 +54,29 @@ export default class DocumentManager {
     }
   }
 
+  public async toggleGutters(): Promise<void> {
+    let enabled = this.enableGutters
+    this.config.update('enableGutters', !enabled, true)
+    if (enabled) {
+      // disable
+      this.nvim.pauseNotification()
+      for (let [bufnr, cached] of this.cachedSigns.entries()) {
+        this.nvim.call('coc#util#unplace_signs', [bufnr, cached.map(o => o.signId)], true)
+        this.cachedSigns.clear()
+      }
+      await this.nvim.resumeNotification()
+    } else {
+      this.cachedDiffs.clear()
+      this.cachedSigns.clear()
+      // enable
+      for (let doc of workspace.documents) {
+        this.diffDocument(doc).catch(_e => {
+          // noop
+        })
+      }
+    }
+  }
+
   public async refreshStatus(): Promise<void> {
     const { nvim, bufnr } = workspace
     const doc = workspace.getDocument(bufnr)

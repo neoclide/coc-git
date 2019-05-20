@@ -81,8 +81,8 @@ export async function getDiff(root: string, doc: Document): Promise<Diff[]> {
   await util.promisify(fs.writeFile)(stagedFile, staged + '\n', 'utf8')
   await util.promisify(fs.writeFile)(currentFile, doc.getDocumentContent(), 'utf8')
   let output = await getStdout(`git --no-pager diff -p -U0 --no-color ${stagedFile} ${currentFile}`)
-  if (!output) return null
   await util.promisify(fs.unlink)(stagedFile)
   await util.promisify(fs.unlink)(currentFile)
+  if (!output) return null
   return parseDiff(output)
 }

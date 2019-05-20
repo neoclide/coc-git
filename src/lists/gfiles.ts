@@ -19,7 +19,6 @@ export default class Gfiles extends BasicList {
       let lines = content.replace(/\n$/, '').split('\n')
       let file = path.relative(root, filepath)
       nvim.pauseNotification()
-      nvim.command(`exe "lcd ".fnameescape('${root}')`, true)
       nvim.command(`exe "edit ".fnameescape('(${branch}) ${file}')`, true)
       nvim.call('append', [0, lines], true)
       nvim.command('normal! Gdd', true)
