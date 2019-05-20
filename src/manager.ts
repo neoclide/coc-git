@@ -357,7 +357,13 @@ export default class DocumentManager {
       workspace.showMessage(`Failed on git symbolic-ref`, 'warning')
       return
     }
-    let line = await nvim.eval('line(".")') as number
+    const mode = await nvim.call('mode') as string
+
+    const lines = (mode.toLowerCase() === 'v') ? [
+      await nvim.eval(`line("'<")`) as number,
+      await nvim.eval(`line(">'")`) as number,
+    ] : [await nvim.eval('line(".")') as number]
+
     let fullpath = await nvim.eval('expand("%:p")') as string
     let relpath = path.relative(root, fullpath)
     let names = output.trim().split(/\r?\n/)
@@ -366,7 +372,7 @@ export default class DocumentManager {
       let uri = await safeRun(`git remote get-url ${name}`, { cwd: root })
       uri = uri.replace(/\s+$/, '')
       if (!uri.length) continue
-      let url = getUrl(uri, head, relpath, line)
+      let url = getUrl(uri, head, relpath, lines)
       if (url) urls.push(url)
     }
     if (urls.length == 1) {
