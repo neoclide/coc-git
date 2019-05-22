@@ -62,5 +62,5 @@ export async function gitStatus(cwd: string, character: string, decorator: Decor
   if (staged[0]) more += conflictedDecorator
   if (staged[1]) more += stagedDecorator
   if (untracked) more += untrackedDecorator
-  return `${character ? character + ' ' : ''}${branch}${more == '' ? ' ' : more}`
+  return `${character ? character + ' ' : ''}${branch}${more == '' ? '' : more}`
 }
