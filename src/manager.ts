@@ -55,6 +55,13 @@ export default class DocumentManager {
       events.on('CursorMoved', () => {
         this.curseMoveTs = Date.now()
       }, null, this.disposables)
+      events.on('InsertEnter', async bufnr => {
+        let { virtualTextSrcId } = this
+        if (virtualTextSrcId) {
+          let buffer = nvim.createBuffer(bufnr)
+          await nvim.request('nvim_buf_clear_namespace', [buffer, virtualTextSrcId, 0, -1])
+        }
+      }, null, this.disposables)
     }
   }
 
