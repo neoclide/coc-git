@@ -40,7 +40,8 @@ export default class DocumentManager {
       console.error(e)
     })
     let blame = this.config.get<boolean>('addGlameToVirtualText', false)
-    if (blame && workspace.isNvim) {
+    let blameVar = this.config.get<boolean>('addGlameToBufferVar', false)
+    if ((blame || blameVar) && workspace.isNvim) {
       nvim.createNamespace('coc-git').then(srcId => {
         this.virtualTextSrcId = srcId
       }, _e => {
@@ -58,7 +59,6 @@ export default class DocumentManager {
     if (!virtualTextSrcId) return
     let ts = Date.now()
     let blame = this.config.get<boolean>('addGlameToVirtualText', false)
-    if (!blame) return
     let doc = workspace.getDocument(bufnr)
     if (!doc || doc.schema != 'file' || doc.isIgnored) return
     let root = await this.resolveGitRoot(bufnr)
@@ -75,7 +75,16 @@ export default class DocumentManager {
     let modified = await buffer.getOption('modified')
     if (modified) return
     await nvim.request('nvim_buf_clear_namespace', [buffer, virtualTextSrcId, 0, -1])
-    await buffer.setVirtualText(virtualTextSrcId, lnum - 1, [[match[1], 'CocCodeLens']])
+    const blameInfo = match[1]
+    doc.buffer.setVar('coc_git_blame', blameInfo, true)
+    if (!blame) return
+    const prefix = this.config.get<string>('virtualTextPrefix', '     ')
+    let logRes = await safeRun(`git --no-pager blame -b -p --root -L${lnum},${lnum} --date relative ${relpath}`)
+    if (!logRes) logRes = ''
+    let line = logRes.split(/\r?\n/).find(l => l.startsWith('summary ')) || ''
+    const commitMsg = blameInfo.includes('Not Committed Yet') ? '' : line.replace('summary ', '')
+    const blameText = `${prefix}${blameInfo}${commitMsg ? ` · ${commitMsg}` : ''}`
+    await buffer.setVirtualText(virtualTextSrcId, lnum - 1, [[blameText, 'CocCodeLens']])
   }
 
   private get signOffset(): number {
