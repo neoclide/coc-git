@@ -66,12 +66,12 @@
         "git.addGlameToVirtualText": {
           "type": "boolean",
           "default": false,
-          "description": "Add git blame infomation to virtual text, require virtual text feature of neovim."
+          "description": "Add git blame information to virtual text, require virtual text feature of neovim."
         },
         "git.addGlameToBufferVar": {
           "type": "boolean",
           "default": false,
-          "description": "Add git blame infomation to b:coc_git_blame."
+          "description": "Add git blame information to b:coc_git_blame."
         },
         "git.branchCharacter": {
           "type": "string",
