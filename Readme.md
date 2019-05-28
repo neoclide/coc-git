@@ -21,6 +21,7 @@ In your vim/neovim, run command:
 
 - Git status of current project, by `g:coc_git_status`.
 - Git status of current buffer, by`b:coc_git_status`.
+- Git status of current line, by`b:coc_git_blame`. useful for statusline.
 - Git related lists, including `gfiles`, `gstatus`, `commits`, `branches` & `bcommits`
 - Keymaps for git chunks, including `<Plug>(coc-git-chunkinfo)` `<Plug>(coc-git-nextchunk)` & `<Plug>(coc-git-prevchunk)` ,
 - Commands for chunks, including `git.chunkInfo` `git.chunkStage` & `git.chunkUndo`
@@ -41,6 +42,11 @@ In your vim/neovim, run command:
 - `git.topRemovedSign.hlGroup`:Highlight group for top removed sign., default: `"DiffDelete"`
 - `git.changeRemovedSign.text`:Text of change removed sign., default: `"≃"`
 - `git.changeRemovedSign.hlGroup`:Highlight group for change removed sign., default: `"DiffDelete"`
+- `git.virtualTextPrefix`:Prefix of git blame information to virtual text, require virtual text feature of neovim. default: `5 <Space>`
+- `git.addGlametoVirtualText`:Add git blame information to virtual text, require virtual text feature of neovim. default: `false`
+- `git.addGlameToBufferVar`:Add git blame information to b:coc_git_blame. default: `false`
+
+more information, see [package.json](https://github.com/neoclide/coc-git/blob/master/package.json)
 
 **Note** for user from [vim-gitgutter](https://github.com/airblade/vim-gitgutte),
 if your have highlight groups defined for vim-gitgutter, you can use:
@@ -59,11 +65,46 @@ if your have highlight groups defined for vim-gitgutter, you can use:
 
 - `g:coc_git_status` including git branch and current project status.
 - `b:coc_git_status` including changed lines of current buffer.
+- `b:coc_git_blame`  including blame info of current line.
+
+.vimrc
+```viml
+" lightline
+let g:lightline = {
+  \ 'active': {
+  \   'left': [
+  \     [ 'mode', 'paste' ],
+  \     [ 'ctrlpmark', 'git', 'diagnostic', 'cocstatus', 'filename', 'method' ]
+  \   ],
+  \   'right':[
+  \     [ 'filetype', 'fileencoding', 'lineinfo', 'percent' ],
+  \     [ 'blame' ]
+  \   ],
+  \ },
+  \ 'component_function': {
+  \   'blame': 'LightlineGitBlame',
+  \ }
+\ }
+
+function! LightlineGitBlame() abort
+  let blame = get(b:, 'coc_git_blame', '')
+  " return blame
+  return winwidth(0) > 120 ? blame : ''
+endfunction
+```
+
+coc-settings.json
+```json
+{
+  "git.addGlameToVirtualText": true,
+  "git.addGlameToBufferVar": true,
+}
+```
 
 If you're not using statusline plugin, you can add them to statusline by:
 
 ```vim
-set statusline^=%{get(g:,'coc_git_status','')}%{get(b:,'coc_git_status','')}
+set statusline^=%{get(g:,'coc_git_status','')}%{get(b:,'coc_git_status','')}%{get(b:,'coc_git_blame','')}
 ```
 
 ### Keymaps and commands
