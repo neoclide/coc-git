@@ -48,6 +48,14 @@
       {
         "title": "Show cached diff in preview window.",
         "command": "git.diffCached"
+      },
+      {
+        "title": "Fold unchanged lines of current buffer.",
+        "command": "git.foldUnchanged"
+      },
+      {
+        "title": "Toggle git gutters in sign column.",
+        "command": "git.toggleGutters"
       }
     ],
     "configuration": {

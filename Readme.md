@@ -128,6 +128,7 @@ set statusline^=%{get(g:,'coc_git_status','')}%{get(b:,'coc_git_status','')}%{ge
 - Use `:CocCommand git.browserOpen` to open current line in your browser.
   Support github only for now.
 - Use `:CocCommand git.toggleGutters` to enable/disable gutters.
+- Use `:CocCommand git.foldUnchanged` to fold unchanged lines.
 
 ### Work with git lists
 
