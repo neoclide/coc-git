@@ -78,7 +78,7 @@ export default class DocumentManager {
     let lnum = await nvim.call('line', '.')
     let filepath = Uri.parse(doc.uri).fsPath
     let relpath = path.relative(root, filepath)
-    let res = await safeRun(`git --no-pager blame -b --root -L${lnum},${lnum} --date relative ${relpath}`)
+    let res = await safeRun(`git --no-pager blame -b --root -L${lnum},${lnum} --date relative ${relpath}`, { cwd: root })
     if (!res) return
     let match = res.split(/\r?\n/)[0].match(/^\w+\s\((.+?)\s*\d+\)/)
     if (!match) return
@@ -93,7 +93,7 @@ export default class DocumentManager {
     if (virtualText) {
       await nvim.request('nvim_buf_clear_namespace', [buffer, virtualTextSrcId, 0, -1])
       const prefix = this.config.get<string>('virtualTextPrefix', '     ')
-      let logRes = await safeRun(`git --no-pager blame -b -p --root -L${lnum},${lnum} --date relative ${relpath}`)
+      let logRes = await safeRun(`git --no-pager blame -b -p --root -L${lnum},${lnum} --date relative ${relpath}`, { cwd: root })
       if (!logRes) logRes = ''
       let line = logRes.split(/\r?\n/).find(l => l.startsWith('summary ')) || ''
       const commitMsg = blameInfo.includes('Not Committed Yet') ? '' : line.replace('summary ', '')
