@@ -65,9 +65,10 @@ if your have highlight groups defined for vim-gitgutter, you can use:
 
 - `g:coc_git_status` including git branch and current project status.
 - `b:coc_git_status` including changed lines of current buffer.
-- `b:coc_git_blame`  including blame info of current line.
+- `b:coc_git_blame` including blame info of current line.
 
 .vimrc
+
 ```viml
 " lightline
 let g:lightline = {
@@ -94,10 +95,11 @@ endfunction
 ```
 
 coc-settings.json
+
 ```json
 {
   "git.addGlameToVirtualText": true,
-  "git.addGlameToBufferVar": true,
+  "git.addGlameToBufferVar": true
 }
 ```
 
@@ -147,7 +149,12 @@ To run a action, press `<tab>` and select the action.
 
 For more advance usage, checkout `:h coc-list`.
 
-## Settings
+## F.A.Q
+
+Q: Virtual text not working.
+
+A: Make sure your neovim support virtual text by command
+`:echo exists('*nvim_buf_set_virtual_text')`.
 
 ## License
 
