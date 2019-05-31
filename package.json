@@ -9,7 +9,7 @@
     "git"
   ],
   "engines": {
-    "coc": "^0.0.66"
+    "coc": "^0.0.68"
   },
   "scripts": {
     "clean": "rimraf lib",

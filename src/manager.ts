@@ -28,7 +28,7 @@ export default class DocumentManager {
     private nvim: Neovim,
     private resolver: Resolver
   ) {
-    this.floatFactory = new FloatFactory(nvim, workspace.env, false, 20, false, 300)
+    this.floatFactory = new FloatFactory(nvim, workspace.env, false, 20, 300)
     this.config = workspace.getConfiguration('git')
     workspace.onDidChangeConfiguration(e => {
       if (e.affectsConfiguration('git')) {
