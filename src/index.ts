@@ -7,6 +7,7 @@ import Branches from './lists/branches'
 import Commits from './lists/commits'
 import Bcommits from './lists/bcommits'
 import Gfiles from './lists/gfiles'
+import addSource from './source'
 
 function emptyFn(): void {
   // noop
@@ -23,6 +24,7 @@ export async function activate(context: ExtensionContext): Promise<void> {
   const { nvim } = workspace
   const resolver = new Resolver()
   const manager = new Manager(nvim, resolver)
+  addSource(context, resolver)
   subscriptions.push(manager)
 
   Promise.all(workspace.documents.map(doc => {

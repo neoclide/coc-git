@@ -27,6 +27,13 @@ export default class Resolver {
     }
     let root = this.getGitRoot(dir)
     if (root) return root
+    let parts = dir.split(path.sep)
+    let idx = parts.indexOf('.git')
+    if (idx !== -1) {
+      let root = parts.slice(0, idx).join(path.sep)
+      this.resolvedRoots.add(root)
+      return root
+    }
     try {
       let res = await runCommand('git rev-parse --show-toplevel', { cwd: dir })
       if (path.isAbsolute(res.trim())) {
