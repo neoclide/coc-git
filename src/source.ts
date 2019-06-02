@@ -35,10 +35,10 @@ export default function addSource(context: ExtensionContext, resolver: Resolver)
     if (res.indexOf('github.com') == -1) return
     let repo: string
     if (res.startsWith('https')) {
-      let ms = res.match(/^https:\/\/github\.com\/(.*)\.git/)
+      let ms = res.match(/^https:\/\/github\.com\/(.*)(\.git)?/)
       repo = ms ? ms[1] : null
     } else if (res.startsWith('git')) {
-      let ms = res.match(/git@github\.com:(.*)\.git/)
+      let ms = res.match(/git@github\.com:(.*)(\.git)?/)
       repo = ms ? ms[1] : null
     }
     if (!repo) return
