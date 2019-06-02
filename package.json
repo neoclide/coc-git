@@ -66,6 +66,11 @@
           "default": "git",
           "description": "Command for git, could be absolute path of git executable."
         },
+        "git.remoteName": {
+          "type": "string",
+          "default": "origin",
+          "description": "Remote name for fetch github issues."
+        },
         "git.virtualTextPrefix": {
           "type": "string",
           "default": "     ",

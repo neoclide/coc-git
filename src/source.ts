@@ -28,7 +28,9 @@ export default function addSource(context: ExtensionContext, resolver: Resolver)
   async function loadIssues(doc: Document): Promise<void> {
     let root = await resolver.resolveGitRoot(doc)
     if (!root) return
-    let res = await safeRun('git remote get-url origin', { cwd: root })
+    let config = workspace.getConfiguration('git')
+    let remoteName = config.get<string>('remoteName', 'origin')
+    let res = await safeRun(`git remote get-url ${remoteName}`, { cwd: root })
     res = res.trim()
     if (res.indexOf('github.com') == -1) return
     let repo: string
