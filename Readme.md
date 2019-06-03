@@ -31,6 +31,7 @@ In your vim/neovim, run command:
 - `git.command`:Command for git, could be absolute path of git executable., default: `"git"`
 - `git.branchCharacter`:Branch character used with g:coc_git_branch, default: `""`
 - `git.enableGutters`:Enable gutters in sign column., default: `true`
+- `git.realtimeGutters`:Change to `false` when you want gutters update only on save, default: `true`.
 - `git.signOffset`:Start offset of sign gutter, change to higher value to prevent overwrite by other plugin., default: `99`
 - `git.changedSign.text`:Text of changed sign., default: `"~"`
 - `git.changedSign.hlGroup`:Highlight group for changed sign., default: `"DiffChange"`

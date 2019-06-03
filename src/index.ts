@@ -31,7 +31,7 @@ export async function activate(context: ExtensionContext): Promise<void> {
     return resolver.resolveGitRoot(doc)
   })).then(() => {
     for (let doc of workspace.documents) {
-      manager.diffDocument(doc).catch(emptyFn)
+      manager.diffDocument(doc, true).catch(emptyFn)
     }
     manager.refreshStatus().catch(emptyFn)
   }, emptyFn)
@@ -39,7 +39,7 @@ export async function activate(context: ExtensionContext): Promise<void> {
   workspace.onDidOpenTextDocument(async e => {
     let doc = workspace.getDocument(e.uri)
     await resolver.resolveGitRoot(doc)
-    await Promise.all([manager.refreshStatus(), manager.diffDocument(doc)])
+    await Promise.all([manager.refreshStatus(), manager.diffDocument(doc, true)])
   }, null, subscriptions)
 
   workspace.onDidChangeTextDocument(async e => {

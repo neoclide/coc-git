@@ -16,6 +16,7 @@ interface FoldSettings {
 export default class DocumentManager {
   private cachedDiffs: Map<number, Diff[]> = new Map()
   private cachedSigns: Map<number, SignInfo[]> = new Map()
+  private currentSigns: Map<number, SignInfo[]> = new Map()
   private foldSettingsMap: Map<number, FoldSettings> = new Map()
   private enabledFolds: Set<number> = new Set()
   private floatFactory: FloatFactory
@@ -23,7 +24,6 @@ export default class DocumentManager {
   private disposables: Disposable[] = []
   private virtualTextSrcId: number
   private curseMoveTs: number
-  private showBlame: boolean
   constructor(
     private nvim: Neovim,
     private resolver: Resolver
@@ -33,18 +33,12 @@ export default class DocumentManager {
     workspace.onDidChangeConfiguration(e => {
       if (e.affectsConfiguration('git')) {
         this.config = workspace.getConfiguration('git')
-        let blame = this.config.get<boolean>('addGlameToVirtualText', false)
-        let blameVar = this.config.get<boolean>('addGlameToBufferVar', false)
-        this.showBlame = blame || blameVar
       }
     }, null, this.disposables)
     this.init().catch(e => {
       // tslint:disable-next-line: no-console
       console.error(e)
     })
-    let blame = this.config.get<boolean>('addGlameToVirtualText', false)
-    let blameVar = this.config.get<boolean>('addGlameToBufferVar', false)
-    this.showBlame = blame || blameVar
     if (this.showBlame && workspace.isNvim) {
       nvim.createNamespace('coc-git').then(srcId => {
         this.virtualTextSrcId = srcId
@@ -63,6 +57,20 @@ export default class DocumentManager {
         }
       }, null, this.disposables)
     }
+    events.on('BufWritePre', async bufnr => {
+      if (!this.enableGutters || this.realtime) return
+      await this.updateGutters(bufnr)
+    }, null, this.disposables)
+  }
+
+  private get showBlame(): boolean {
+    let blame = this.config.get<boolean>('addGlameToVirtualText', false)
+    let blameVar = this.config.get<boolean>('addGlameToBufferVar', false)
+    return blame || blameVar
+  }
+
+  private get realtime(): boolean {
+    return this.config.get<boolean>('realtimeGutters', false)
   }
 
   private async showBlameInfo(bufnr: number): Promise<void> {
@@ -142,7 +150,7 @@ export default class DocumentManager {
       this.cachedSigns.clear()
       // enable
       for (let doc of workspace.documents) {
-        this.diffDocument(doc).catch(_e => {
+        this.diffDocument(doc, true).catch(_e => {
           // noop
         })
       }
@@ -308,7 +316,7 @@ export default class DocumentManager {
     }
   }
 
-  public async diffDocument(doc: Document): Promise<void> {
+  public async diffDocument(doc: Document, init = false): Promise<void> {
     let { nvim } = workspace
     let root = this.resolver.getRootOfDocument(doc)
     if (!root) return
@@ -323,6 +331,7 @@ export default class DocumentManager {
         nvim.call('coc#util#unplace_signs', [bufnr, cached.map(o => o.signId)], true)
         this.cachedSigns.set(bufnr, [])
       }
+      this.currentSigns.set(bufnr, [])
     } else {
       let added = 0
       let changed = 0
@@ -371,19 +380,27 @@ export default class DocumentManager {
       if (changed) items.push(`~${changed}`)
       if (removed) items.push(`-${removed}`)
       let status = '  ' + `${items.join(' ')} `
-      nvim.pauseNotification()
       doc.buffer.setVar('coc_git_status', status, true)
-      if (this.enableGutters) {
-        if (cached) nvim.call('coc#util#unplace_signs', [bufnr, cached.map(o => o.signId)], true)
-        this.cachedSigns.set(bufnr, signs)
-        for (let sign of signs) {
-          let name = this.getSignName(sign.changeType)
-          let cmd = `sign place ${sign.signId} line=${sign.lnum} name=${name} buffer=${bufnr}`
-          nvim.command(cmd, true)
-        }
-      }
-      await nvim.resumeNotification()
+      this.currentSigns.set(bufnr, signs)
+      if (!this.realtime && !init) return
+      await this.updateGutters(bufnr)
     }
+  }
+
+  private async updateGutters(bufnr: number): Promise<void> {
+    if (!this.enableGutters) return
+    let { nvim } = this
+    nvim.pauseNotification()
+    let signs = this.currentSigns.get(bufnr) || []
+    const cached = this.cachedSigns.get(bufnr)
+    if (cached) nvim.call('coc#util#unplace_signs', [bufnr, cached.map(o => o.signId)], true)
+    this.cachedSigns.set(bufnr, signs)
+    for (let sign of signs) {
+      let name = this.getSignName(sign.changeType)
+      let cmd = `sign place ${sign.signId} line=${sign.lnum} name=${name} buffer=${bufnr}`
+      nvim.command(cmd, true)
+    }
+    await nvim.resumeNotification()
   }
 
   private getSignName(changeType: ChangeType | string): string {

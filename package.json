@@ -116,6 +116,11 @@
           "default": true,
           "description": "Enable gutters in sign column."
         },
+        "git.realtimeGutters": {
+          "type": "boolean",
+          "default": true,
+          "description": "Update gutters in realtime, default: true."
+        },
         "git.signOffset": {
           "type": "number",
           "default": 99,
