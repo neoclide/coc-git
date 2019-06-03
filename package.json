@@ -175,6 +175,31 @@
           "type": "string",
           "default": "DiffChange",
           "description": "Highlight group for change removed sign."
+        },
+        "coc.source.issues.enable": {
+          "type": "boolean",
+          "default": true
+        },
+        "coc.source.issues.priority": {
+          "type": "integer",
+          "default": 9
+        },
+        "coc.source.issues.shortcut": {
+          "type": "string",
+          "default": "[I]"
+        },
+        "coc.source.issues.filetypes": {
+          "type": [
+            "array",
+            "null"
+          ],
+          "default": [
+            "gitcommit"
+          ],
+          "description": "Enabled filetypes",
+          "items": {
+            "type": "string"
+          }
         }
       }
     }

@@ -28,24 +28,29 @@ In your vim/neovim, run command:
 
 ## Configuration
 
-- `git.command`:Command for git, could be absolute path of git executable., default: `"git"`
-- `git.branchCharacter`:Branch character used with g:coc_git_branch, default: `""`
-- `git.enableGutters`:Enable gutters in sign column., default: `true`
+- `git.command`:Command for git, could be absolute path of git executable., default: `"git"`.
+- `git.branchCharacter`:Branch character used with g:coc_git_branch, default: `""`.
+- `git.remoteName`: Remote name used for fetch github issues, default: `origin`.
+- `git.enableGutters`:Enable gutters in sign column., default: `true`.
 - `git.realtimeGutters`:Change to `false` when you want gutters update only on save, default: `true`.
-- `git.signOffset`:Start offset of sign gutter, change to higher value to prevent overwrite by other plugin., default: `99`
-- `git.changedSign.text`:Text of changed sign., default: `"~"`
-- `git.changedSign.hlGroup`:Highlight group for changed sign., default: `"DiffChange"`
-- `git.addedSign.text`:Text of added sign., default: `"+"`
-- `git.addedSign.hlGroup`:Highlight group for added sign., default: `"DiffAdd"`
-- `git.removedSign.text`:Text of removed sign., default: `"_"`
-- `git.removedSign.hlGroup`:Highlight group for removed sign., default: `"DiffDelete"`
-- `git.topRemovedSign.text`:Text of top removed sign., default: `"‾"`
-- `git.topRemovedSign.hlGroup`:Highlight group for top removed sign., default: `"DiffDelete"`
-- `git.changeRemovedSign.text`:Text of change removed sign., default: `"≃"`
-- `git.changeRemovedSign.hlGroup`:Highlight group for change removed sign., default: `"DiffDelete"`
-- `git.virtualTextPrefix`:Prefix of git blame information to virtual text, require virtual text feature of neovim. default: `5 <Space>`
-- `git.addGlametoVirtualText`:Add git blame information to virtual text, require virtual text feature of neovim. default: `false`
-- `git.addGlameToBufferVar`:Add git blame information to b:coc_git_blame. default: `false`
+- `git.signOffset`:Start offset of sign gutter, change to higher value to prevent overwrite by other plugin., default: `99`.
+- `git.changedSign.text`:Text of changed sign., default: `"~"`.
+- `git.changedSign.hlGroup`:Highlight group for changed sign., default: `"DiffChange"`.
+- `git.addedSign.text`:Text of added sign., default: `"+"`.
+- `git.addedSign.hlGroup`:Highlight group for added sign., default: `"DiffAdd"`.
+- `git.removedSign.text`:Text of removed sign., default: `"_"`.
+- `git.removedSign.hlGroup`:Highlight group for removed sign., default: `"DiffDelete"`.
+- `git.topRemovedSign.text`:Text of top removed sign., default: `"‾"`.
+- `git.topRemovedSign.hlGroup`:Highlight group for top removed sign., default: `"DiffDelete"`.
+- `git.changeRemovedSign.text`:Text of change removed sign., default: `"≃"`.
+- `git.changeRemovedSign.hlGroup`:Highlight group for change removed sign., default: `"DiffDelete"`.
+- `git.virtualTextPrefix`:Prefix of git blame information to virtual text, require virtual text feature of neovim. default: `5 <Space>`.
+- `git.addGlametoVirtualText`:Add git blame information to virtual text, require virtual text feature of neovim. default: `false`.
+- `git.addGlameToBufferVar`:Add git blame information to b:coc_git_blame. default: `false`.
+- `coc.source.issues.enable` enable github issues completion, default `true`.
+- `coc.source.issues.priority` priority of issues source, default: `9`.
+- `coc.source.issues.shortcut` shortcut of issues source, default: `"I"`.
+- `coc.source.issues.filetypes` filetype list to enable omni source, default: `["gitcommit"]`
 
 more information, see [package.json](https://github.com/neoclide/coc-git/blob/master/package.json)
 

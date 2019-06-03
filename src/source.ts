@@ -35,11 +35,11 @@ export default function addSource(context: ExtensionContext, resolver: Resolver)
     if (res.indexOf('github.com') == -1) return
     let repo: string
     if (res.startsWith('https')) {
-      let ms = res.match(/^https:\/\/github\.com\/(.*)(\.git)?/)
-      repo = ms ? ms[1] : null
+      let ms = res.match(/^https:\/\/github\.com\/(.*)/)
+      repo = ms ? ms[1].replace(/\.git$/, '') : null
     } else if (res.startsWith('git')) {
-      let ms = res.match(/git@github\.com:(.*)(\.git)?/)
-      repo = ms ? ms[1] : null
+      let ms = res.match(/git@github\.com:(.*)/)
+      repo = ms ? ms[1].replace(/\.git$/, '') : null
     }
     if (!repo) return
     const headers = {
@@ -85,21 +85,19 @@ export default function addSource(context: ExtensionContext, resolver: Resolver)
   }, null, subscriptions)
 
   let source: SourceConfig = {
-    name: 'github',
-    shortcut: "I",
-    filetypes: ['gitcommit'],
-    priority: 99,
+    name: 'issues',
     triggerOnly: true,
     triggerCharacters: ['#'],
     async doComplete(opt): Promise<CompleteResult> {
       let issues = issuesMap.get(opt.bufnr)
       if (!issues || issues.length == 0) return null
       return {
+        startcol: opt.col - 1,
         items: issues.map(i => {
           return {
-            word: `${i.id}`,
-            abbr: `#${i.id} ${i.title}`,
-            filterText: i.id + i.title,
+            word: `#${i.id}`,
+            menu: `${i.title} ${this.shortcut}`,
+            filterText: '#' + i.id + i.title,
             sortText: String.fromCharCode(65535 - i.id)
           }
         })
