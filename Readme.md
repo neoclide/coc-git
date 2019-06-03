@@ -22,9 +22,11 @@ In your vim/neovim, run command:
 - Git status of current project, by `g:coc_git_status`.
 - Git status of current buffer, by`b:coc_git_status`.
 - Git status of current line, by`b:coc_git_blame`. useful for statusline.
-- Git related lists, including `gfiles`, `gstatus`, `commits`, `branches` & `bcommits`
+- Git related lists, including `issues`, `gfiles`, `gstatus`, `commits`, `branches` & `bcommits`
 - Keymaps for git chunks, including `<Plug>(coc-git-chunkinfo)` `<Plug>(coc-git-nextchunk)` & `<Plug>(coc-git-prevchunk)` ,
 - Commands for chunks, including `git.chunkInfo` `git.chunkStage` & `git.chunkUndo`
+- Completion support for semantic commit.
+- Completion support for github issues.
 
 ## Configuration
 
