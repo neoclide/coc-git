@@ -1,4 +1,5 @@
-import { listManager, commands, events, ExtensionContext, workspace } from 'coc.nvim'
+import { listManager, languages, commands, events, ExtensionContext, workspace } from 'coc.nvim'
+import { CompletionItem, CompletionItemKind, InsertTextFormat } from 'vscode-languageserver-types'
 import which from 'which'
 import Manager from './manager'
 import Resolver from './resolver'
@@ -8,6 +9,7 @@ import Commits from './lists/commits'
 import Bcommits from './lists/bcommits'
 import Gfiles from './lists/gfiles'
 import addSource from './source'
+import { DEFAULT_TYPES } from './constants'
 
 function emptyFn(): void {
   // noop
@@ -113,4 +115,22 @@ export async function activate(context: ExtensionContext): Promise<void> {
   subscriptions.push(listManager.registerList(new Commits(nvim, manager)))
   subscriptions.push(listManager.registerList(new Bcommits(nvim, manager)))
   subscriptions.push(listManager.registerList(new Gfiles(nvim, manager)))
+  subscriptions.push(languages.registerCompletionItemProvider('semantic-commit', 'Commit', ['gitcommit'], {
+    provideCompletionItems: async (_document, position): Promise<CompletionItem[]> => {
+      if (position.line == 0 && position.character <= 1) {
+        return DEFAULT_TYPES.map(o => {
+          return {
+            label: o.value,
+            kind: CompletionItemKind.Snippet,
+            documentation: { kind: 'plaintext', value: o.name },
+            // detail: o.name,
+            insertTextFormat: InsertTextFormat.Snippet,
+            // tslint:disable-next-line: no-invalid-template-strings
+            insertText: o.value + '(${1:scope}): ' + '${2:commit}\n\n'
+          } as CompletionItem
+        })
+      }
+      return []
+    }
+  }))
 }

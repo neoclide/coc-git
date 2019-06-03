@@ -182,7 +182,7 @@
         },
         "coc.source.commit.priority": {
           "type": "integer",
-          "default": 9
+          "default": 99
         },
         "coc.source.commit.shortcut": {
           "type": "string",
@@ -225,6 +225,7 @@
     "request-light": "^0.2.4",
     "tslib": "^1.9.3",
     "uuid": "^3.3.2",
+    "vscode-languageserver-types": "^3.14.0",
     "which": "^1.3.1"
   }
 }

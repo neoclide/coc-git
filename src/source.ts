@@ -1,5 +1,6 @@
 import { Document, listManager, sources, ExtensionContext, workspace, SourceConfig, CompleteResult, IList, ListItem, ListContext } from 'coc.nvim'
 import { configure as configureHttpRequests, xhr } from 'request-light'
+import { CompletionItemKind, InsertTextFormat } from 'vscode-languageserver-types'
 import colors from 'colors/safe'
 import Resolver from './resolver'
 import { safeRun } from './util'
@@ -100,21 +101,26 @@ export default function addSource(context: ExtensionContext, resolver: Resolver)
 
   let source: SourceConfig = {
     name: 'issues',
-    triggerOnly: true,
     triggerCharacters: ['#'],
     async doComplete(opt): Promise<CompleteResult> {
-      let issues = issuesMap.get(opt.bufnr)
-      logger.debug(issues)
-      if (!issues || issues.length == 0) return null
+      if (opt.triggerCharacter && opt.triggerCharacter == '#') {
+        let issues = issuesMap.get(opt.bufnr)
+        if (!issues || issues.length == 0) return null
+        return {
+          startcol: opt.col - 1,
+          items: issues.map(i => {
+            return {
+              word: `#${i.id}`,
+              menu: `${i.title} ${this.shortcut}`,
+              filterText: '#' + i.id + i.title,
+              sortText: String.fromCharCode(65535 - i.id)
+            }
+          })
+        }
+      }
       return {
-        startcol: opt.col - 1,
-        items: issues.map(i => {
-          return {
-            word: `#${i.id}`,
-            menu: `${i.title} ${this.shortcut}`,
-            filterText: '#' + i.id + i.title,
-            sortText: String.fromCharCode(65535 - i.id)
-          }
+        items: ['BREAK CHANGE: ', 'Closes'].map(s => {
+          return { word: s }
         })
       }
     }
