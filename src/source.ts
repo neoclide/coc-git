@@ -1,5 +1,6 @@
-import { Document, sources, ExtensionContext, workspace, SourceConfig, CompleteResult } from 'coc.nvim'
+import { Document, listManager, sources, ExtensionContext, workspace, SourceConfig, CompleteResult, IList, ListItem, ListContext } from 'coc.nvim'
 import { configure as configureHttpRequests, xhr } from 'request-light'
+import colors from 'colors/safe'
 import Resolver from './resolver'
 import { safeRun } from './util'
 
@@ -7,6 +8,9 @@ interface Issue {
   id: number
   title: string
   createAt: Date
+  creator: string
+  body: string
+  repo: string
 }
 
 const issuesMap: Map<number, Issue[]> = new Map()
@@ -25,9 +29,7 @@ export default function addSource(context: ExtensionContext, resolver: Resolver)
     logger.error(err)
   }
 
-  async function loadIssues(doc: Document): Promise<void> {
-    let root = await resolver.resolveGitRoot(doc)
-    if (!root) return
+  async function loadIssues(root: string): Promise<Issue[]> {
     let config = workspace.getConfiguration('git')
     let remoteName = config.get<string>('remoteName', 'origin')
     let res = await safeRun(`git remote get-url ${remoteName}`, { cwd: root })
@@ -48,26 +50,37 @@ export default function addSource(context: ExtensionContext, resolver: Resolver)
     }
     const uri = `https://api.github.com/repos/${repo}/issues`
     statusItem.show()
+    let issues: Issue[] = []
     try {
       let response = await xhr({ url: uri, followRedirects: 5, headers })
       let { responseText } = response
       let info = JSON.parse(responseText)
-      let issues: Issue[] = []
       for (let i = 0, len = info.length; i < len; i++) {
         issues.push({
           id: info[i].number,
           title: info[i].title,
-          createAt: new Date(info[i].created_at)
+          createAt: new Date(info[i].created_at),
+          creator: info[i].user.login,
+          body: info[i].body,
+          repo
         })
       }
-      issuesMap.set(doc.bufnr, issues)
     } catch (e) {
       logger.error(`Request github issues error:`, e)
     }
     statusItem.hide()
+    return issues
   }
 
   configure()
+  const loadIssuesFromDocument = (doc: Document) => {
+    resolver.resolveGitRoot(doc).then(async root => {
+      if (root) {
+        let issues = await loadIssues(root)
+        issuesMap.set(doc.bufnr, issues)
+      }
+    }).catch(onError)
+  }
   workspace.onDidChangeConfiguration(e => {
     if (e.affectsConfiguration('http')) {
       configure()
@@ -75,12 +88,13 @@ export default function addSource(context: ExtensionContext, resolver: Resolver)
   }, null, subscriptions)
   for (let doc of workspace.documents) {
     if (doc.filetype == 'gitcommit') {
-      loadIssues(doc).catch(onError)
+      loadIssuesFromDocument(doc)
     }
   }
   workspace.onDidOpenTextDocument(async e => {
     if (e.languageId == 'gitcommit') {
-      loadIssues(workspace.getDocument(e.uri)).catch(onError)
+      let doc = workspace.getDocument(e.uri)
+      loadIssuesFromDocument(doc)
     }
   }, null, subscriptions)
 
@@ -90,6 +104,7 @@ export default function addSource(context: ExtensionContext, resolver: Resolver)
     triggerCharacters: ['#'],
     async doComplete(opt): Promise<CompleteResult> {
       let issues = issuesMap.get(opt.bufnr)
+      logger.debug(issues)
       if (!issues || issues.length == 0) return null
       return {
         startcol: opt.col - 1,
@@ -105,4 +120,53 @@ export default function addSource(context: ExtensionContext, resolver: Resolver)
     }
   }
   subscriptions.push(sources.createSource(source))
+
+  let list: IList = {
+    name: 'issues',
+    actions: [{
+      name: 'open',
+      execute: async (item: ListItem) => {
+        let { id, repo } = item.data
+        let url = `https://github.com/${repo}/issues/${id}`
+        await workspace.openResource(url)
+      },
+      multiple: false
+    }, {
+      name: 'preview',
+      execute: async (item: ListItem, context: ListContext) => {
+        let winid = context.listWindow.id
+        let { body, id } = item.data
+        let lines = body.split(/\r?\n/)
+        let mod = context.options.position == 'top' ? 'below' : 'above'
+        let { nvim } = workspace
+        nvim.pauseNotification()
+        nvim.command('pclose', true)
+        nvim.command(`${mod} ${lines.length}sp +setl\\ previewwindow [issue ${id}]`, true)
+        nvim.command('setl winfixheight buftype=nofile foldmethod=syntax foldenable', true)
+        nvim.command('setl nobuflisted bufhidden=wipe', true)
+        nvim.command('setf markdown', true)
+        nvim.call('append', [0, lines], true)
+        nvim.command('normal! Gdd', true)
+        nvim.command(`exe 1`, true)
+        nvim.call('win_gotoid', [winid], true)
+        await nvim.resumeNotification()
+      },
+      multiple: false
+    }],
+    defaultAction: 'open',
+    description: 'issues on github',
+    loadItems: async (context): Promise<ListItem[]> => {
+      let buf = await context.window.buffer
+      let root = await resolver.resolveGitRoot(workspace.getDocument(buf.id))
+      if (!root) return []
+      let issues = await loadIssues(root)
+      return issues.map(o => {
+        return {
+          label: `${colors.red('#' + o.id.toFixed(0))} ${o.title} (${colors.green(o.createAt.toUTCString())}) <${colors.blue(o.creator)}>`,
+          data: { id: o.id, repo: o.repo, body: o.body }
+        } as ListItem
+      })
+    }
+  }
+  subscriptions.push(listManager.registerList(list))
 }

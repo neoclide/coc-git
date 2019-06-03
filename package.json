@@ -176,19 +176,19 @@
           "default": "DiffChange",
           "description": "Highlight group for change removed sign."
         },
-        "coc.source.issues.enable": {
+        "coc.source.commit.enable": {
           "type": "boolean",
           "default": true
         },
-        "coc.source.issues.priority": {
+        "coc.source.commit.priority": {
           "type": "integer",
           "default": 9
         },
-        "coc.source.issues.shortcut": {
+        "coc.source.commit.shortcut": {
           "type": "string",
           "default": "[I]"
         },
-        "coc.source.issues.filetypes": {
+        "coc.source.commit.filetypes": {
           "type": [
             "array",
             "null"
