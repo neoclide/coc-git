@@ -1,6 +1,6 @@
 import { ChildProcess, spawn } from 'child_process'
-import { Uri, events, ansiparse, BasicList, ListAction, ListContext, ListTask, Neovim, workspace } from 'coc.nvim'
-import { runCommand, showEmptyPreview } from '../util'
+import { Uri, events, ansiparse, BasicList, ListAction, ListContext, ListTask, Neovim, workspace, runCommand } from 'coc.nvim'
+import { safeRun, showEmptyPreview, shellescape } from '../util'
 import { EventEmitter } from 'events'
 import readline from 'readline'
 import Manager from '../manager'
@@ -147,8 +147,8 @@ export default class Bcommits extends BasicList {
       return
     }
     let file = path.relative(root, Uri.parse(doc.uri).fsPath)
-    const output = await runCommand(`git ls-files ${context.args.join(' ')} -- ${file}`)
-    if (!output.trim()) {
+    const output = await safeRun(`git ls-files ${context.args.join(' ')} -- ${shellescape(file)}`, { cwd: root })
+    if (!output || output.trim().length == 0) {
       throw new Error(`${file} not indexed`)
       return
     }

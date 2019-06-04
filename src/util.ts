@@ -2,10 +2,22 @@ import { workspace } from 'coc.nvim'
 import { exec, ExecOptions, spawn } from 'child_process'
 import { Diff, ChangeType } from './types'
 
+export function shellescape(s: string): string {
+  if (/[^A-Za-z0-9_\/:=-]/.test(s)) {
+    s = "'" + s.replace(/'/g, "'\\''") + "'"
+    s = s.replace(/^(?:'')+/g, '') // unduplicate single-quote at the beginning
+      .replace(/\\'''/g, "\\'") // remove non-escaped single-quote if there are enclosed between 2 escaped
+    return s
+  }
+  return s
+}
+
 export async function safeRun(cmd: string, opts: ExecOptions = {}): Promise<string> {
   try {
     return await runCommand(cmd, opts, 5000)
   } catch (e) {
+    // tslint:disable-next-line: no-console
+    console.error(e)
     return null
   }
 }

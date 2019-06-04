@@ -5,7 +5,7 @@ import { getUrl } from './helper'
 import { getDiff } from './diff'
 import Resolver from './resolver'
 import { ChangeType, Diff, SignInfo } from './types'
-import { runCommand, runCommandWithData, safeRun, spawnCommand } from './util'
+import { runCommandWithData, safeRun, spawnCommand, shellescape } from './util'
 
 interface FoldSettings {
   foldmethod: string
@@ -474,7 +474,7 @@ export default class DocumentManager {
     }
     let fullpath = await nvim.eval('expand("%:p")') as string
     let relpath = path.relative(root, fullpath)
-    let res = await safeRun(`git ls-files -- ${relpath}`, { cwd: root })
+    let res = await safeRun(`git ls-files -- ${shellescape(relpath)}`, { cwd: root })
     if (!res.length) {
       workspace.showMessage(`"${relpath}" not indexed.`, 'warning')
       return
@@ -495,7 +495,8 @@ export default class DocumentManager {
     if (hasFugitive) {
       await nvim.command(`Gedit ${commit}`)
     } else {
-      let content = await runCommand(`git --no-pager show ${commit}`, { cwd: root })
+      let content = await safeRun(`git --no-pager show ${commit}`, { cwd: root })
+      if (content == null) return
       let lines = content.trim().split('\n')
       nvim.pauseNotification()
       nvim.command(`edit +setl\\ buftype=nofile [commit ${commit}]`, true)

@@ -3,7 +3,7 @@ import { ansiparse, BasicList, ListAction, ListContext, ListTask, Neovim } from 
 import { EventEmitter } from 'events'
 import readline from 'readline'
 import Manager from '../manager'
-import { showEmptyPreview, runCommandWithData, runCommand } from '../util'
+import { showEmptyPreview, runCommandWithData, safeRun, runCommand } from '../util'
 
 class CommitsTask extends EventEmitter implements ListTask {
   private process: ChildProcess
@@ -67,7 +67,8 @@ export default class Commits extends BasicList {
       }
       let lines = this.cachedCommits.get(commit)
       if (!lines) {
-        let content = await runCommand(`git --no-pager show ${commit}`, { cwd: root })
+        let content = await safeRun(`git --no-pager show ${commit}`, { cwd: root })
+        if (content == null) return
         lines = content.replace(/\n$/, '').split(/\r?\n/)
         this.cachedCommits.set(commit, lines)
       }
@@ -92,7 +93,8 @@ export default class Commits extends BasicList {
       } else {
         let lines = this.cachedCommits.get(commit)
         if (!lines) {
-          let content = await runCommand(`git --no-pager show ${commit}`, { cwd: root })
+          let content = await safeRun(`git --no-pager show ${commit}`, { cwd: root })
+          if (content == null) return
           lines = content.replace(/\n$/, '').split(/\r?\n/)
           this.cachedCommits.set(commit, lines)
         }

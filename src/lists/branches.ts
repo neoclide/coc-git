@@ -1,7 +1,7 @@
 import { IList, ListAction, ListContext, ListItem, Neovim, workspace } from 'coc.nvim'
 import colors from 'colors/safe'
 import Manager from '../manager'
-import { runCommand } from '../util'
+import { safeRun } from '../util'
 
 export default class Branches implements IList {
   public readonly name = 'branches'
@@ -14,7 +14,7 @@ export default class Branches implements IList {
       name: 'checkout',
       execute: async (item: ListItem) => {
         let { root, branch } = item.data
-        await runCommand(`git checkout ${branch}`, { cwd: root })
+        await safeRun(`git checkout ${branch}`, { cwd: root })
         await nvim.command('bufdo e')
       }
     })
@@ -30,16 +30,15 @@ export default class Branches implements IList {
           if (!res) return
           let parts = branch.split('/', 2)
           cmd = `git push ${parts[0]} --delete ${parts[1]}`
-          await runCommand(cmd, { cwd: root })
-          await runCommand(`git fetch -p ${parts[0]}`)
+          await safeRun(cmd, { cwd: root })
+          await safeRun(`git fetch -p ${parts[0]}`)
         } else {
           cmd = `git branch -d ${branch}`
-          try {
-            await runCommand(cmd, { cwd: root })
-          } catch (e) {
+          let res = await safeRun(cmd, { cwd: root })
+          if (res == null) {
             let res = await workspace.showPrompt(`Delete failed, force delete ${branch}?`)
             if (!res) return
-            await runCommand(`git branch -D ${branch}`, { cwd: root })
+            await safeRun(`git branch -D ${branch}`, { cwd: root })
           }
         }
       }
@@ -49,7 +48,7 @@ export default class Branches implements IList {
       execute: async (item: ListItem) => {
         let { root, branch } = item.data
         let cmd = `git merge ${branch}`
-        await runCommand(cmd, { cwd: root })
+        await safeRun(cmd, { cwd: root })
         await nvim.command('bufdo e')
       }
     })
@@ -58,7 +57,7 @@ export default class Branches implements IList {
       execute: async (item: ListItem) => {
         let { root, branch } = item.data
         let cmd = `git rebase ${branch}`
-        await runCommand(cmd, { cwd: root })
+        await safeRun(cmd, { cwd: root })
         await nvim.command('bufdo e')
       }
     })
@@ -72,7 +71,8 @@ export default class Branches implements IList {
       throw new Error(`Can't resolve git root.`)
       return
     }
-    let output = await runCommand(`git branch --no-color -a ${context.args.join(' ')}`, { cwd: root })
+    let output = await safeRun(`git branch --no-color -a ${context.args.join(' ')}`, { cwd: root })
+    if (output == null) return
     output = output.replace(/\s+$/, '')
     for (let line of output.split(/\r?\n/)) {
       let remote = line.slice(2).startsWith('remotes/')

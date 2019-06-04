@@ -1,6 +1,6 @@
 import { BasicList, ListAction, ListContext, ListItem, Neovim } from 'coc.nvim'
 import Manager from '../manager'
-import { runCommand } from '../util'
+import { runCommand, shellescape } from '../util'
 import path from 'path'
 
 export default class Gfiles extends BasicList {
@@ -31,7 +31,7 @@ export default class Gfiles extends BasicList {
     this.addAction('preview', async (item, context) => {
       let { root, sha, filepath, branch } = item.data
       if (!sha) return
-      let content = await runCommand(`git --no-pager diff ${branch} -- ${filepath}`, { cwd: root })
+      let content = await runCommand(`git --no-pager diff ${branch} -- ${shellescape(filepath)}`, { cwd: root })
       let lines = content.replace(/\n$/, '').split('\n')
       let mod = context.options.position == 'top' ? 'below' : 'above'
       let winid = context.listWindow.id

@@ -3,7 +3,7 @@ import os from 'os'
 import path from 'path'
 import fs from 'fs'
 import util from 'util'
-import { safeRun, getStdout } from './util'
+import { safeRun, getStdout, shellescape } from './util'
 import uuid = require('uuid/v4')
 import { Diff, ChangeType } from './types'
 
@@ -75,12 +75,12 @@ export async function getDiff(root: string, doc: Document): Promise<Diff[]> {
   const currentFile = path.join(os.tmpdir(), `coc-${uuid()}`)
   let fsPath = Uri.parse(doc.uri).fsPath
   let file = path.relative(root, fsPath)
-  let res = await safeRun(`git --no-pager show :${file}`, { cwd: root })
+  let res = await safeRun(`git --no-pager show :${file.replace(/\"/g, '\\"')}`, { cwd: root })
   if (res == null) return null
   let staged = res.replace(/\r?\n$/, '').split(/\r?\n/).join('\n')
   await util.promisify(fs.writeFile)(stagedFile, staged + '\n', 'utf8')
   await util.promisify(fs.writeFile)(currentFile, doc.getDocumentContent(), 'utf8')
-  let output = await getStdout(`git --no-pager diff -p -U0 --no-color ${stagedFile} ${currentFile}`)
+  let output = await getStdout(`git --no-pager diff -p -U0 --no-color ${shellescape(stagedFile)} ${shellescape(currentFile)}`)
   await util.promisify(fs.unlink)(stagedFile)
   await util.promisify(fs.unlink)(currentFile)
   if (!output) return null
