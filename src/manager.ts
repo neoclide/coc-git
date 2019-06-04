@@ -474,7 +474,7 @@ export default class DocumentManager {
     }
     let fullpath = await nvim.eval('expand("%:p")') as string
     let relpath = path.relative(root, fullpath)
-    let res = await safeRun(`git ls-files -- ${relpath}`, { cwd: root })
+    let res = await safeRun(`git ls-files -- "${relpath.replace(/\"/g, '\\"')}"`, { cwd: root })
     if (!res.length) {
       workspace.showMessage(`"${relpath}" not indexed.`, 'warning')
       return

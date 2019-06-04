@@ -75,7 +75,7 @@ export async function getDiff(root: string, doc: Document): Promise<Diff[]> {
   const currentFile = path.join(os.tmpdir(), `coc-${uuid()}`)
   let fsPath = Uri.parse(doc.uri).fsPath
   let file = path.relative(root, fsPath)
-  let res = await safeRun(`git --no-pager show :${file}`, { cwd: root })
+  let res = await safeRun(`git --no-pager show :"${file.replace(/\"/g, '\\"')}"`, { cwd: root })
   if (res == null) return null
   let staged = res.replace(/\r?\n$/, '').split(/\r?\n/).join('\n')
   await util.promisify(fs.writeFile)(stagedFile, staged + '\n', 'utf8')
