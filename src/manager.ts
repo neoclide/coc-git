@@ -508,7 +508,7 @@ export default class DocumentManager {
     }
   }
 
-  public async browserOpen(action = 'open'): Promise<void> {
+  public async browser(action = 'open'): Promise<void> {
     let { nvim } = this
     let bufnr = await nvim.call('bufnr', '%')
     let root = await this.resolveGitRoot(bufnr)
@@ -530,10 +530,18 @@ export default class DocumentManager {
     }
     const mode = await nvim.call('mode') as string
 
-    const lines = (mode.toLowerCase() === 'v') ? [
+    let lines: any = (mode.toLowerCase() === 'v') ? [
       await nvim.eval(`line("'<")`) as number,
       await nvim.eval(`line(">'")`) as number,
     ] : [await nvim.eval('line(".")') as number]
+    let doc = workspace.getDocument(bufnr)
+    if (doc && doc.filetype == 'markdown') {
+      let line = await nvim.call('getline', ['.']) as string
+      if (line.startsWith('#')) {
+        let words = line.replace(/^#+\s*/, '').split(/\s+/)
+        lines = words.map(s => s.toLowerCase()).join('-')
+      }
+    }
 
     let fullpath = await nvim.eval('expand("%:p")') as string
     let relpath = path.relative(root, fullpath)

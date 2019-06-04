@@ -101,6 +101,7 @@ export default function addSource(context: ExtensionContext, resolver: Resolver)
 
   let source: SourceConfig = {
     name: 'issues',
+    filetypes: ['gitcommit'],
     triggerCharacters: ['#'],
     async doComplete(opt): Promise<CompleteResult> {
       if (opt.triggerCharacter && opt.triggerCharacter == '#') {

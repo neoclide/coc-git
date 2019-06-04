@@ -91,11 +91,11 @@ export async function activate(context: ExtensionContext): Promise<void> {
   }))
 
   subscriptions.push(commands.registerCommand('git.browserOpen', async () => {
-    await manager.browserOpen()
+    await manager.browser()
   }))
 
   subscriptions.push(commands.registerCommand('git.copyUrl', async () => {
-    await manager.browserOpen('copy')
+    await manager.browser('copy')
   }))
 
   subscriptions.push(commands.registerCommand('git.diffCached', async () => {
