@@ -85,7 +85,7 @@ export default class DocumentManager {
     if (!root || this.curseMoveTs > ts) return
     let lnum = await nvim.call('line', '.')
     let filepath = Uri.parse(doc.uri).fsPath
-    let relpath = path.relative(root, filepath)
+    let relpath = shellescape(path.relative(root, filepath))
     let res = await safeRun(`git --no-pager blame -b --root -L${lnum},${lnum} --date relative ${relpath}`, { cwd: root })
     if (!res) return
     let match = res.split(/\r?\n/)[0].match(/^\w+\s\((.+?)\s*\d+\)/)
