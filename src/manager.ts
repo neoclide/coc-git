@@ -440,7 +440,7 @@ export default class DocumentManager {
       await runCommandWithData('git', ['apply', '--cached', '--unidiff-zero', '-'], root, lines.join('\n'))
     } catch (e) {
       // tslint:disable-next-line: no-console
-      console.error(e)
+      console.error(e.message)
     }
   }
 

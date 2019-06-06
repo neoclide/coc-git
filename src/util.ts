@@ -17,7 +17,7 @@ export async function safeRun(cmd: string, opts: ExecOptions = {}): Promise<stri
     return await runCommand(cmd, opts, 5000)
   } catch (e) {
     // tslint:disable-next-line: no-console
-    console.error(e)
+    console.error(e.message)
     return null
   }
 }
