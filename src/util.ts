@@ -3,6 +3,9 @@ import { exec, ExecOptions, spawn } from 'child_process'
 import { Diff, ChangeType } from './types'
 
 export function shellescape(s: string): string {
+  if (process.platform == 'win32') {
+    return `"${s.replace(/"/g, '\\"')}"`
+  }
   if (/[^A-Za-z0-9_\/:=-]/.test(s)) {
     s = "'" + s.replace(/'/g, "'\\''") + "'"
     s = s.replace(/^(?:'')+/g, '') // unduplicate single-quote at the beginning
