@@ -6,6 +6,9 @@ export default class Resolver {
   private resolvedRoots: Set<string> = new Set()
 
   public getGitRoot(fullpath: string): string | null {
+    if (process.platform == 'win32') {
+      fullpath = path.win32.normalize(fullpath)
+    }
     for (let p of this.resolvedRoots) {
       if (fullpath.toLowerCase().startsWith(p.toLowerCase())) return p
     }
