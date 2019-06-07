@@ -49,13 +49,14 @@ export async function activate(context: ExtensionContext): Promise<void> {
     await manager.diffDocument(doc)
   }, null, subscriptions)
 
-  events.on('CursorHold', async () => {
-    await manager.refreshStatus()
+  events.on('CursorHold', async bufnr => {
+    let doc = workspace.getDocument(bufnr)
+    if (doc && doc.buftype == '') await manager.refreshStatus()
   }, null, subscriptions)
 
   events.on('CursorHold', async bufnr => {
     let doc = workspace.getDocument(bufnr)
-    if (doc) await manager.diffDocument(doc)
+    if (doc && doc.buftype == '') await manager.diffDocument(doc)
   }, null, subscriptions)
 
   subscriptions.push(workspace.registerKeymap(['n'], 'git-nextchunk', async () => {
