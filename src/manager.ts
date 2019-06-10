@@ -5,7 +5,7 @@ import { getUrl } from './helper'
 import { getDiff } from './diff'
 import Resolver from './resolver'
 import { ChangeType, Diff, SignInfo } from './types'
-import { runCommandWithData, safeRun, spawnCommand, shellescape } from './util'
+import { runCommandWithData, safeRun, spawnCommand, shellescape, equals } from './util'
 
 interface FoldSettings {
   foldmethod: string
@@ -16,6 +16,7 @@ interface FoldSettings {
 export default class DocumentManager {
   private cachedDiffs: Map<number, Diff[]> = new Map()
   private cachedSigns: Map<number, SignInfo[]> = new Map()
+  private cachedChangeTick: Map<number, number> = new Map()
   private currentSigns: Map<number, SignInfo[]> = new Map()
   private foldSettingsMap: Map<number, FoldSettings> = new Map()
   private enabledFolds: Set<number> = new Set()
@@ -146,6 +147,7 @@ export default class DocumentManager {
       }
       await this.nvim.resumeNotification()
     } else {
+      this.cachedChangeTick.clear()
       this.cachedDiffs.clear()
       this.cachedSigns.clear()
       // enable
@@ -216,9 +218,10 @@ export default class DocumentManager {
     }
   }
 
-  public async refreshStatus(): Promise<void> {
-    const { nvim, bufnr } = workspace
-    const doc = workspace.getDocument(bufnr)
+  public async refreshStatus(bufnr?: number): Promise<void> {
+    const { nvim } = this
+    const buf = bufnr ? nvim.createBuffer(bufnr) : await nvim.buffer
+    const doc = workspace.getDocument(buf.id)
     let root: string
     if (doc && doc.schema == 'file') {
       root = this.resolver.getGitRoot(Uri.parse(doc.uri).fsPath)
@@ -239,7 +242,7 @@ export default class DocumentManager {
         stagedDecorator,
         untrackedDecorator,
       })
-      if (workspace.bufnr != bufnr) return
+      if (workspace.bufnr != buf.id) return
       nvim.setVar('coc_git_status', status, true)
     }
   }
@@ -318,11 +321,18 @@ export default class DocumentManager {
 
   public async diffDocument(doc: Document, init = false): Promise<void> {
     let { nvim } = workspace
+    if (!doc || doc.buftype !== '' || doc.schema !== 'file') return
     let root = this.resolver.getRootOfDocument(doc)
     if (!root) return
     const diffs = await getDiff(root, doc)
     const { bufnr } = doc
+    let changedtick = this.cachedChangeTick.get(bufnr)
+    if (changedtick == doc.changedtick
+      && equals(diffs, this.cachedDiffs.get(bufnr))) {
+      return
+    }
     this.cachedDiffs.set(bufnr, diffs || [])
+    this.cachedChangeTick.set(bufnr, doc.changedtick)
     const cached = this.cachedSigns.get(bufnr)
     if (!diffs || diffs.length == 0) {
       let buf = doc.buffer

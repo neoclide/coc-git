@@ -35,8 +35,8 @@ export async function activate(context: ExtensionContext): Promise<void> {
     for (let doc of workspace.documents) {
       manager.diffDocument(doc, true).catch(emptyFn)
     }
-    manager.refreshStatus().catch(emptyFn)
   }, emptyFn)
+  manager.refreshStatus().catch(emptyFn)
 
   workspace.onDidOpenTextDocument(async e => {
     let doc = workspace.getDocument(e.uri)
@@ -48,16 +48,27 @@ export async function activate(context: ExtensionContext): Promise<void> {
     let doc = workspace.getDocument(e.textDocument.uri)
     await manager.diffDocument(doc)
   }, null, subscriptions)
+  // focusGained, BufEnter,ShellCmdPost
 
-  events.on('CursorHold', async bufnr => {
+  async function refresh(bufnr: number): Promise<void> {
     let doc = workspace.getDocument(bufnr)
-    if (doc && doc.buftype == '') await manager.refreshStatus()
+    if (!doc || doc.buftype != '') return
+    await Promise.all([manager.refreshStatus(bufnr), manager.diffDocument(doc)])
+  }
+  events.on('BufEnter', async bufnr => {
+    await refresh(bufnr)
+  }, null, subscriptions)
+  events.on('FocusGained', async () => {
+    let bufnr = await nvim.call('bufnr', '%')
+    await refresh(bufnr)
   }, null, subscriptions)
 
-  events.on('CursorHold', async bufnr => {
-    let doc = workspace.getDocument(bufnr)
-    if (doc && doc.buftype == '') await manager.diffDocument(doc)
-  }, null, subscriptions)
+  subscriptions.push(workspace.registerAutocmd({
+    event: 'ShellCmdPost',
+    request: false,
+    arglist: [`+expand('<abuf>')`],
+    callback: refresh
+  }))
 
   subscriptions.push(workspace.registerKeymap(['n'], 'git-nextchunk', async () => {
     await manager.nextChunk()
