@@ -32,11 +32,11 @@ export async function activate(context: ExtensionContext): Promise<void> {
   Promise.all(workspace.documents.map(doc => {
     return resolver.resolveGitRoot(doc)
   })).then(() => {
+    manager.refreshStatus().catch(emptyFn)
     for (let doc of workspace.documents) {
       manager.diffDocument(doc, true).catch(emptyFn)
     }
   }, emptyFn)
-  manager.refreshStatus().catch(emptyFn)
 
   workspace.onDidOpenTextDocument(async e => {
     let doc = workspace.getDocument(e.uri)
