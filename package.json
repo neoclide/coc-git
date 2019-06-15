@@ -9,7 +9,7 @@
     "git"
   ],
   "engines": {
-    "coc": "^0.0.68"
+    "coc": "^0.0.70"
   },
   "scripts": {
     "clean": "rimraf lib",
@@ -214,7 +214,7 @@
     "@types/node": "^10.12.24",
     "@types/uuid": "^3.4.4",
     "@types/which": "^1.3.1",
-    "coc.nvim": "^0.0.66",
+    "coc.nvim": "^0.0.71",
     "rimraf": "^2.6.3",
     "tslint": "^5.12.1",
     "typescript": "^3.3.3"
