@@ -461,6 +461,9 @@ export default class DocumentManager {
     lines.push('')
     try {
       await runCommandWithData('git', ['apply', '--cached', '--unidiff-zero', '-'], root, lines.join('\n'))
+      this.diffDocument(doc, true).catch(_e => {
+        // noop
+      })
     } catch (e) {
       // tslint:disable-next-line: no-console
       console.error(e.message)
