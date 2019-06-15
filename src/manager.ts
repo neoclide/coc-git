@@ -334,7 +334,7 @@ export default class DocumentManager {
       && equals(diffs, this.cachedDiffs.get(bufnr))) {
       return
     }
-    this.cachedDiffs.set(bufnr, diffs || [])
+    this.cachedDiffs.set(bufnr, diffs || null)
     this.cachedChangeTick.set(bufnr, doc.changedtick)
     const cached = this.cachedSigns.get(bufnr)
     if (!diffs || diffs.length == 0) {
