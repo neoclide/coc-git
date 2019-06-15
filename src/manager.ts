@@ -98,6 +98,7 @@ export default class DocumentManager {
     const blameInfo = match[1]
     if (blameVar) {
       doc.buffer.setVar('coc_git_blame', blameInfo, true)
+      await this.autocmdNotification()
     }
     if (virtualText) {
       await nvim.request('nvim_buf_clear_namespace', [buffer, virtualTextSrcId, 0, -1])
@@ -231,6 +232,7 @@ export default class DocumentManager {
     let character = this.config.get<string>('branchCharacter', '')
     if (!root) {
       nvim.setVar('coc_git_status', '', true)
+      await this.autocmdNotification()
     } else {
       const changedDecorator = this.config.get<string>('changedDecorator', '*')
       const conflictedDecorator = this.config.get<string>('conflictedDecorator', 'x')
@@ -244,6 +246,7 @@ export default class DocumentManager {
       })
       if (workspace.bufnr != buf.id) return
       nvim.setVar('coc_git_status', status, true)
+      await this.autocmdNotification()
     }
   }
 
@@ -337,6 +340,7 @@ export default class DocumentManager {
     if (!diffs || diffs.length == 0) {
       let buf = doc.buffer
       buf.setVar('coc_git_status', '', true)
+      await this.autocmdNotification()
       if (cached && cached.length && this.enableGutters) {
         nvim.call('coc#util#unplace_signs', [bufnr, cached.map(o => o.signId)], true)
         this.cachedSigns.set(bufnr, [])
@@ -391,6 +395,7 @@ export default class DocumentManager {
       if (removed) items.push(`-${removed}`)
       let status = '  ' + `${items.join(' ')} `
       doc.buffer.setVar('coc_git_status', status, true)
+      await this.autocmdNotification()
       this.currentSigns.set(bufnr, signs)
       if (!this.realtime && !init) return
       await this.updateGutters(bufnr)
@@ -427,6 +432,14 @@ export default class DocumentManager {
         return 'CocGitChangeRemoved'
     }
     return ''
+  }
+
+  private async autocmdNotification(): Promise<void> {
+    const nvim = this.nvim
+    const exists = await nvim.call('exists', '#User#CocGitStatusChange')
+    if (exists) {
+      nvim.command('doautocmd User CocGitStatusChange', true)
+    }
   }
 
   public async chunkStage(): Promise<void> {

@@ -117,6 +117,16 @@ If you're not using statusline plugin, you can add them to statusline by:
 set statusline^=%{get(g:,'coc_git_status','')}%{get(b:,'coc_git_status','')}%{get(b:,'coc_git_blame','')}
 ```
 
+### User autocmd
+
+``` vim
+autocmd User CocGitStatusChange {command}
+```
+
+Triggered after the `g:coc_git_status` `b:coc_git_status` `b:coc_git_blame` has changed.
+
+> Could be used for updating the statusline.
+
 ### Keymaps and commands
 
 - Create keymappings like:
