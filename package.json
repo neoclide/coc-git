@@ -13,7 +13,7 @@
   },
   "scripts": {
     "clean": "rimraf lib",
-    "build": "tsc -p tsconfig.json",
+    "build": "webpack",
     "prepare": "npx npm-run-all clean build"
   },
   "activationEvents": [
@@ -215,17 +215,18 @@
     "@types/uuid": "^3.4.4",
     "@types/which": "^1.3.1",
     "coc.nvim": "^0.0.71",
-    "rimraf": "^2.6.3",
-    "tslint": "^5.12.1",
-    "typescript": "^3.3.3"
-  },
-  "dependencies": {
     "colors": "^1.3.3",
     "debounce": "^1.2.0",
     "request-light": "^0.2.4",
-    "tslib": "^1.9.3",
+    "rimraf": "^2.6.3",
+    "ts-loader": "^6.0.3",
+    "tslint": "^5.12.1",
+    "typescript": "^3.3.3",
     "uuid": "^3.3.2",
     "vscode-languageserver-types": "^3.14.0",
+    "webpack": "^4.34.0",
+    "webpack-cli": "^3.3.4",
     "which": "^1.3.1"
-  }
+  },
+  "dependencies": {}
 }
