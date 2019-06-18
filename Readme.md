@@ -75,7 +75,7 @@ if your have highlight groups defined for vim-gitgutter, you can use:
 - `b:coc_git_status` including changed lines of current buffer.
 - `b:coc_git_blame` including blame info of current line.
 
-.vimrc
+Example for lightline user:
 
 ```viml
 " lightline
@@ -102,15 +102,6 @@ function! LightlineGitBlame() abort
 endfunction
 ```
 
-coc-settings.json
-
-```json
-{
-  "git.addGlameToVirtualText": true,
-  "git.addGlameToBufferVar": true
-}
-```
-
 If you're not using statusline plugin, you can add them to statusline by:
 
 ```vim
@@ -125,28 +116,36 @@ autocmd User CocGitStatusChange {command}
 
 Triggered after the `g:coc_git_status` `b:coc_git_status` `b:coc_git_blame` has changed.
 
-> Could be used for updating the statusline.
+Could be used for update the statusline.
 
-### Keymaps and commands
+### Keymaps
 
-- Create keymappings like:
+Create keymappings like:
 
-  ```vim
-  " navigate chunks of current buffer
-  nmap [g <Plug>(coc-git-prevchunk)
-  nmap ]g <Plug>(coc-git-nextchunk)
-  " show chunk diff at current position
-  nmap gs <Plug>(coc-git-chunkinfo)
-  " show commit ad current position
-  nmap gc <Plug>(coc-git-commit)
-  ```
+```vim
+" navigate chunks of current buffer
+nmap [g <Plug>(coc-git-prevchunk)
+nmap ]g <Plug>(coc-git-nextchunk)
+" show chunk diff at current position
+nmap gs <Plug>(coc-git-chunkinfo)
+" show commit contains current position
+nmap gc <Plug>(coc-git-commit)
+```
 
-- For `stage` and `undo` action of current chunk, open command list by
-  `:CocCommand`, filter list by type `git`, select action by type `<CR>`.
-- Use `:CocCommand git.browserOpen` to open current line in your browser.
-  Support github only for now.
-- Use `:CocCommand git.toggleGutters` to enable/disable gutters.
-- Use `:CocCommand git.foldUnchanged` to fold unchanged lines.
+### Commands
+
+Use command `:CocCommand` to open commands and type `git.` to get all git
+related commands.
+
+- `:CocCommand git.copyUrl` Copy url of current line to clipboard, github url supported.
+- `:CocCommand git.chunkInfo` Show chunk info under cursor.
+- `:CocCommand git.chunkUndo` Undo current chunk.
+- `:CocCommand git.chunkStage` Stage current chunk.
+- `:CocCommand git.diffCached` Show cached diff in preview window.
+- `:CocCommand git.showCommit` Show commit of current chunk.
+- `:CocCommand git.browserOpen` Open current line in browser, github url supported.
+- `:CocCommand git.foldUnchanged` Fold unchanged lines of current buffer.
+- `:CocCommand git.toggleGutters` Toggle git gutters in sign column.
 
 ### Work with git lists
 
