@@ -361,8 +361,8 @@ export default class DocumentManager {
           let [add, remove] = diff.delta
           let min = Math.min(add, remove)
           changed += min
-          add += add - min
-          remove += remove - min
+          added += add - min
+          removed += remove - min
         }
         let { start, end } = diff
         for (let i = start; i <= end; i++) {
