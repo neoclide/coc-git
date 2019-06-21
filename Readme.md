@@ -2,6 +2,10 @@
 
 Git integration of [coc.nvim](https://github.com/neoclide/coc.nvim).
 
+**Note:** many useful features not implemented, it's recommended to
+use plugin like [vim-fugitive](https://github.com/tpope/vim-fugitive) at the
+same time.
+
 ## Install
 
 In your vim/neovim, run command:
@@ -15,7 +19,6 @@ In your vim/neovim, run command:
 - Always async.
 - Always refresh on TextChange.
 - Powerful list support.
-- Doesn't need python.
 
 ## Features
 
