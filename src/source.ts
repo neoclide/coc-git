@@ -21,6 +21,10 @@ function configure(): void {
   configureHttpRequests(httpConfig.get<string>('proxy', undefined), httpConfig.get<boolean>('proxyStrictSSL', undefined))
 }
 
+function issuesFiletypes(): string[] {
+  return workspace.getConfiguration().get<string[]>('coc.source.issues.filetypes')
+}
+
 export default function addSource(context: ExtensionContext, resolver: Resolver): void {
   let { subscriptions, logger } = context
   let statusItem = workspace.createStatusBarItem(0, { progress: true })
@@ -88,12 +92,12 @@ export default function addSource(context: ExtensionContext, resolver: Resolver)
     }
   }, null, subscriptions)
   for (let doc of workspace.documents) {
-    if (doc.filetype == 'gitcommit') {
+    if (issuesFiletypes().includes(doc.filetype)) {
       loadIssuesFromDocument(doc)
     }
   }
   workspace.onDidOpenTextDocument(async e => {
-    if (e.languageId == 'gitcommit') {
+    if (issuesFiletypes().includes(e.languageId)) {
       let doc = workspace.getDocument(e.uri)
       loadIssuesFromDocument(doc)
     }
