@@ -176,6 +176,19 @@
           "default": "DiffChange",
           "description": "Highlight group for change removed sign."
         },
+        "git.semanticCommit.filetypes": {
+          "type": [
+            "array",
+            "null"
+          ],
+          "default": [
+            "gitcommit"
+          ],
+          "description": "Enabled filetypes",
+          "items": {
+            "type": "string"
+          }
+        },
         "coc.source.issues.enable": {
           "type": "boolean",
           "default": true
