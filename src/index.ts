@@ -16,6 +16,7 @@ function emptyFn(): void {
 }
 
 export async function activate(context: ExtensionContext): Promise<void> {
+  const config = workspace.getConfiguration('git')
   const { subscriptions } = context
   try {
     which.sync('git')
@@ -112,7 +113,7 @@ export async function activate(context: ExtensionContext): Promise<void> {
   subscriptions.push(listManager.registerList(new Commits(nvim, manager)))
   subscriptions.push(listManager.registerList(new Bcommits(nvim, manager)))
   subscriptions.push(listManager.registerList(new Gfiles(nvim, manager)))
-  subscriptions.push(languages.registerCompletionItemProvider('semantic-commit', 'Commit', ['gitcommit'], {
+  subscriptions.push(languages.registerCompletionItemProvider('semantic-commit', 'Commit', config.get<string[]>('semanticCommit.filetypes'), {
     provideCompletionItems: async (_document, position): Promise<CompletionItem[]> => {
       if (position.line == 0 && position.character <= 1) {
         return DEFAULT_TYPES.map(o => {
