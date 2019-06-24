@@ -19,6 +19,7 @@ In your vim/neovim, run command:
 - Always async.
 - Always refresh on TextChange.
 - Powerful list support.
+- Semantic commit and github issues completion support.
 
 ## Features
 
