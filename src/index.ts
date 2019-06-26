@@ -55,6 +55,11 @@ export async function activate(context: ExtensionContext): Promise<void> {
     if (!doc || doc.buftype != '') return
     await Promise.all([manager.refreshStatus(bufnr), manager.diffDocument(doc)])
   }, null, subscriptions)
+  events.on('BufEnter', async bufnr => {
+    let doc = workspace.getDocument(bufnr)
+    if (!doc || doc.buftype != '') return
+    await Promise.all([manager.refreshStatus(bufnr), manager.diffDocument(doc)])
+  }, null, subscriptions)
 
   subscriptions.push(workspace.registerKeymap(['n'], 'git-nextchunk', async () => {
     await manager.nextChunk()
