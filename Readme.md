@@ -61,7 +61,7 @@ In your vim/neovim, run command:
 
 more information, see [package.json](https://github.com/neoclide/coc-git/blob/master/package.json)
 
-**Note** for user from [vim-gitgutter](https://github.com/airblade/vim-gitgutte),
+**Note** for user from [vim-gitgutter](https://github.com/airblade/vim-gitgutter),
 if your have highlight groups defined for vim-gitgutter, you can use:
 
 ```json
