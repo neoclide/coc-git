@@ -97,8 +97,10 @@ export default class DocumentManager {
     if (modified) return
     const blameInfo = match[1]
     if (blameVar) {
+      nvim.pauseNotification()
       doc.buffer.setVar('coc_git_blame', blameInfo, true)
-      await this.autocmdNotification()
+      this.onStatusChange()
+      await nvim.resumeNotification(false, true)
     }
     if (virtualText) {
       await nvim.request('nvim_buf_clear_namespace', [buffer, virtualTextSrcId, 0, -1])
@@ -231,8 +233,10 @@ export default class DocumentManager {
     }
     let character = this.config.get<string>('branchCharacter', '')
     if (!root) {
+      nvim.pauseNotification()
       nvim.setVar('coc_git_status', '', true)
-      await this.autocmdNotification()
+      this.onStatusChange()
+      await nvim.resumeNotification(false, true)
     } else {
       const changedDecorator = this.config.get<string>('changedDecorator', '*')
       const conflictedDecorator = this.config.get<string>('conflictedDecorator', 'x')
@@ -245,8 +249,10 @@ export default class DocumentManager {
         untrackedDecorator,
       })
       if (workspace.bufnr != buf.id) return
+      nvim.pauseNotification()
       nvim.setVar('coc_git_status', status, true)
-      await this.autocmdNotification()
+      this.onStatusChange()
+      await nvim.resumeNotification()
     }
   }
 
@@ -340,7 +346,9 @@ export default class DocumentManager {
     if (!diffs || diffs.length == 0) {
       let buf = doc.buffer
       buf.setVar('coc_git_status', '', true)
-      await this.autocmdNotification()
+      nvim.pauseNotification()
+      this.onStatusChange()
+      await nvim.resumeNotification(false, true)
       if (cached && cached.length && this.enableGutters) {
         nvim.call('coc#util#unplace_signs', [bufnr, cached.map(o => o.signId)], true)
         this.cachedSigns.set(bufnr, [])
@@ -394,8 +402,10 @@ export default class DocumentManager {
       if (changed) items.push(`~${changed}`)
       if (removed) items.push(`-${removed}`)
       let status = '  ' + `${items.join(' ')} `
+      nvim.pauseNotification()
       doc.buffer.setVar('coc_git_status', status, true)
-      await this.autocmdNotification()
+      this.onStatusChange()
+      await nvim.resumeNotification(false, true)
       this.currentSigns.set(bufnr, signs)
       if (!this.realtime && !init) return
       await this.updateGutters(bufnr)
@@ -434,12 +444,10 @@ export default class DocumentManager {
     return ''
   }
 
-  private async autocmdNotification(): Promise<void> {
-    const nvim = this.nvim
-    const exists = await nvim.call('exists', '#User#CocGitStatusChange')
-    if (exists) {
-      nvim.command('doautocmd User CocGitStatusChange', true)
-    }
+  private onStatusChange(): void {
+    let { nvim } = this
+    nvim.command('redraws', true)
+    nvim.call('coc#util#do_autocmd', ['CocGitStatusChange'], true)
   }
 
   public async chunkStage(): Promise<void> {
@@ -531,7 +539,7 @@ export default class DocumentManager {
       nvim.call('append', [0, lines], true)
       nvim.command('normal! Gdd', true)
       nvim.command(`exe 1`, true)
-      await nvim.resumeNotification()
+      await nvim.resumeNotification(false, true)
     }
   }
 
