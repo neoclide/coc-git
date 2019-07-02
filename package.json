@@ -182,7 +182,8 @@
             "null"
           ],
           "default": [
-            "gitcommit"
+            "gitcommit",
+            "gina-commit"
           ],
           "description": "Enabled filetypes",
           "items": {
@@ -207,7 +208,8 @@
             "null"
           ],
           "default": [
-            "gitcommit"
+            "gitcommit",
+            "gina-commit"
           ],
           "description": "Enabled filetypes",
           "items": {

@@ -53,11 +53,11 @@ In your vim/neovim, run command:
 - `git.virtualTextPrefix`:Prefix of git blame information to virtual text, require virtual text feature of neovim. default: `5 <Space>`.
 - `git.addGlameToVirtualText`:Add git blame information to virtual text, require virtual text feature of neovim. default: `false`.
 - `git.addGlameToBufferVar`:Add git blame information to b:coc_git_blame. default: `false`.
-- `git.semanticCommit.filetypes` filetype list to enable semantic commit completion, default: `["gitcommit"]`
+- `git.semanticCommit.filetypes` filetype list to enable semantic commit completion, default: `["gitcommit", "gina-commit"]`
 - `coc.source.issues.enable` enable issues completion from github, default `true`.
 - `coc.source.issues.priority` priority of issues source, default: `9`.
 - `coc.source.issues.shortcut` shortcut of issues source, default: `"I"`.
-- `coc.source.issues.filetypes` filetype list to enable issues source, default: `["gitcommit"]`
+- `coc.source.issues.filetypes` filetype list to enable issues source, default: `["gitcommit", "gina-commit"]`
 
 more information, see [package.json](https://github.com/neoclide/coc-git/blob/master/package.json)
 
