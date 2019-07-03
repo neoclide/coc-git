@@ -1,10 +1,10 @@
 import { ChildProcess, spawn } from 'child_process'
-import { Uri, events, ansiparse, BasicList, ListAction, ListContext, ListTask, Neovim, workspace, runCommand } from 'coc.nvim'
-import { safeRun, showEmptyPreview, shellescape } from '../util'
+import { ansiparse, BasicList, events, ListAction, ListContext, ListTask, Neovim, runCommand, Uri, workspace } from 'coc.nvim'
 import { EventEmitter } from 'events'
+import path from 'path'
 import readline from 'readline'
 import Manager from '../manager'
-import path from 'path'
+import { safeRun, shellescape, showEmptyPreview } from '../util'
 
 class CommitsTask extends EventEmitter implements ListTask {
   private process: ChildProcess

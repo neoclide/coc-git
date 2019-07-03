@@ -1,7 +1,7 @@
 import { BasicList, ListAction, ListContext, ListItem, Neovim } from 'coc.nvim'
+import path from 'path'
 import Manager from '../manager'
 import { runCommand, shellescape } from '../util'
-import path from 'path'
 
 export default class Gfiles extends BasicList {
   public readonly name = 'gfiles'

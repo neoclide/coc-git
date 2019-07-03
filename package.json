@@ -11,6 +11,10 @@
   "engines": {
     "coc": "^0.0.72"
   },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/neoclide/coc-git.git"
+  },
   "scripts": {
     "clean": "rimraf lib",
     "build": "webpack",

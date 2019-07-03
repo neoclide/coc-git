@@ -1,9 +1,9 @@
-import { BasicList, workspace, Uri, ListAction, ListContext, ListItem, Neovim } from 'coc.nvim'
-import Manager from '../manager'
+import { BasicList, ListAction, ListContext, ListItem, Neovim, Uri, workspace } from 'coc.nvim'
+import colors from 'colors/safe'
 import fs from 'fs'
 import path from 'path'
+import Manager from '../manager'
 import { runCommand, spawnCommand } from '../util'
-import colors from 'colors/safe'
 
 const STATUS_MAP = {
   ' ': ' ',

@@ -1,11 +1,11 @@
-import { Document, events, Uri, Disposable, Documentation, FloatFactory, Neovim, workspace, WorkspaceConfiguration, disposeAll } from 'coc.nvim'
-import { gitStatus } from './status'
+import { Disposable, disposeAll, Document, Documentation, events, FloatFactory, Neovim, Uri, workspace, WorkspaceConfiguration } from 'coc.nvim'
 import path from 'path'
-import { getUrl } from './helper'
 import { getDiff } from './diff'
+import { getUrl } from './helper'
 import Resolver from './resolver'
+import { gitStatus } from './status'
 import { ChangeType, Diff, SignInfo } from './types'
-import { runCommandWithData, safeRun, spawnCommand, shellescape, equals } from './util'
+import { equals, runCommandWithData, safeRun, shellescape, spawnCommand } from './util'
 
 interface FoldSettings {
   foldmethod: string

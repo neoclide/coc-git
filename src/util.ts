@@ -1,6 +1,5 @@
-import { workspace } from 'coc.nvim'
 import { exec, ExecOptions, spawn } from 'child_process'
-import { Diff, ChangeType } from './types'
+import { workspace } from 'coc.nvim'
 
 export function shellescape(s: string): string {
   if (process.platform == 'win32') {

@@ -1,15 +1,15 @@
-import { listManager, languages, commands, events, ExtensionContext, workspace } from 'coc.nvim'
+import { commands, events, ExtensionContext, languages, listManager, workspace } from 'coc.nvim'
 import { CompletionItem, CompletionItemKind, InsertTextFormat } from 'vscode-languageserver-types'
 import which from 'which'
-import Manager from './manager'
-import Resolver from './resolver'
-import GStatus from './lists/gstatus'
+import { DEFAULT_TYPES } from './constants'
+import Bcommits from './lists/bcommits'
 import Branches from './lists/branches'
 import Commits from './lists/commits'
-import Bcommits from './lists/bcommits'
 import Gfiles from './lists/gfiles'
+import GStatus from './lists/gstatus'
+import Manager from './manager'
+import Resolver from './resolver'
 import addSource from './source'
-import { DEFAULT_TYPES } from './constants'
 
 function emptyFn(): void {
   // noop

@@ -1,4 +1,4 @@
-import { Document, workspace, Uri } from 'coc.nvim'
+import { Document, Uri, workspace } from 'coc.nvim'
 import path from 'path'
 import { runCommand } from './util'
 

@@ -1,7 +1,6 @@
-import { Document, listManager, sources, ExtensionContext, workspace, SourceConfig, CompleteResult, IList, ListItem, ListContext } from 'coc.nvim'
-import { configure as configureHttpRequests, xhr } from 'request-light'
-import { CompletionItemKind, InsertTextFormat } from 'vscode-languageserver-types'
+import { CompleteResult, Document, ExtensionContext, IList, ListContext, ListItem, listManager, SourceConfig, sources, workspace } from 'coc.nvim'
 import colors from 'colors/safe'
+import { configure as configureHttpRequests, xhr } from 'request-light'
 import Resolver from './resolver'
 import { safeRun } from './util'
 

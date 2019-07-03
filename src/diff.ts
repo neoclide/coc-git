@@ -1,11 +1,11 @@
 import { Document, Uri } from 'coc.nvim'
+import fs from 'fs'
 import os from 'os'
 import path from 'path'
-import fs from 'fs'
 import util from 'util'
-import { safeRun, getStdout, shellescape } from './util'
+import { ChangeType, Diff } from './types'
+import { getStdout, safeRun, shellescape } from './util'
 import uuid = require('uuid/v4')
-import { Diff, ChangeType } from './types'
 
 export function parseDiff(diffStr: string): Diff[] {
   // split to lines and delete the first four lines and the last '\n'
