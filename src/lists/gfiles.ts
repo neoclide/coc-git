@@ -12,21 +12,24 @@ export default class Gfiles extends BasicList {
 
   constructor(nvim: Neovim, private manager: Manager) {
     super(nvim)
-    this.addAction('show', async item => {
-      let { root, sha, filepath, branch } = item.data
-      if (!sha) return
-      let content = await runCommand(`git cat-file -p ${sha}`, { cwd: root })
-      let lines = content.replace(/\n$/, '').split('\n')
-      let file = path.relative(root, filepath)
-      nvim.pauseNotification()
-      nvim.command(`exe "edit ".fnameescape('(${branch}) ${file}')`, true)
-      nvim.call('append', [0, lines], true)
-      nvim.command('normal! Gdd', true)
-      nvim.command(`exe 1`, true)
-      nvim.command('setl buftype=nofile nomodifiable bufhidden=wipe nobuflisted', true)
-      nvim.command('filetype detect', true)
-      await nvim.resumeNotification()
-    })
+
+    for (let name of ['show', 'tabe', 'vsplit', 'split']) {
+      this.addAction(name, async item => {
+        let { root, sha, filepath, branch } = item.data
+        if (!sha) return
+        let content = await runCommand(`git cat-file -p ${sha}`, { cwd: root })
+        let lines = content.replace(/\n$/, '').split('\n')
+        let file = path.relative(root, filepath)
+        nvim.pauseNotification()
+        nvim.command(`exe "${name} ".fnameescape('(${branch}) ${file}')`, true)
+        nvim.call('append', [0, lines], true)
+        nvim.command('normal! Gdd', true)
+        nvim.command(`exe 1`, true)
+        nvim.command('setl buftype=nofile nomodifiable bufhidden=wipe nobuflisted', true)
+        nvim.command('filetype detect', true)
+        await nvim.resumeNotification()
+      })
+    }
 
     this.addAction('preview', async (item, context) => {
       let { root, sha, filepath, branch } = item.data
@@ -64,7 +67,7 @@ export default class Gfiles extends BasicList {
     let res: ListItem[] = []
     for (let line of output.split(/\r?\n/)) {
       let [head, filepath] = line.split('\t', 2)
-      let sha = head.split(" ")[2]
+      let sha = head.split(' ')[2]
       res.push({
         label: filepath,
         data: {
