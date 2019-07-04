@@ -1,4 +1,4 @@
-import { Disposable, disposeAll, Document, Documentation, events, FloatFactory, Neovim, Uri, workspace, WorkspaceConfiguration } from 'coc.nvim'
+import { Disposable, disposeAll, Document, Documentation, events, FloatFactory, Neovim, Uri, workspace, WorkspaceConfiguration, Buffer } from 'coc.nvim'
 import path from 'path'
 import { getDiff } from './diff'
 import { getUrl } from './helper'
@@ -25,6 +25,8 @@ export default class DocumentManager {
   private disposables: Disposable[] = []
   private virtualTextSrcId: number
   private curseMoveTs: number
+  private gitStatus = ''
+  private gitStatusMap: Map<number, string> = new Map()
   constructor(
     private nvim: Neovim,
     private resolver: Resolver
@@ -99,7 +101,8 @@ export default class DocumentManager {
     if (blameVar) {
       nvim.pauseNotification()
       doc.buffer.setVar('coc_git_blame', blameInfo, true)
-      this.onStatusChange()
+      nvim.command('redraws', true)
+      nvim.call('coc#util#do_autocmd', ['CocGitStatusChange'], true)
       await nvim.resumeNotification(false, true)
     }
     if (virtualText) {
@@ -233,10 +236,7 @@ export default class DocumentManager {
     }
     let character = this.config.get<string>('branchCharacter', '')
     if (!root) {
-      nvim.pauseNotification()
-      nvim.setVar('coc_git_status', '', true)
-      this.onStatusChange()
-      await nvim.resumeNotification(false, true)
+      await this.setGitStatus('')
     } else {
       const changedDecorator = this.config.get<string>('changedDecorator', '*')
       const conflictedDecorator = this.config.get<string>('conflictedDecorator', 'x')
@@ -249,16 +249,36 @@ export default class DocumentManager {
         untrackedDecorator,
       })
       if (workspace.bufnr != buf.id) return
-      nvim.pauseNotification()
-      nvim.setVar('coc_git_status', status, true)
-      this.onStatusChange()
-      await nvim.resumeNotification()
+      await this.setGitStatus(status)
     }
   }
 
   public async resolveGitRoot(bufnr: number): Promise<string> {
     let doc = workspace.getDocument(bufnr)
     return this.resolver.resolveGitRoot(doc)
+  }
+
+  private async setGitStatus(status: string): Promise<void> {
+    if (this.gitStatus == status) return
+    this.gitStatus = status
+    let { nvim } = this
+    nvim.pauseNotification()
+    nvim.setVar('coc_git_status', status, true)
+    nvim.command('redraws', true)
+    nvim.call('coc#util#do_autocmd', ['CocGitStatusChange'], true)
+    await nvim.resumeNotification(false, true)
+  }
+
+  private async setBufferStatus(buffer: Buffer, status: string): Promise<void> {
+    let exists = this.gitStatusMap.get(buffer.id) || ''
+    if (exists == status) return
+    this.gitStatusMap.set(buffer.id, status)
+    let { nvim } = this
+    nvim.pauseNotification()
+    buffer.setVar('coc_git_status', status, true)
+    nvim.command('redraws', true)
+    nvim.call('coc#util#do_autocmd', ['CocGitStatusChange'], true)
+    await nvim.resumeNotification(false, true)
   }
 
   private async getCurrentChunk(): Promise<Diff> {
@@ -345,10 +365,7 @@ export default class DocumentManager {
     const cached = this.cachedSigns.get(bufnr)
     if (!diffs || diffs.length == 0) {
       let buf = doc.buffer
-      buf.setVar('coc_git_status', '', true)
-      nvim.pauseNotification()
-      this.onStatusChange()
-      await nvim.resumeNotification(false, true)
+      await this.setBufferStatus(buf, '')
       if (cached && cached.length && this.enableGutters) {
         nvim.call('coc#util#unplace_signs', [bufnr, cached.map(o => o.signId)], true)
         this.cachedSigns.set(bufnr, [])
@@ -402,10 +419,7 @@ export default class DocumentManager {
       if (changed) items.push(`~${changed}`)
       if (removed) items.push(`-${removed}`)
       let status = '  ' + `${items.join(' ')} `
-      nvim.pauseNotification()
-      doc.buffer.setVar('coc_git_status', status, true)
-      this.onStatusChange()
-      await nvim.resumeNotification(false, true)
+      await this.setBufferStatus(doc.buffer, status)
       this.currentSigns.set(bufnr, signs)
       if (!this.realtime && !init) return
       await this.updateGutters(bufnr)
@@ -442,12 +456,6 @@ export default class DocumentManager {
         return 'CocGitChangeRemoved'
     }
     return ''
-  }
-
-  private onStatusChange(): void {
-    let { nvim } = this
-    nvim.command('redraws', true)
-    nvim.call('coc#util#do_autocmd', ['CocGitStatusChange'], true)
   }
 
   public async chunkStage(): Promise<void> {
