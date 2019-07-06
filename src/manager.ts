@@ -5,12 +5,20 @@ import { getUrl } from './helper'
 import Resolver from './resolver'
 import { gitStatus } from './status'
 import { ChangeType, Diff, SignInfo } from './types'
+import { format } from 'timeago.js'
+import debounce from 'debounce'
 import { equals, runCommandWithData, safeRun, shellescape, spawnCommand } from './util'
 
 interface FoldSettings {
   foldmethod: string
   foldlevel: number
   foldenable: boolean
+}
+
+interface BlameInfo {
+  author?: string
+  time?: string
+  summary?: string
 }
 
 export default class DocumentManager {
@@ -24,7 +32,6 @@ export default class DocumentManager {
   private config: WorkspaceConfiguration
   private disposables: Disposable[] = []
   private virtualTextSrcId: number
-  private curseMoveTs: number
   private gitStatus = ''
   private gitStatusMap: Map<number, string> = new Map()
   constructor(
@@ -48,10 +55,14 @@ export default class DocumentManager {
       }, _e => {
         // noop
       })
-      events.on('CursorHold', this.showBlameInfo, this, this.disposables)
-      events.on('CursorMoved', () => {
-        this.curseMoveTs = Date.now()
+      events.on('BufEnter', bufnr => {
+        if (!this.virtualText) return
+        let doc = workspace.getDocument(bufnr)
+        if (doc) doc.buffer.clearNamespace(this.virtualTextSrcId, 0, -1)
       }, null, this.disposables)
+      events.on('CursorMoved', debounce(async (bufnr, cursor) => {
+        await this.showBlameInfo(bufnr, cursor[0])
+      }, 100), null, this.disposables)
       events.on('InsertEnter', async bufnr => {
         let { virtualTextSrcId } = this
         if (virtualTextSrcId) {
@@ -76,45 +87,49 @@ export default class DocumentManager {
     return this.config.get<boolean>('realtimeGutters', false)
   }
 
-  private async showBlameInfo(bufnr: number): Promise<void> {
+  private async showBlameInfo(bufnr: number, lnum: number): Promise<void> {
     let { virtualTextSrcId, nvim } = this
     if (!virtualTextSrcId || !this.showBlame) return
-    let ts = Date.now()
-    let virtualText = this.config.get<boolean>('addGlameToVirtualText', false)
-    let blameVar = this.config.get<boolean>('addGlameToBufferVar', false)
     let doc = workspace.getDocument(bufnr)
-    if (!doc || doc.schema != 'file' || doc.isIgnored) return
+    if (!doc || doc.buftype != '' || doc.schema != 'file' || doc.isIgnored) return
     let root = await this.resolveGitRoot(bufnr)
-    if (!root || this.curseMoveTs > ts) return
-    let lnum = await nvim.call('line', '.')
+    if (!root) return
     let filepath = Uri.parse(doc.uri).fsPath
     let relpath = shellescape(path.relative(root, filepath))
-    let res = await safeRun(`git --no-pager blame -b --root -L${lnum},${lnum} --date relative ${relpath}`, { cwd: root })
-    if (!res) return
-    let match = res.split(/\r?\n/)[0].match(/^\w+\s\((.+?)\s*\d+\)/)
-    if (!match) return
-    if (workspace.insertMode || this.curseMoveTs > ts) return
+    let blameInfo = await this.getBlameInfo(relpath, lnum, root)
     let buffer = nvim.createBuffer(bufnr)
     let modified = await buffer.getOption('modified')
-    if (modified) return
-    const blameInfo = match[1]
-    if (blameVar) {
+    if (modified) blameInfo = {}
+    let blameText = ''
+    if (blameInfo.author) {
+      if (blameInfo.author.includes('Not Committed Yet')) {
+        blameText = `Not Committed Yet`
+      } else {
+        blameText = `(${blameInfo.author} ${blameInfo.time}) ${blameInfo.summary}`
+      }
+    }
+    if (this.config.get<boolean>('addGlameToBufferVar', false)) {
       nvim.pauseNotification()
       doc.buffer.setVar('coc_git_blame', blameInfo, true)
       nvim.command('redraws', true)
       nvim.call('coc#util#do_autocmd', ['CocGitStatusChange'], true)
       await nvim.resumeNotification(false, true)
     }
-    if (virtualText) {
-      await nvim.request('nvim_buf_clear_namespace', [buffer, virtualTextSrcId, 0, -1])
-      const prefix = this.config.get<string>('virtualTextPrefix', '     ')
-      let logRes = await safeRun(`git --no-pager blame -b -p --root -L${lnum},${lnum} --date relative ${relpath}`, { cwd: root })
-      if (!logRes) logRes = ''
-      let line = logRes.split(/\r?\n/).find(l => l.startsWith('summary ')) || ''
-      const commitMsg = blameInfo.includes('Not Committed Yet') ? '' : line.replace('summary ', '')
-      const blameText = `${prefix}${blameInfo}${commitMsg ? ` · ${commitMsg}` : ''}`
-      await buffer.setVirtualText(virtualTextSrcId, lnum - 1, [[blameText, 'CocCodeLens']])
+    if (this.virtualText) {
+      nvim.pauseNotification()
+      buffer.clearNamespace(virtualTextSrcId, 0, -1)
+      if (blameText) {
+        const prefix = this.config.get<string>('virtualTextPrefix', '     ')
+        await buffer.setVirtualText(virtualTextSrcId, lnum - 1, [[blameText, 'CocCodeLens']])
+      }
+      let [, err] = await nvim.resumeNotification()
+      // tslint:disable-next-line: no-console
+      if (err) console.error(err)
     }
+  }
+
+  private get virtualText(): boolean {
+    return this.config.get<boolean>('addGlameToVirtualText', false) && workspace.isNvim
   }
 
   private get signOffset(): number {
@@ -642,5 +657,22 @@ export default class DocumentManager {
 
   public dispose(): void {
     disposeAll(this.disposables)
+  }
+
+  private async getBlameInfo(relpath: string, lnum: number, root: string): Promise<BlameInfo> {
+    let info: BlameInfo = {}
+    let content = await safeRun(`git --no-pager blame -b -p --root -L${lnum},${lnum} --date relative ${relpath}`, { cwd: root })
+    if (content) {
+      for (let line of content.split(/\r?\n/)) {
+        let ms = line.match(/^(\S+)\s(.*)/)
+        if (ms) {
+          let [, field, text] = ms
+          if (field == 'author') info.author = text
+          if (field == 'author-time') info.time = format(parseInt(text, 10) * 1000, process.env.LANG)
+          if (field == 'summary') info.summary = text
+        }
+      }
+    }
+    return info
   }
 }
