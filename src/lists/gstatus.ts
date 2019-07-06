@@ -3,7 +3,7 @@ import colors from 'colors/safe'
 import fs from 'fs'
 import path from 'path'
 import Manager from '../manager'
-import { runCommand, spawnCommand } from '../util'
+import { runCommand, spawnCommand, getPreviewCommand } from '../util'
 
 const STATUS_MAP = {
   ' ': ' ',
@@ -98,11 +98,11 @@ export default class GStatus extends BasicList {
       let cmd = `git ${args.join(' ')} ${relative}`
       let content = await runCommand(cmd, { cwd: root })
       let lines = content.trim().split('\n')
-      let mod = context.options.position == 'top' ? 'below' : 'above'
+      let mod = getPreviewCommand(context, this.previewHeight)
       let height = Math.min(this.previewHeight, lines.length)
       await nvim.command('pclose')
       nvim.pauseNotification()
-      nvim.command(`${mod} ${height}sp +setl\\ previewwindow [diff]`, true)
+      nvim.command(`${mod} +setl\\ previewwindow [diff]`, true)
       nvim.command('setl winfixheight buftype=nofile nofoldenable', true)
       nvim.command('setl nobuflisted bufhidden=wipe', true)
       nvim.command('setf diff', true)

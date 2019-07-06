@@ -3,7 +3,7 @@ import { ansiparse, BasicList, ListAction, ListContext, ListTask, Neovim } from 
 import { EventEmitter } from 'events'
 import readline from 'readline'
 import Manager from '../manager'
-import { runCommand, runCommandWithData, safeRun, showEmptyPreview } from '../util'
+import { runCommand, runCommandWithData, safeRun, showEmptyPreview, getPreviewCommand } from '../util'
 
 class CommitsTask extends EventEmitter implements ListTask {
   private process: ChildProcess
@@ -59,10 +59,10 @@ export default class Commits extends BasicList {
     super(nvim)
     this.addAction('preview', async (item, context) => {
       let winid = context.listWindow.id
-      let mod = context.options.position == 'top' ? 'below' : 'above'
+      let cmd = getPreviewCommand(context, this.previewHeight)
       let { commit, root } = item.data
       if (!commit) {
-        await showEmptyPreview(mod, winid)
+        await showEmptyPreview(cmd, winid)
         return
       }
       let lines = this.cachedCommits.get(commit)
@@ -74,7 +74,7 @@ export default class Commits extends BasicList {
       }
       nvim.pauseNotification()
       nvim.command('pclose', true)
-      nvim.command(`${mod} ${this.previewHeight}sp +setl\\ previewwindow [commit ${commit}]`, true)
+      nvim.command(`${cmd} +setl\\ previewwindow [commit ${commit}]`, true)
       nvim.command('setl winfixheight buftype=nofile foldmethod=syntax foldenable', true)
       nvim.command('setl nobuflisted bufhidden=wipe', true)
       nvim.command('setf git', true)
