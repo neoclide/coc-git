@@ -120,7 +120,7 @@ export default class DocumentManager {
       buffer.clearNamespace(virtualTextSrcId, 0, -1)
       if (blameText) {
         const prefix = this.config.get<string>('virtualTextPrefix', '     ')
-        await buffer.setVirtualText(virtualTextSrcId, lnum - 1, [[blameText, 'CocCodeLens']])
+        await buffer.setVirtualText(virtualTextSrcId, lnum - 1, [[prefix + blameText, 'CocCodeLens']])
       }
       let [, err] = await nvim.resumeNotification()
       // tslint:disable-next-line: no-console
