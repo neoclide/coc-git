@@ -110,7 +110,7 @@ export default class DocumentManager {
     }
     if (this.config.get<boolean>('addGlameToBufferVar', false)) {
       nvim.pauseNotification()
-      doc.buffer.setVar('coc_git_blame', blameInfo, true)
+      doc.buffer.setVar('coc_git_blame', blameText, true)
       nvim.command('redraws', true)
       nvim.call('coc#util#do_autocmd', ['CocGitStatusChange'], true)
       await nvim.resumeNotification(false, true)
