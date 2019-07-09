@@ -116,15 +116,16 @@ export default class DocumentManager {
       await nvim.resumeNotification(false, true)
     }
     if (this.virtualText) {
-      nvim.pauseNotification()
-      buffer.clearNamespace(virtualTextSrcId, 0, -1)
-      if (blameText) {
-        const prefix = this.config.get<string>('virtualTextPrefix', '     ')
-        await buffer.setVirtualText(virtualTextSrcId, lnum - 1, [[prefix + blameText, 'CocCodeLens']])
+      try {
+        await buffer.request('clear_namespace', [virtualTextSrcId, 0, -1])
+        if (blameText) {
+          const prefix = this.config.get<string>('virtualTextPrefix', '     ')
+          await buffer.setVirtualText(virtualTextSrcId, lnum - 1, [[prefix + blameText, 'CocCodeLens']])
+        }
+      } catch (err) {
+        // tslint:disable-next-line: no-console
+        console.error(err)
       }
-      let [, err] = await nvim.resumeNotification()
-      // tslint:disable-next-line: no-console
-      if (err) console.error(err)
     }
   }
 

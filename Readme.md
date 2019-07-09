@@ -177,8 +177,7 @@ For more advance usage, checkout `:h coc-list`.
 
 Q: Virtual text not working.
 
-A: Make sure your neovim support virtual text by command
-`:echo exists('*nvim_buf_set_virtual_text')`.
+A: Make sure your neovim support virtual text by command `:echo exists('*nvim_buf_set_virtual_text')`.
 
 ## License
 
