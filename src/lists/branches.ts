@@ -9,7 +9,7 @@ export default class Branches implements IList {
   public readonly defaultAction = 'checkout'
   public actions: ListAction[] = []
 
-  constructor(private nvim: Neovim, private manager: Manager) {
+  constructor(nvim: Neovim, private manager: Manager) {
     this.actions.push({
       name: 'checkout',
       execute: async (item: ListItem) => {

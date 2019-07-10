@@ -3,7 +3,7 @@ import colors from 'colors/safe'
 import fs from 'fs'
 import path from 'path'
 import Manager from '../manager'
-import { runCommand, spawnCommand, getPreviewCommand } from '../util'
+import { runCommand, spawnCommand } from '../util'
 
 const STATUS_MAP = {
   ' ': ' ',
@@ -94,23 +94,15 @@ export default class GStatus extends BasicList {
         return
       }
       let args = ['--no-pager', 'diff']
-      let winid = context.listWindow.id
       let cmd = `git ${args.join(' ')} ${relative}`
       let content = await runCommand(cmd, { cwd: root })
       let lines = content.trim().split('\n')
-      let mod = getPreviewCommand(context, this.previewHeight)
-      let height = Math.min(this.previewHeight, lines.length)
-      await nvim.command('pclose')
-      nvim.pauseNotification()
-      nvim.command(`${mod} +setl\\ previewwindow [diff]`, true)
-      nvim.command('setl winfixheight buftype=nofile nofoldenable', true)
-      nvim.command('setl nobuflisted bufhidden=wipe', true)
-      nvim.command('setf diff', true)
-      nvim.call('append', [0, lines], true)
-      nvim.command('normal! Gdd', true)
-      nvim.command(`exe 1`, true)
-      nvim.call('win_gotoid', [winid], true)
-      await nvim.resumeNotification()
+      await this.preview({
+        lines,
+        filetype: 'diff',
+        sketch: true,
+        bufname: `(diff) ${relative}`
+      }, context)
     })
   }
 

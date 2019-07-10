@@ -1,5 +1,5 @@
-import { exec, ExecOptions, spawn } from 'child_process'
-import { workspace, ListContext } from 'coc.nvim'
+import {exec, ExecOptions, spawn} from 'child_process'
+import {Uri, workspace} from 'coc.nvim'
 
 export function shellescape(s: string): string {
   if (process.platform == 'win32') {
@@ -25,7 +25,7 @@ export async function safeRun(cmd: string, opts: ExecOptions = {}): Promise<stri
 }
 
 export function spawnCommand(cmd: string, args: string[], cwd: string): Promise<string> {
-  const cp = spawn(cmd, args, { cwd })
+  const cp = spawn(cmd, args, {cwd})
   let res = ''
   return new Promise((resolve, reject) => {
     cp.stdout.on('data', data => {
@@ -44,7 +44,7 @@ export function spawnCommand(cmd: string, args: string[], cwd: string): Promise<
 }
 
 export function runCommandWithData(cmd: string, args: string[], cwd: string, data: string): Promise<string> {
-  const cp = spawn(cmd, args, { cwd })
+  const cp = spawn(cmd, args, {cwd})
   cp.stdin.write(data, 'utf8')
   cp.stdin.end()
   let res = ''
@@ -160,19 +160,23 @@ export function equals(one: any, other: any): boolean {
   return true
 }
 
-export function getPreviewCommand(context: ListContext, previewHeight: number): string {
-  let { position } = context.options
-  if (position == 'tab') return `belowright vs`
-  let mod = position == 'top' ? 'below' : 'above'
-  return `${mod} ${previewHeight}sp`
-}
-
-export async function showEmptyPreview(mod: string, winid: number): Promise<void> {
-  let { nvim } = workspace
-  nvim.pauseNotification()
-  nvim.command('pclose', true)
-  nvim.command(`${mod} +setl\\ previewwindow [Empty]`, true)
-  nvim.command('setl winfixheight buftype=nofile nobuflisted bufhidden=wipe', true)
-  nvim.call('win_gotoid', [winid], true)
-  await nvim.resumeNotification()
+export function getUrl(remote: string, branch: string, filepath: string, lines?: number[] | string): string {
+  let uri = remote.replace(/\.git$/, '')
+  if (uri.startsWith('git')) {
+    let str = uri.slice(4)
+    let parts = str.split(':', 2)
+    uri = `https://${parts[0]}/${parts[1]}`
+  }
+  let u = Uri.parse(uri)
+  if (u.authority.startsWith('github.com')) {
+    let anchor = ''
+    if (lines && Array.isArray(lines)) {
+      anchor = lines ? lines.map(l => `L${l}`).join('-') : ''
+    } else if (typeof lines == 'string') {
+      anchor = lines
+    }
+    return uri + '/blob/' + branch + '/' + filepath + (anchor ? '#' + anchor : '')
+  }
+  workspace.showMessage(`Can't get url form: ${u.authority}`, 'warning')
+  return ''
 }

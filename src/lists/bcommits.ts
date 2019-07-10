@@ -4,7 +4,7 @@ import { EventEmitter } from 'events'
 import path from 'path'
 import readline from 'readline'
 import Manager from '../manager'
-import { safeRun, shellescape, showEmptyPreview, getPreviewCommand } from '../util'
+import { safeRun, shellescape } from '../util'
 
 class CommitsTask extends EventEmitter implements ListTask {
   private process: ChildProcess
@@ -60,26 +60,18 @@ export default class Bcommits extends BasicList {
   constructor(nvim: Neovim, private manager: Manager) {
     super(nvim)
     this.addAction('preview', async (item, context) => {
-      let winid = context.listWindow.id
-      let cmd = getPreviewCommand(context, this.previewHeight)
       let { commit, root } = item.data
-      if (!commit) {
-        await showEmptyPreview(cmd, winid)
-        return
+      let lines: string[] = []
+      if (commit) {
+        let content = await runCommand(`git --no-pager show ${commit}`, { cwd: root })
+        lines = content.trim().split('\n')
       }
-      let content = await runCommand(`git --no-pager show ${commit}`, { cwd: root })
-      let lines = content.trim().split('\n')
-      nvim.pauseNotification()
-      nvim.command('pclose', true)
-      nvim.command(`${cmd} +setl\\ previewwindow [commit ${commit}]`, true)
-      nvim.command('setl winfixheight buftype=nofile foldmethod=syntax', true)
-      nvim.command('setl nobuflisted bufhidden=wipe', true)
-      nvim.command('setf git', true)
-      nvim.call('append', [0, lines], true)
-      nvim.command('normal! Gdd', true)
-      nvim.command(`exe 1`, true)
-      nvim.call('win_gotoid', [winid], true)
-      await nvim.resumeNotification()
+      await this.preview({
+        lines,
+        filetype: 'git',
+        sketch: true,
+        bufname: commit ? `[commit ${commit}]` : ''
+      }, context)
     })
     this.addAction('show', async item => {
       let { commit, root } = item.data

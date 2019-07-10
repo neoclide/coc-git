@@ -1,7 +1,7 @@
-import { BasicList, ListAction, ListContext, ListItem, Neovim } from 'coc.nvim'
+import { BasicList, workspace, ListAction, ListContext, ListItem, Neovim } from 'coc.nvim'
 import path from 'path'
 import Manager from '../manager'
-import { runCommand, shellescape, getPreviewCommand } from '../util'
+import { runCommand, shellescape } from '../util'
 
 export default class Gfiles extends BasicList {
   public readonly name = 'gfiles'
@@ -12,6 +12,8 @@ export default class Gfiles extends BasicList {
 
   constructor(nvim: Neovim, private manager: Manager) {
     super(nvim)
+    const preferences = workspace.getConfiguration('coc.preferences')
+    let jumpCommand = preferences.get<string>('jumpCommand', 'edit')
 
     for (let name of ['show', 'tabe', 'vsplit', 'split']) {
       this.addAction(name, async item => {
@@ -20,8 +22,9 @@ export default class Gfiles extends BasicList {
         let content = await runCommand(`git cat-file -p ${sha}`, { cwd: root })
         let lines = content.replace(/\n$/, '').split('\n')
         let file = path.relative(root, filepath)
+        let cmd = name == 'show' ? jumpCommand : name
         nvim.pauseNotification()
-        nvim.command(`exe "${name} ".fnameescape('(${branch}) ${file}')`, true)
+        nvim.command(`exe "${cmd} ".fnameescape('(${branch}) ${file}')`, true)
         nvim.call('append', [0, lines], true)
         nvim.command('normal! Gdd', true)
         nvim.command(`exe 1`, true)
@@ -36,19 +39,13 @@ export default class Gfiles extends BasicList {
       if (!sha) return
       let content = await runCommand(`git --no-pager diff ${branch} -- ${shellescape(filepath)}`, { cwd: root })
       let lines = content.replace(/\n$/, '').split('\n')
-      let winid = context.listWindow.id
-      let cmd = getPreviewCommand(context, this.previewHeight)
-      nvim.pauseNotification()
-      nvim.command('pclose', true)
-      nvim.command(`${cmd} +setl\\ previewwindow (diff ${branch}) ${path.basename(filepath)}`, true)
-      nvim.call('append', [0, lines], true)
-      nvim.command('normal! Gdd', true)
-      nvim.command(`exe 1`, true)
-      nvim.command('setl buftype=nofile nomodifiable bufhidden=wipe nobuflisted', true)
-      nvim.command('setf diff', true)
-      nvim.call('win_gotoid', [winid], true)
-      await nvim.resumeNotification()
-    }, { persist: true, reload: false })
+      await this.preview({
+        lines,
+        filetype: 'diff',
+        sketch: true,
+        bufname: `(diff ${branch}) ${path.basename(filepath)}`
+      }, context)
+    })
   }
 
   public async loadItems(context: ListContext): Promise<ListItem[]> {

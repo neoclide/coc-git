@@ -3,7 +3,7 @@ import { ansiparse, BasicList, ListAction, ListContext, ListTask, Neovim } from 
 import { EventEmitter } from 'events'
 import readline from 'readline'
 import Manager from '../manager'
-import { runCommand, runCommandWithData, safeRun, showEmptyPreview, getPreviewCommand } from '../util'
+import { runCommand, runCommandWithData, safeRun } from '../util'
 
 class CommitsTask extends EventEmitter implements ListTask {
   private process: ChildProcess
@@ -58,31 +58,23 @@ export default class Commits extends BasicList {
   constructor(nvim: Neovim, private manager: Manager) {
     super(nvim)
     this.addAction('preview', async (item, context) => {
-      let winid = context.listWindow.id
-      let cmd = getPreviewCommand(context, this.previewHeight)
       let { commit, root } = item.data
-      if (!commit) {
-        await showEmptyPreview(cmd, winid)
-        return
+      let lines: string[] = []
+      if (commit) {
+        lines = this.cachedCommits.get(commit)
+        if (!lines) {
+          let content = await safeRun(`git --no-pager show ${commit}`, { cwd: root })
+          if (content == null) return
+          lines = content.replace(/\n$/, '').split(/\r?\n/)
+          this.cachedCommits.set(commit, lines)
+        }
       }
-      let lines = this.cachedCommits.get(commit)
-      if (!lines) {
-        let content = await safeRun(`git --no-pager show ${commit}`, { cwd: root })
-        if (content == null) return
-        lines = content.replace(/\n$/, '').split(/\r?\n/)
-        this.cachedCommits.set(commit, lines)
-      }
-      nvim.pauseNotification()
-      nvim.command('pclose', true)
-      nvim.command(`${cmd} +setl\\ previewwindow [commit ${commit}]`, true)
-      nvim.command('setl winfixheight buftype=nofile foldmethod=syntax foldenable', true)
-      nvim.command('setl nobuflisted bufhidden=wipe', true)
-      nvim.command('setf git', true)
-      nvim.call('append', [0, lines], true)
-      nvim.command('normal! Gdd', true)
-      nvim.command(`exe 1`, true)
-      nvim.call('win_gotoid', [winid], true)
-      await nvim.resumeNotification()
+      await this.preview({
+        lines,
+        filetype: 'git',
+        sketch: true,
+        bufname: commit ? `[commit ${commit}]` : ''
+      }, context)
     })
     this.addAction('show', async item => {
       let { commit, root } = item.data

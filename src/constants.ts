@@ -1,5 +1,5 @@
 
-const DEFAULT_MESSAGES = {
+export const DEFAULT_MESSAGES = {
   type: 'Select the type of change that you\'re committing',
   customScope: 'Denote the SCOPE of this change',
   customScopeEntry: 'Custom scope...',
