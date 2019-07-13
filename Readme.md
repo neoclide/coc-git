@@ -35,7 +35,8 @@ In your vim/neovim, run command:
 
 ## Configuration
 
-- `git.command`:Command for git, could be absolute path of git executable., default: `"git"`.
+- `git.enableGlobalStatus`:Enable global g:coc_git_status, default: `true`.
+- `git.command`:Command for git, could be absolute path of git executable, default: `"git"`.
 - `git.branchCharacter`:Branch character used with g:coc_git_branch, default: `""`.
 - `git.remoteName`: Remote name used for fetch github issues, default: `origin`.
 - `git.enableGutters`:Enable gutters in sign column., default: `true`.

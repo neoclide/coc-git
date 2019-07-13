@@ -242,6 +242,7 @@ export default class DocumentManager {
 
   public async refreshStatus(bufnr?: number): Promise<void> {
     const { nvim } = this
+    if (!this.config.get<boolean>('enableGlobalStatus', true)) return
     const buf = bufnr ? nvim.createBuffer(bufnr) : await nvim.buffer
     const doc = workspace.getDocument(buf.id)
     let root: string

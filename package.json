@@ -115,6 +115,11 @@
           "default": "…",
           "description": "Git untracked decorator used with g:coc_git_branch"
         },
+        "git.enableGlobalStatus": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable global g:coc_git_status."
+        },
         "git.enableGutters": {
           "type": "boolean",
           "default": true,
