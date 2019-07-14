@@ -196,6 +196,15 @@ export default class DocumentManager {
     let enabled = this.enabledFolds.has(bufnr)
     if (enabled) {
       this.enabledFolds.delete(bufnr)
+      let cursor = await nvim.commandOutput('echo getpos(".")') 
+      for (let i = 1; i <= doc.lineCount; i++) {
+        let foldend = Number(await nvim.commandOutput(`echo foldclosedend("${i}}")`))
+        if (foldend != -1) {
+          await nvim.command(`${foldend}normal! zd`)
+          i = foldend + 1
+        }
+      }
+      await nvim.command(`call setpos(".", ${cursor})`)
       let settings = this.foldSettingsMap.get(bufnr)
       nvim.pauseNotification()
       win.setOption('foldmethod', settings.foldmethod, true)
