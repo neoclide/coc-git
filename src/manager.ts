@@ -196,9 +196,9 @@ export default class DocumentManager {
     let enabled = this.enabledFolds.has(bufnr)
     if (enabled) {
       this.enabledFolds.delete(bufnr)
-      let cursor = await nvim.commandOutput('echo getpos(".")') 
+      let cursor = await nvim.eval('getpos(".")') 
       for (let i = 1; i <= doc.lineCount; i++) {
-        let foldend = Number(await nvim.commandOutput(`echo foldclosedend("${i}}")`))
+        let foldend = Number(await nvim.eval(`echo foldclosedend("${i}}")`))
         if (foldend != -1) {
           await nvim.command(`${foldend}normal! zd`)
           i = foldend + 1
