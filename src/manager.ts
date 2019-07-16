@@ -204,7 +204,7 @@ export default class DocumentManager {
           i = foldend + 1
         }
       }
-      await nvim.command(`call setpos(".", ${cursor})`)
+      await nvim.call(`setpos(".", ${cursor})`)
       let settings = this.foldSettingsMap.get(bufnr)
       nvim.pauseNotification()
       win.setOption('foldmethod', settings.foldmethod, true)
