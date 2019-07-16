@@ -198,7 +198,7 @@ export default class DocumentManager {
       this.enabledFolds.delete(bufnr)
       let cursor = await nvim.eval('getpos(".")') 
       for (let i = 1; i <= doc.lineCount; i++) {
-        let foldend = Number(await nvim.eval(`echo foldclosedend("${i}}")`))
+        let foldend = Number(await nvim.eval(`foldclosedend("${i}}")`))
         if (foldend != -1) {
           await nvim.command(`${foldend}normal! zd`)
           i = foldend + 1
