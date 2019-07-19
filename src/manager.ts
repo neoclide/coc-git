@@ -198,7 +198,7 @@ export default class DocumentManager {
     let enabled = this.enabledFolds.has(bufnr)
     if (enabled) {
       this.enabledFolds.delete(bufnr)
-      let cursor = await nvim.eval('getpos(".")') 
+      let cursor = await nvim.eval('getpos(".")')
       for (let i = 1; i <= doc.lineCount; i++) {
         let foldend = Number(await nvim.eval(`foldclosedend("${i}}")`))
         if (foldend != -1) {
@@ -378,7 +378,7 @@ export default class DocumentManager {
 
   public async diffDocument(doc: Document, init = false): Promise<void> {
     let { nvim } = workspace
-    if (!doc || doc.buftype !== '' || doc.schema !== 'file') return
+    if (!doc || doc.isIgnored || doc.buftype !== '' || doc.schema !== 'file') return
     let root = this.resolver.getRootOfDocument(doc)
     if (!root) return
     let filepath = Uri.parse(doc.uri).fsPath
