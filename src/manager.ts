@@ -1,4 +1,5 @@
 import { Disposable, disposeAll, Document, Documentation, events, FloatFactory, Neovim, Uri, workspace, WorkspaceConfiguration, Buffer } from 'coc.nvim'
+import fs from 'fs'
 import path from 'path'
 import { getDiff } from './diff'
 import { getUrl } from './util'
@@ -95,6 +96,7 @@ export default class DocumentManager {
     let root = await this.resolveGitRoot(bufnr)
     if (!root) return
     let filepath = Uri.parse(doc.uri).fsPath
+    if (!fs.existsSync(filepath)) return
     let relpath = shellescape(path.relative(root, filepath))
     let blameInfo = await this.getBlameInfo(relpath, lnum, root)
     let buffer = nvim.createBuffer(bufnr)
@@ -379,6 +381,8 @@ export default class DocumentManager {
     if (!doc || doc.buftype !== '' || doc.schema !== 'file') return
     let root = this.resolver.getRootOfDocument(doc)
     if (!root) return
+    let filepath = Uri.parse(doc.uri).fsPath
+    if (!fs.existsSync(filepath)) return
     const diffs = await getDiff(root, doc)
     const { bufnr } = doc
     let changedtick = this.cachedChangeTick.get(bufnr)
