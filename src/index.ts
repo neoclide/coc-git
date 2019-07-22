@@ -1,6 +1,5 @@
 import { commands, events, ExtensionContext, languages, listManager, workspace } from 'coc.nvim'
 import { CompletionItem, CompletionItemKind, InsertTextFormat } from 'vscode-languageserver-types'
-import which from 'which'
 import { DEFAULT_TYPES } from './constants'
 import Bcommits from './lists/bcommits'
 import Branches from './lists/branches'
@@ -8,8 +7,10 @@ import Commits from './lists/commits'
 import Gfiles from './lists/gfiles'
 import GStatus from './lists/gstatus'
 import Manager from './manager'
+import Git from './git'
 import Resolver from './resolver'
 import addSource from './source'
+import { findGit, IGit } from './util'
 
 function emptyFn(): void {
   // noop
@@ -18,15 +19,19 @@ function emptyFn(): void {
 export async function activate(context: ExtensionContext): Promise<void> {
   const config = workspace.getConfiguration('git')
   const { subscriptions } = context
+  const outputChannel = workspace.createOutputChannel('git')
+  let gitInfo: IGit
   try {
-    which.sync('git')
+    let pathHint = config.get<string>('command')
+    gitInfo = await findGit(pathHint, path => outputChannel.appendLine(`Looking for git in: ${path}`))
   } catch (e) {
     workspace.showMessage('git command required for coc-git', 'error')
     return
   }
   const { nvim } = workspace
-  const resolver = new Resolver()
-  const manager = new Manager(nvim, resolver)
+  const git = new Git(gitInfo, outputChannel)
+  const resolver = new Resolver(git)
+  const manager = new Manager(nvim, resolver, git, outputChannel)
   addSource(context, resolver)
   subscriptions.push(manager)
 

@@ -4,7 +4,6 @@ import { EventEmitter } from 'events'
 import path from 'path'
 import readline from 'readline'
 import Manager from '../manager'
-import { safeRun, shellescape } from '../util'
 
 class CommitsTask extends EventEmitter implements ListTask {
   private process: ChildProcess
@@ -139,7 +138,7 @@ export default class Bcommits extends BasicList {
       return
     }
     let file = path.relative(root, Uri.parse(doc.uri).fsPath)
-    const output = await safeRun(`git ls-files ${context.args.join(' ')} -- ${shellescape(file)}`, { cwd: root })
+    const output = await this.manager.safeRun(['ls-files', ...context.args, '--', file], root)
     if (!output || output.trim().length == 0) {
       throw new Error(`${file} not indexed`)
       return

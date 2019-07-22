@@ -1,14 +1,13 @@
-import { Disposable, disposeAll, Document, Documentation, events, FloatFactory, Neovim, Uri, workspace, WorkspaceConfiguration, Buffer } from 'coc.nvim'
+import { Buffer, Disposable, disposeAll, Document, Documentation, events, FloatFactory, Neovim, OutputChannel, Uri, workspace, WorkspaceConfiguration } from 'coc.nvim'
+import debounce from 'debounce'
 import fs from 'fs'
 import path from 'path'
-import { getDiff } from './diff'
-import { getUrl } from './util'
-import Resolver from './resolver'
-import { gitStatus } from './status'
-import { ChangeType, Diff, SignInfo } from './types'
 import { format } from 'timeago.js'
-import debounce from 'debounce'
-import { equals, runCommandWithData, safeRun, shellescape, spawnCommand } from './util'
+import Git from './git'
+import Repo from './repo'
+import Resolver from './resolver'
+import { ChangeType, Diff, SignInfo } from './types'
+import { equals, getUrl, spawnCommand } from './util'
 
 interface FoldSettings {
   foldmethod: string
@@ -23,6 +22,7 @@ interface BlameInfo {
 }
 
 export default class DocumentManager {
+  private repoMap: Map<string, Repo> = new Map()
   private cachedDiffs: Map<number, Diff[]> = new Map()
   private cachedSigns: Map<number, SignInfo[]> = new Map()
   private cachedChangeTick: Map<number, number> = new Map()
@@ -37,7 +37,9 @@ export default class DocumentManager {
   private gitStatusMap: Map<number, string> = new Map()
   constructor(
     private nvim: Neovim,
-    private resolver: Resolver
+    private resolver: Resolver,
+    public git: Git,
+    private channel: OutputChannel
   ) {
     this.floatFactory = new FloatFactory(nvim, workspace.env, false, 20, 300)
     this.config = workspace.getConfiguration('git')
@@ -97,8 +99,7 @@ export default class DocumentManager {
     if (!root) return
     let filepath = Uri.parse(doc.uri).fsPath
     if (!fs.existsSync(filepath)) return
-    let relpath = shellescape(path.relative(root, filepath))
-    let blameInfo = await this.getBlameInfo(relpath, lnum, root)
+    let blameInfo = await this.getBlameInfo(path.relative(root, filepath), lnum, root)
     let buffer = nvim.createBuffer(bufnr)
     let modified = await buffer.getOption('modified')
     if (modified) blameInfo = {}
@@ -251,32 +252,41 @@ export default class DocumentManager {
     }
   }
 
-  public async refreshStatus(bufnr?: number): Promise<void> {
-    const { nvim } = this
-    if (!this.config.get<boolean>('enableGlobalStatus', true)) return
+  private async getRepo(bufnr?: number): Promise<Repo> {
+    let { nvim } = this
     const buf = bufnr ? nvim.createBuffer(bufnr) : await nvim.buffer
     const doc = workspace.getDocument(buf.id)
+    if (!doc || doc.buftype != '') return null
     let root: string
     if (doc && doc.schema == 'file') {
       root = this.resolver.getGitRoot(Uri.parse(doc.uri).fsPath)
     } else {
       root = await this.resolver.resolveGitRoot()
     }
-    let character = this.config.get<string>('branchCharacter', '')
-    if (!root) {
+    this.channel.appendLine(`resolved root: ${root}`)
+    if (!root) return null
+    let repo = this.repoMap.get(root)
+    if (repo) return repo
+    repo = new Repo(this.git, this.channel, root)
+    this.repoMap.set(root, repo)
+    return repo
+  }
+
+  public async refreshStatus(bufnr?: number): Promise<void> {
+    if (!this.config.get<boolean>('enableGlobalStatus', true)) return
+    let repo = await this.getRepo(bufnr)
+    if (bufnr && workspace.bufnr != bufnr) return
+    if (!repo) {
       await this.setGitStatus('')
     } else {
-      const changedDecorator = this.config.get<string>('changedDecorator', '*')
-      const conflictedDecorator = this.config.get<string>('conflictedDecorator', 'x')
-      const stagedDecorator = this.config.get<string>('stagedDecorator', '●')
-      const untrackedDecorator = this.config.get<string>('untrackedDecorator', '…')
-      let status = await gitStatus(root, character, {
-        changedDecorator,
-        conflictedDecorator,
-        stagedDecorator,
-        untrackedDecorator,
+      let character = this.config.get<string>('branchCharacter', '')
+      let status = await repo.getStatus(character, {
+        changedDecorator: this.config.get<string>('changedDecorator'),
+        conflictedDecorator: this.config.get<string>('conflictedDecorator'),
+        stagedDecorator: this.config.get<string>('stagedDecorator'),
+        untrackedDecorator: this.config.get<string>('untrackedDecorator'),
       })
-      if (workspace.bufnr != buf.id) return
+      if (bufnr && workspace.bufnr != bufnr) return
       await this.setGitStatus(status)
     }
   }
@@ -378,12 +388,9 @@ export default class DocumentManager {
 
   public async diffDocument(doc: Document, init = false): Promise<void> {
     let { nvim } = workspace
-    if (!doc || doc.isIgnored || doc.buftype !== '' || doc.schema !== 'file') return
-    let root = this.resolver.getRootOfDocument(doc)
-    if (!root) return
-    let filepath = Uri.parse(doc.uri).fsPath
-    if (!fs.existsSync(filepath)) return
-    const diffs = await getDiff(root, doc)
+    let repo = await this.getRepo(doc.bufnr)
+    if (!repo) return
+    const diffs = await repo.getDiff(doc)
     const { bufnr } = doc
     let changedtick = this.cachedChangeTick.get(bufnr)
     if (changedtick == doc.changedtick
@@ -495,6 +502,7 @@ export default class DocumentManager {
     let diff = await this.getCurrentChunk()
     if (!diff) return
     let root = this.resolver.getRootOfDocument(doc)
+    if (!root) return
     let filepath = path.relative(root, Uri.parse(doc.uri).fsPath)
     const lines = [
       `diff --git a/${filepath} b/${filepath}`,
@@ -506,10 +514,8 @@ export default class DocumentManager {
     lines.push(...diff.lines)
     lines.push('')
     try {
-      await runCommandWithData('git', ['apply', '--cached', '--unidiff-zero', '-'], root, lines.join('\n'))
-      this.diffDocument(doc, true).catch(_e => {
-        // noop
-      })
+      await this.git.exec(root, ['apply', '--cached', '--unidiff-zero', '-'], { input: lines.join('\n') })
+      await this.diffDocument(doc, true)
     } catch (e) {
       // tslint:disable-next-line: no-console
       console.error(e.message)
@@ -546,7 +552,7 @@ export default class DocumentManager {
     }
     let fullpath = await nvim.eval('expand("%:p")') as string
     let relpath = path.relative(root, fullpath)
-    let res = await safeRun(`git ls-files -- ${shellescape(relpath)}`, { cwd: root })
+    let res = await this.safeRun(['ls-files', '--', relpath], root)
     if (!res.length) {
       workspace.showMessage(`"${relpath}" not indexed.`, 'warning')
       return
@@ -558,7 +564,7 @@ export default class DocumentManager {
     if (!output.length) return
     let commit = output.match(/^\S+/)[0]
     if (/^0+$/.test(commit)) {
-      await this.showDoc('not committed yet!', 'txt')
+      workspace.showMessage('not committed yet!', 'warning')
       return
     }
     await nvim.command('keepalt above sp')
@@ -567,7 +573,7 @@ export default class DocumentManager {
     if (hasFugitive) {
       await nvim.command(`Gedit ${commit}`)
     } else {
-      let content = await safeRun(`git --no-pager show ${commit}`, { cwd: root })
+      let content = await this.safeRun(['--no-pager', 'show', commit], root)
       if (content == null) return
       let lines = content.trim().split('\n')
       nvim.pauseNotification()
@@ -590,12 +596,12 @@ export default class DocumentManager {
       return
     }
     // get remote list
-    let output = await safeRun('git remote', { cwd: root })
+    let output = await this.safeRun(['remote'], root)
     if (!output.trim()) {
       workspace.showMessage(`No remote found`, 'warning')
       return
     }
-    let head = await safeRun('git symbolic-ref --short -q HEAD', { cwd: root })
+    let head = await this.safeRun(['symbolic-ref', '--short', '-q', 'HEAD'], root)
     head = head.trim()
     if (!head.length) {
       workspace.showMessage(`Failed on git symbolic-ref`, 'warning')
@@ -621,7 +627,7 @@ export default class DocumentManager {
     let names = output.trim().split(/\r?\n/)
     let urls: string[] = []
     for (let name of names) {
-      let uri = await safeRun(`git remote get-url ${name}`, { cwd: root })
+      let uri = await this.safeRun(['remote', 'get-url', name], root)
       uri = uri.replace(/\s+$/, '')
       if (!uri.length) continue
       let url = getUrl(uri, head, relpath, lines)
@@ -655,7 +661,7 @@ export default class DocumentManager {
       workspace.showMessage(`not a git repository.`, 'warning')
       return
     }
-    let res = await safeRun(`git diff --cached`, { cwd: root })
+    let res = await this.safeRun(['diff', '--cached'], root)
     if (!res.trim()) {
       workspace.showMessage('Empty diff')
       return
@@ -670,15 +676,12 @@ export default class DocumentManager {
     await nvim.resumeNotification()
   }
 
-  public dispose(): void {
-    disposeAll(this.disposables)
-  }
-
   private async getBlameInfo(relpath: string, lnum: number, root: string): Promise<BlameInfo> {
     let info: BlameInfo = {}
-    let content = await safeRun(`git --no-pager blame -b -p --root -L${lnum},${lnum} --date relative ${relpath}`, { cwd: root })
-    if (content) {
-      for (let line of content.split(/\r?\n/)) {
+    try {
+      let res = await this.git.exec(root, ['--no-pager', 'blame', '-b', '-p', '--root', `-L${lnum},${lnum}`, '--date', 'relative', relpath])
+      if (!res.stdout) return info
+      for (let line of res.stdout.trim().split(/\r?\n/)) {
         let ms = line.match(/^(\S+)\s(.*)/)
         if (ms) {
           let [, field, text] = ms
@@ -687,7 +690,23 @@ export default class DocumentManager {
           if (field == 'summary') info.summary = text
         }
       }
+      return info
+    } catch (e) {
+      this.channel.appendLine(e.stack)
     }
     return info
+  }
+
+  public async safeRun(args: string[], root: string): Promise<string> {
+    try {
+      let res = await this.git.exec(root, args)
+      return res ? res.stdout.trim() : ''
+    } catch (e) {
+      return ''
+    }
+  }
+
+  public dispose(): void {
+    disposeAll(this.disposables)
   }
 }

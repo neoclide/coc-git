@@ -1,16 +1,19 @@
 import { Document, Uri, workspace } from 'coc.nvim'
 import path from 'path'
-import { runCommand } from './util'
+import Git from './git'
 
 export default class Resolver {
   private resolvedRoots: Set<string> = new Set()
+  constructor(private git: Git) {
+  }
 
   public getGitRoot(fullpath: string): string | null {
     if (process.platform == 'win32') {
       fullpath = path.win32.normalize(fullpath)
     }
     for (let p of this.resolvedRoots) {
-      if (fullpath.toLowerCase().startsWith(p.toLowerCase())) return p
+      let rel = path.relative(p, fullpath)
+      if (!rel.startsWith('..')) return p
     }
     return null
   }
@@ -38,10 +41,10 @@ export default class Resolver {
       return root
     }
     try {
-      let res = await runCommand('git rev-parse --show-toplevel', { cwd: dir })
-      if (path.isAbsolute(res.trim())) {
-        this.resolvedRoots.add(res.trim())
-        return res.trim()
+      let res = await this.git.getRepositoryRoot(dir)
+      if (path.isAbsolute(res)) {
+        this.resolvedRoots.add(res)
+        return res
       }
     } catch (e) {
       return

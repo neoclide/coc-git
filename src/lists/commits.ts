@@ -3,7 +3,7 @@ import { ansiparse, BasicList, ListAction, ListContext, ListTask, Neovim } from 
 import { EventEmitter } from 'events'
 import readline from 'readline'
 import Manager from '../manager'
-import { runCommand, runCommandWithData, safeRun } from '../util'
+import { runCommand, safeRun } from '../util'
 
 class CommitsTask extends EventEmitter implements ListTask {
   private process: ChildProcess
@@ -162,7 +162,7 @@ export default class Commits extends BasicList {
     this.addMultipleAction('copy', async items => {
       let list = items.filter(item => item.data.message != null)
       let lines = list.map(o => o.data.message)
-      await runCommandWithData('pbcopy', [], process.cwd(), lines.join('\n'))
+      await this.nvim.call('setreg', ['+', lines.join('\n')])
     })
     this.addAction('files', async item => {
       let { commit } = item.data
