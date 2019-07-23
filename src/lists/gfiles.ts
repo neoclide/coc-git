@@ -1,4 +1,4 @@
-import { BasicList, workspace, ListAction, ListContext, ListItem, Neovim } from 'coc.nvim'
+import { Uri, BasicList, workspace, ListAction, ListContext, ListItem, Neovim } from 'coc.nvim'
 import path from 'path'
 import Manager from '../manager'
 import { runCommand, shellescape } from '../util'
@@ -7,7 +7,7 @@ export default class Gfiles extends BasicList {
   public readonly name = 'gfiles'
   public readonly description = 'view files on different branches (or commits, or tags)'
   public readonly detail = 'Pass git sha as first command argument, when empty, HEAD is used.\nExample: :CocList gfiles 7b5c5cb'
-  public readonly defaultAction = 'show'
+  public readonly defaultAction = 'edit'
   public actions: ListAction[] = []
 
   constructor(nvim: Neovim, private manager: Manager) {
@@ -15,16 +15,21 @@ export default class Gfiles extends BasicList {
     const preferences = workspace.getConfiguration('coc.preferences')
     let jumpCommand = preferences.get<string>('jumpCommand', 'edit')
 
-    for (let name of ['show', 'tabe', 'vsplit', 'split']) {
+    for (let name of ['edit', 'tabe', 'vsplit', 'split']) {
       this.addAction(name, async item => {
         let { root, sha, filepath, branch } = item.data
         if (!sha) return
+        if (branch == 'HEAD') {
+          let cmd = name == 'edit' ? jumpCommand : name
+          let fullpath = path.join(root, filepath)
+          await workspace.jumpTo(Uri.file(fullpath).toString(), null, cmd)
+          return
+        }
         let content = await runCommand(`git cat-file -p ${sha}`, { cwd: root })
         let lines = content.replace(/\n$/, '').split('\n')
-        let file = path.relative(root, filepath)
-        let cmd = name == 'show' ? jumpCommand : name
+        let cmd = name == 'edit' ? jumpCommand : name
         nvim.pauseNotification()
-        nvim.command(`exe "${cmd} ".fnameescape('(${branch}) ${file}')`, true)
+        nvim.command(`exe "${cmd} ".fnameescape('(${branch}) ${filepath}')`, true)
         nvim.call('append', [0, lines], true)
         nvim.command('normal! Gdd', true)
         nvim.command(`exe 1`, true)
