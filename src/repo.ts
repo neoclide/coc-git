@@ -1,12 +1,12 @@
-import Git, { SpawnOptions, IExecutionResult } from './git'
-import { OutputChannel, Document, Uri } from 'coc.nvim'
-import { ChangeType, Diff } from './types'
-import uuid = require('uuid/v4')
+import { Document, OutputChannel, Uri } from 'coc.nvim'
 import fs from 'fs'
 import os from 'os'
 import path from 'path'
 import util from 'util'
+import Git, { IExecutionResult, SpawnOptions } from './git'
+import { ChangeType, Diff } from './types'
 import { getStdout, shellescape } from './util'
+import uuid = require('uuid/v4')
 
 interface Decorator {
   changedDecorator: string
@@ -64,9 +64,18 @@ export default class Repo {
   }
 
   private async hasUntracked(): Promise<boolean> {
-    let result = await this.exec(['ls-files', '--others', '--exclude-standard'])
-    if (!result.stdout) return false
-    return result.stdout.trim().length != 0
+    let cp = this.git.stream(this.root, ['ls-files', '--others', '--exclude-standard'])
+    return new Promise((resolve, reject) => {
+      let hasData = false
+      cp.on('error', reject)
+      cp.stdout.on('data', () => {
+        hasData = true
+        cp.kill()
+      })
+      cp.on('exit', () => {
+        resolve(hasData)
+      })
+    })
   }
 
   public async getStatus(character: string, decorator: Decorator): Promise<string> {
