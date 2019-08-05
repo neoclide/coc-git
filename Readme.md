@@ -31,7 +31,14 @@ In your vim/neovim, run command:
 - Keymaps for git chunks, including `<Plug>(coc-git-chunkinfo)` `<Plug>(coc-git-nextchunk)` & `<Plug>(coc-git-prevchunk)` ,
 - Commands for chunks, including `git.chunkInfo` `git.chunkStage` `git.chunkUndo` and more.
 - Completion support for semantic commit.
-- Completion support for github issues.
+- Completion support for GitHub/GitLab issues.
+
+**Note** for GitLab issues completion support:
+
+- current only API `v4` support, which availabled since GitLab 9.0
+- `GITLAB_PRIVATE_TOKEN=XXX` needs to be set in env, check [Personal access tokens](https://docs.gitlab.com/ee/user/profile/personal_access_tokens.html)
+- GitLab host needs to be set in `coc-settings.json`, for example `"git.gitlab.hosts": ["gitlab.example.com", "gitlab.com"]`
+
 
 ## Configuration
 
@@ -56,6 +63,7 @@ In your vim/neovim, run command:
 - `git.addGlameToVirtualText`:Add git blame information to virtual text, require virtual text feature of neovim. default: `false`.
 - `git.addGlameToBufferVar`:Add git blame information to b:coc_git_blame. default: `false`.
 - `git.semanticCommit.filetypes` filetype list to enable semantic commit completion, default: `["gitcommit", "gina-commit"]`
+- `git.gitlab.hosts`: Custom GitLab host list, defaults: `[]`
 - `coc.source.issues.enable` enable issues completion from github, default `true`.
 - `coc.source.issues.priority` priority of issues source, default: `9`.
 - `coc.source.issues.shortcut` shortcut of issues source, default: `"I"`.

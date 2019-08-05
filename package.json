@@ -199,6 +199,11 @@
             "type": "string"
           }
         },
+        "git.gitlab.hosts": {
+          "type": "array",
+          "default": [],
+          "description": "Custom GitLab hosts"
+        },
         "coc.source.issues.enable": {
           "type": "boolean",
           "default": true

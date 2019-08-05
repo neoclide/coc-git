@@ -33,12 +33,56 @@ export default function addSource(context: ExtensionContext, resolver: Resolver)
     logger.error(err)
   }
 
-  async function loadIssues(root: string): Promise<Issue[]> {
-    let config = workspace.getConfiguration('git')
-    let remoteName = config.get<string>('remoteName', 'origin')
-    let res = await safeRun(`git remote get-url ${remoteName}`, { cwd: root })
-    res = res.trim()
-    if (res.indexOf('github.com') == -1) return
+  async function loadGitLabIssues(res: string, host: string): Promise<Issue[]> {
+    const token = process.env['GITLAB_PRIVATE_TOKEN']
+    if (!token) {
+      return []
+    }
+
+    let repo: string
+    if (res.startsWith('https')) {
+      const re = new RegExp(`^https:\\/\\/${host}\\/(.*)`)
+      let ms = res.match(re)
+      repo = ms ? ms[1].replace(/\.git$/, '') : null
+    } else if (res.startsWith('git')) {
+      const re = new RegExp(`git@${host}:(.*)`)
+      let ms = res.match(re)
+      repo = ms ? ms[1].replace(/\.git$/, '') : null
+    }
+    if (!repo) {
+      return []
+    }
+
+    const headers = {
+      'Private-Token': token,
+      'Accept-Encoding': 'gzip, deflate',
+      'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_13_4) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/74.0.3729.169 Safari/537.36'
+    }
+    const uri = `http://${host}/api/v4/projects/${encodeURIComponent(repo)}/issues`
+    statusItem.show()
+    let issues: Issue[] = []
+    try {
+      let response = await xhr({ url: uri, followRedirects: 5, headers })
+      let { responseText } = response
+      let info = JSON.parse(responseText)
+      for (let i = 0, len = info.length; i < len; i++) {
+        issues.push({
+          id: info[i].id,
+          title: info[i].title,
+          createAt: new Date(info[i].created_at),
+          creator: info[i].author.username,
+          body: info[i].description,
+          repo
+        })
+      }
+    } catch (e) {
+      logger.error(`Request GitLab ${host} issues error:`, e)
+    }
+    statusItem.hide()
+    return issues
+  }
+
+  async function loadGitHubIssues(res: string): Promise<Issue[]> {
     let repo: string
     if (res.startsWith('https')) {
       let ms = res.match(/^https:\/\/github\.com\/(.*)/)
@@ -47,7 +91,10 @@ export default function addSource(context: ExtensionContext, resolver: Resolver)
       let ms = res.match(/git@github\.com:(.*)/)
       repo = ms ? ms[1].replace(/\.git$/, '') : null
     }
-    if (!repo) return
+    if (!repo) {
+      return []
+    }
+
     const headers = {
       'Accept-Encoding': 'gzip, deflate',
       'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_13_4) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/74.0.3729.169 Safari/537.36'
@@ -74,6 +121,30 @@ export default function addSource(context: ExtensionContext, resolver: Resolver)
     }
     statusItem.hide()
     return issues
+  }
+
+  async function loadIssues(root: string): Promise<Issue[]> {
+    let config = workspace.getConfiguration('git')
+    let remoteName = config.get<string>('remoteName', 'origin')
+    let res = await safeRun(`git remote get-url ${remoteName}`, { cwd: root })
+    res = res.trim()
+    if (res.indexOf('github.com') > 0) {
+      return loadGitHubIssues(res)
+    }
+
+    let host = ''
+    let hosts = config.get<string[]>('gitlab.hosts', [])
+    hosts.forEach(item => {
+      if (res.indexOf(item) > 0) {
+        host = item
+      }
+    })
+
+    if (host && host.length > 0) {
+      return loadGitLabIssues(res, host)
+    }
+
+    return []
   }
 
   configure()
