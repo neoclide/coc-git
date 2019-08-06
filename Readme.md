@@ -63,7 +63,7 @@ In your vim/neovim, run command:
 - `git.addGlameToVirtualText`:Add git blame information to virtual text, require virtual text feature of neovim. default: `false`.
 - `git.addGlameToBufferVar`:Add git blame information to b:coc_git_blame. default: `false`.
 - `git.semanticCommit.filetypes` filetype list to enable semantic commit completion, default: `["gitcommit", "gina-commit"]`
-- `git.gitlab.hosts`: Custom GitLab host list, defaults: `[]`
+- `git.gitlab.hosts`: Custom GitLab host list, defaults: `['gitlab.com']`
 - `coc.source.issues.enable` enable issues completion from github, default `true`.
 - `coc.source.issues.priority` priority of issues source, default: `9`.
 - `coc.source.issues.shortcut` shortcut of issues source, default: `"I"`.

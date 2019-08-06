@@ -201,7 +201,9 @@
         },
         "git.gitlab.hosts": {
           "type": "array",
-          "default": [],
+          "default": [
+            "gitlab.com"
+          ],
           "description": "Custom GitLab hosts"
         },
         "coc.source.issues.enable": {
