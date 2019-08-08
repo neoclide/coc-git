@@ -67,7 +67,7 @@ export default function addSource(context: ExtensionContext, resolver: Resolver)
       let info = JSON.parse(responseText)
       for (let i = 0, len = info.length; i < len; i++) {
         issues.push({
-          id: info[i].id,
+          id: info[i].iid,
           title: info[i].title,
           createAt: new Date(info[i].created_at),
           creator: info[i].author.username,
