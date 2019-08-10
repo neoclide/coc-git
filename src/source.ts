@@ -58,7 +58,7 @@ export default function addSource(context: ExtensionContext, resolver: Resolver)
       'Accept-Encoding': 'gzip, deflate',
       'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_13_4) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/74.0.3729.169 Safari/537.36'
     }
-    const uri = `http://${host}/api/v4/projects/${encodeURIComponent(repo)}/issues`
+    const uri = `https://${host}/api/v4/projects/${encodeURIComponent(repo)}/issues`
     statusItem.show()
     let issues: Issue[] = []
     try {
@@ -72,7 +72,8 @@ export default function addSource(context: ExtensionContext, resolver: Resolver)
           createAt: new Date(info[i].created_at),
           creator: info[i].author.username,
           body: info[i].description,
-          repo
+          repo,
+          url: `https://${host}/${repo}/issues/${info[i].iid}`
         })
       }
     } catch (e) {
@@ -113,7 +114,8 @@ export default function addSource(context: ExtensionContext, resolver: Resolver)
           createAt: new Date(info[i].created_at),
           creator: info[i].user.login,
           body: info[i].body,
-          repo
+          repo,
+          url: `https://github.com/${repo}/issues/${info[i].number}`
         })
       }
     } catch (e) {
@@ -207,8 +209,7 @@ export default function addSource(context: ExtensionContext, resolver: Resolver)
     actions: [{
       name: 'open',
       execute: async (item: ListItem) => {
-        let { id, repo } = item.data
-        let url = `https://github.com/${repo}/issues/${id}`
+        let { url } = item.data
         await workspace.openResource(url)
       },
       multiple: false
@@ -235,7 +236,7 @@ export default function addSource(context: ExtensionContext, resolver: Resolver)
       multiple: false
     }],
     defaultAction: 'open',
-    description: 'issues on github',
+    description: 'issues on github/gitlab',
     loadItems: async (context): Promise<ListItem[]> => {
       let buf = await context.window.buffer
       let root = await resolver.resolveGitRoot(workspace.getDocument(buf.id))
