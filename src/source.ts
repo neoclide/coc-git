@@ -11,6 +11,7 @@ interface Issue {
   creator: string
   body: string
   repo: string
+  url: string
 }
 
 const issuesMap: Map<number, Issue[]> = new Map()

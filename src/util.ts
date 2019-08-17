@@ -163,7 +163,7 @@ export function getUrl(remote: string, branch: string, filepath: string, lines?:
     }
     return uri + '/blob/' + branch + '/' + filepath + (anchor ? '#' + anchor : '')
   }
-  workspace.showMessage(`Can't get url form: ${u.authority}`, 'warning')
+  workspace.showMessage(`Can't get url from: ${u.authority}`, 'warning')
   return ''
 }
 
