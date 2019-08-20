@@ -101,6 +101,9 @@ export default function addSource(context: ExtensionContext, resolver: Resolver)
       'Accept-Encoding': 'gzip, deflate',
       'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_13_4) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/74.0.3729.169 Safari/537.36'
     }
+    if (process.env.GITHUB_API_TOKEN) {
+      headers['Authorization'] = `token ${process.env.GITHUB_API_TOKEN}`
+    }
     const uri = `https://api.github.com/repos/${repo}/issues?scope=all`
     statusItem.show()
     let issues: Issue[] = []
