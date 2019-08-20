@@ -94,6 +94,10 @@ export async function activate(context: ExtensionContext): Promise<void> {
     await manager.chunkUndo()
   }))
 
+  subscriptions.push(commands.registerCommand('git.chunkSelect', async ()=>{
+    await manager.chunkSelect()
+  }))
+
   subscriptions.push(commands.registerCommand('git.showCommit', async () => {
     await manager.showCommit()
   }))

@@ -8,6 +8,7 @@ import Repo from './repo'
 import Resolver from './resolver'
 import { ChangeType, Diff, SignInfo } from './types'
 import { equals, getUrl, spawnCommand } from './util'
+import { Range } from 'vscode-languageserver-protocol'
 
 interface FoldSettings {
   foldmethod: string
@@ -336,6 +337,17 @@ export default class DocumentManager {
       }
       return false
     })
+  }
+
+  public async chunkSelect(): Promise<void> {
+    let bufnr = await this.nvim.eval('bufnr("%")') as number
+    let doc = workspace.getDocument(bufnr)
+    if (!doc) return
+    let diff = await this.getCurrentChunk()
+    if (!diff) return
+    let endLine = doc.getline(diff.end - 1)
+    let range = Range.create(diff.start - 1, 0, diff.end - 1, endLine.length)
+    if (range) await workspace.selectRange(range)
   }
 
   public async showDoc(content: string, filetype = 'diff'): Promise<void> {

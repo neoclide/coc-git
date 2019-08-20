@@ -156,6 +156,7 @@ related commands.
 - `:CocCommand git.chunkInfo` Show chunk info under cursor.
 - `:CocCommand git.chunkUndo` Undo current chunk.
 - `:CocCommand git.chunkStage` Stage current chunk.
+- `:CocCommand git.chunkSelect` Select current chunk
 - `:CocCommand git.diffCached` Show cached diff in preview window.
 - `:CocCommand git.showCommit` Show commit of current chunk.
 - `:CocCommand git.browserOpen` Open current line in browser, github url supported.
