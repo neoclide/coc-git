@@ -35,14 +35,16 @@ export async function activate(context: ExtensionContext): Promise<void> {
   addSource(context, resolver)
   subscriptions.push(manager)
 
-  Promise.all(workspace.documents.map(doc => {
-    return resolver.resolveGitRoot(doc)
-  })).then(() => {
+  function updateAll(): void {
     manager.refreshStatus().catch(emptyFn)
     for (let doc of workspace.documents) {
       manager.diffDocument(doc, true).catch(emptyFn)
     }
-  }, emptyFn)
+  }
+
+  Promise.all(workspace.documents.map(doc => {
+    return resolver.resolveGitRoot(doc)
+  })).then(updateAll, emptyFn)
 
   workspace.onDidOpenTextDocument(async e => {
     let doc = workspace.getDocument(e.uri)
@@ -53,6 +55,13 @@ export async function activate(context: ExtensionContext): Promise<void> {
   workspace.onDidChangeTextDocument(async e => {
     let doc = workspace.getDocument(e.textDocument.uri)
     await manager.diffDocument(doc)
+  }, null, subscriptions)
+
+  events.on('BufWritePost', bufnr => {
+    let doc = workspace.getDocument(bufnr)
+    if (doc.uri.startsWith('fugitive:')) {
+      updateAll()
+    }
   }, null, subscriptions)
 
   events.on('CursorHold', async bufnr => {
