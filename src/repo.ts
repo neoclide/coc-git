@@ -101,6 +101,7 @@ export default class Repo {
     if (!doc || doc.isIgnored || doc.buftype !== '' || doc.schema !== 'file') return
     let fsPath = Uri.parse(doc.uri).fsPath
     if (!fs.existsSync(fsPath)) return
+    fsPath = fs.realpathSync(fsPath, 'utf8')
     let file = path.relative(this.root, fsPath)
     if (file.startsWith(`.git${path.sep}`)) return
     // check if indexed

@@ -1,6 +1,17 @@
 import { Document, Uri, workspace } from 'coc.nvim'
 import path from 'path'
 import Git from './git'
+import fs from 'fs'
+
+function getRealPath(fullpath: string): string {
+  try {
+    let res = fs.realpathSync(fullpath, 'utf8')
+    return res
+  } catch (e) {
+    // noop
+  }
+  return fullpath
+}
 
 export default class Resolver {
   private resolvedRoots: Set<string> = new Set()
@@ -8,6 +19,7 @@ export default class Resolver {
   }
 
   public getGitRoot(fullpath: string): string | null {
+    fullpath = getRealPath(fullpath)
     if (process.platform == 'win32') {
       fullpath = path.win32.normalize(fullpath)
     }
@@ -20,7 +32,8 @@ export default class Resolver {
 
   public getRootOfDocument(document: Document): string | null {
     if (document.schema != 'file' || document.buftype != '') return null
-    return this.getGitRoot(Uri.parse(document.uri).fsPath)
+    let fullpath = Uri.parse(document.uri).fsPath
+    return this.getGitRoot(fullpath)
   }
 
   public async resolveGitRoot(doc?: Document): Promise<string> {
@@ -28,8 +41,8 @@ export default class Resolver {
     if (!doc || doc.buftype != '' || doc.schema != 'file') {
       dir = workspace.cwd
     } else {
-      let u = Uri.parse(doc.uri)
-      dir = path.dirname(u.fsPath)
+      let fullpath = Uri.parse(doc.uri).fsPath
+      dir = path.dirname(getRealPath(fullpath))
     }
     let root = this.getGitRoot(dir)
     if (root) return root
