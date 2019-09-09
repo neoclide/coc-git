@@ -319,7 +319,7 @@ export default class DocumentManager {
     await nvim.resumeNotification(false, true)
   }
 
-  private async getCurrentChunk(): Promise<Diff> {
+  public async getCurrentChunk(): Promise<Diff> {
     const { nvim } = this
     let bufnr = await nvim.call('bufnr', '%')
     let line = await nvim.call('line', '.')

@@ -39,7 +39,6 @@ In your vim/neovim, run command:
 - `GITLAB_PRIVATE_TOKEN=XXX` needs to be set in env, check [Personal access tokens](https://docs.gitlab.com/ee/user/profile/personal_access_tokens.html)
 - GitLab host needs to be set in `coc-settings.json`, for example `"git.gitlab.hosts": ["gitlab.example.com", "gitlab.com"]`
 
-
 ## Configuration
 
 - `git.enableGlobalStatus`:Enable global g:coc_git_status, default: `true`.
@@ -145,6 +144,11 @@ nmap ]g <Plug>(coc-git-nextchunk)
 nmap gs <Plug>(coc-git-chunkinfo)
 " show commit contains current position
 nmap gc <Plug>(coc-git-commit)
+" create text object for git chunks
+omap ic <Plug>(coc-text-object-inner)
+xmap ic <Plug>(coc-text-object-inner)
+omap ic <Plug>(coc-text-object-outer)
+xmap ic <Plug>(coc-text-object-outer)
 ```
 
 ### Commands
