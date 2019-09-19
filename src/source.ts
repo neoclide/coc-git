@@ -200,7 +200,7 @@ export default function addSource(context: ExtensionContext, resolver: Resolver)
         }
       }
       return {
-        items: ['BREAK CHANGE: ', 'Closes'].map(s => {
+        items: ['BREAKING CHANGE: ', 'Closes'].map(s => {
           return { word: s }
         })
       }
