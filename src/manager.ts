@@ -52,7 +52,7 @@ export default class DocumentManager {
       // tslint:disable-next-line: no-console
       console.error(e)
     })
-    if (this.showBlame && workspace.isNvim) {
+    if (this.showBlame) {
       nvim.createNamespace('coc-git').then(srcId => {
         this.virtualTextSrcId = srcId
       }, _e => {
@@ -67,6 +67,7 @@ export default class DocumentManager {
         await this.showBlameInfo(bufnr, cursor[0])
       }, 100), null, this.disposables)
       events.on('InsertEnter', async bufnr => {
+        if (!this.virtualText) return
         let { virtualTextSrcId } = this
         if (virtualTextSrcId) {
           let buffer = nvim.createBuffer(bufnr)
