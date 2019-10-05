@@ -1,6 +1,6 @@
 {
   "name": "coc-git",
-  "version": "1.6.12",
+  "version": "1.6.13",
   "description": "Git extension for coc.nvim",
   "main": "lib/index.js",
   "publisher": "chemzqm",
@@ -76,9 +76,9 @@
           "description": "Remote name for fetch github issues."
         },
         "git.issueFormat": {
-            "type": "string",
-            "default": "#%i",
-            "description": "Formatting string for issue completion. Supported interpolation variables: %i - issue id. %r - repository name. %o - organization/owner name. %t - issue title. %b - issue body. %c - issue created at. %a - issue author. %u - issue url."
+          "type": "string",
+          "default": "#%i",
+          "description": "Formatting string for issue completion. Supported interpolation variables: %i - issue id. %r - repository name. %o - organization/owner name. %t - issue title. %b - issue body. %c - issue created at. %a - issue author. %u - issue url."
         },
         "git.virtualTextPrefix": {
           "type": "string",
