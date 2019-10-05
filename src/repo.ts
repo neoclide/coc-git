@@ -65,14 +65,21 @@ export default class Repo {
 
   private async hasUntracked(): Promise<boolean> {
     let cp = this.git.stream(this.root, ['ls-files', '--others', '--exclude-standard'])
-    return new Promise((resolve, reject) => {
+    return new Promise(resolve => {
       let hasData = false
-      cp.on('error', reject)
+      let timer = setTimeout(() => {
+        if (cp.killed) return
+        cp.kill('SIGKILL')
+        resolve(false)
+      }, 100)
       cp.stdout.on('data', () => {
+        clearTimeout(timer)
         hasData = true
-        cp.kill()
+        cp.kill('SIGKILL')
+        resolve(hasData)
       })
       cp.on('exit', () => {
+        clearTimeout(timer)
         resolve(hasData)
       })
     })
