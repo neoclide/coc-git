@@ -25,6 +25,22 @@ function issuesFiletypes(): string[] {
   return workspace.getConfiguration().get<string[]>('coc.source.issues.filetypes')
 }
 
+function renderWord(issue: Issue, issueFormat: string): string {
+  return issueFormat.split(/(%i|%o|%r|%b|%t|%c|%a|%u)/).map(part => {
+    switch (part) {
+      case '%i': return issue.id
+      case '%o': return issue.repo.split('/')[0]
+      case '%r': return issue.repo.split('/')[1]
+      case '%b': return issue.body
+      case '%t': return issue.title
+      case '%c': return issue.createAt
+      case '%a': return issue.creator
+      case '%u': return issue.url
+      default: return part
+    }
+  }).join('')
+}
+
 export default function addSource(context: ExtensionContext, resolver: Resolver): void {
   let { subscriptions, logger } = context
   let statusItem = workspace.createStatusBarItem(0, { progress: true })
@@ -184,6 +200,8 @@ export default function addSource(context: ExtensionContext, resolver: Resolver)
     filetypes: ['gitcommit', 'gina-commit'],
     triggerCharacters: ['#'],
     async doComplete(opt): Promise<CompleteResult> {
+      const config = workspace.getConfiguration('git')
+      const issueFormat = config.get<string>('issueFormat', '#%i')
       if (opt.triggerCharacter && opt.triggerCharacter == '#') {
         let issues = issuesMap.get(opt.bufnr)
         if (!issues || issues.length == 0) return null
@@ -191,8 +209,10 @@ export default function addSource(context: ExtensionContext, resolver: Resolver)
           startcol: opt.col - 1,
           items: issues.map(i => {
             return {
-              word: `#${i.id}`,
+              word: renderWord(i, issueFormat),
               menu: `${i.title} ${this.shortcut}`,
+              abbr: `${i.id}`,
+              info: i.body,
               filterText: '#' + i.id + i.title,
               sortText: String.fromCharCode(65535 - i.id)
             }
