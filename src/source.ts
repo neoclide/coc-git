@@ -12,6 +12,7 @@ interface Issue {
   body: string
   repo: string
   url: string
+  shouldIncludeOrganizationNameAndRepoNameInAbbr?: boolean
 }
 
 const issuesMap: Map<number, Issue[]> = new Map()
@@ -23,6 +24,18 @@ function configure(): void {
 
 function issuesFiletypes(): string[] {
   return workspace.getConfiguration().get<string[]>('coc.source.issues.filetypes')
+}
+
+function getOrganizationNameAndRepoNameFromGitHubRemoteUrl(remoteUrl: string): {organizationName: string, repoName: string} | null {
+  try {
+    const matchResult = remoteUrl.match(/github.com(:|\/)([^/]+)\/([^/]+).git/)
+    return {
+      organizationName: matchResult[2],
+      repoName: matchResult[3],
+    }
+  } catch (e) {
+    return null
+  }
 }
 
 function renderWord(issue: Issue, issueFormat: string): string {
@@ -45,6 +58,21 @@ export default function addSource(context: ExtensionContext, resolver: Resolver)
   let { subscriptions, logger } = context
   let statusItem = workspace.createStatusBarItem(0, { progress: true })
   statusItem.text = 'loading issues'
+  let statusItemCounter = 0
+
+  function onStartLoading(): void {
+    statusItemCounter++
+    if (statusItemCounter === 1) {
+      statusItem.show()
+    }
+  }
+
+  function onEndLoading(): void {
+    statusItemCounter--
+    if (statusItemCounter === 0) {
+      statusItem.hide()
+    }
+  }
 
   function onError(err): void {
     logger.error(err)
@@ -76,7 +104,7 @@ export default function addSource(context: ExtensionContext, resolver: Resolver)
       'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_13_4) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/74.0.3729.169 Safari/537.36'
     }
     const uri = `https://${host}/api/v4/projects/${encodeURIComponent(repo)}/issues`
-    statusItem.show()
+    onStartLoading()
     let issues: Issue[] = []
     try {
       let response = await xhr({ url: uri, followRedirects: 5, headers })
@@ -96,23 +124,11 @@ export default function addSource(context: ExtensionContext, resolver: Resolver)
     } catch (e) {
       logger.error(`Request GitLab ${host} issues error:`, e)
     }
-    statusItem.hide()
+    onEndLoading()
     return issues
   }
 
-  async function loadGitHubIssues(res: string): Promise<Issue[]> {
-    let repo: string
-    if (res.startsWith('https')) {
-      let ms = res.match(/^https:\/\/github\.com\/(.*)/)
-      repo = ms ? ms[1].replace(/\.git$/, '') : null
-    } else if (res.startsWith('git')) {
-      let ms = res.match(/git@github\.com:(.*)/)
-      repo = ms ? ms[1].replace(/\.git$/, '') : null
-    }
-    if (!repo) {
-      return []
-    }
-
+  async function loadGitHubIssues(organizationName: string, repoName: string, shouldIncludeOrganizationNameAndRepoNameInAbbr = false): Promise<Issue[]> {
     const headers = {
       'Accept-Encoding': 'gzip, deflate',
       'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_13_4) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/74.0.3729.169 Safari/537.36'
@@ -120,8 +136,9 @@ export default function addSource(context: ExtensionContext, resolver: Resolver)
     if (process.env.GITHUB_API_TOKEN) {
       headers['Authorization'] = `token ${process.env.GITHUB_API_TOKEN}`
     }
+    const repo = `${organizationName}/${repoName}`
     const uri = `https://api.github.com/repos/${repo}/issues?scope=all`
-    statusItem.show()
+    onStartLoading()
     let issues: Issue[] = []
     try {
       let response = await xhr({ url: uri, followRedirects: 5, headers })
@@ -135,23 +152,41 @@ export default function addSource(context: ExtensionContext, resolver: Resolver)
           creator: info[i].user.login,
           body: info[i].body,
           repo,
-          url: `https://github.com/${repo}/issues/${info[i].number}`
+          url: `https://github.com/${repo}/issues/${info[i].number}`,
+          shouldIncludeOrganizationNameAndRepoNameInAbbr,
         })
       }
     } catch (e) {
       logger.error(`Request github issues error:`, e)
     }
-    statusItem.hide()
+    onEndLoading()
     return issues
   }
 
   async function loadIssues(root: string): Promise<Issue[]> {
     let config = workspace.getConfiguration('git')
+    const issueSources = (await safeRun(`git config --get coc-git.issuesources`, {cwd: root}) || '').trim()
+    if (issueSources) {
+      return Array.prototype.concat.apply([],
+        await Promise.all(issueSources.split(',').map(issueSource => {
+          const [issueProvider, organizationName, repoName] = (issueSource + '//').split('/').slice(0, 3)
+          switch (issueProvider) {
+            case 'github': return loadGitHubIssues(organizationName, repoName, true)
+            default: return []
+          }
+        }))
+      )
+    }
+
     let remoteName = config.get<string>('remoteName', 'origin')
     let res = await safeRun(`git remote get-url ${remoteName}`, { cwd: root })
     res = res.trim()
     if (res.indexOf('github.com') > 0) {
-      return loadGitHubIssues(res)
+      const organizationNameAndRepoName = getOrganizationNameAndRepoNameFromGitHubRemoteUrl(res)
+      if (organizationNameAndRepoName === null) {
+        return []
+      }
+      return loadGitHubIssues(organizationNameAndRepoName.organizationName, organizationNameAndRepoName.repoName)
     }
 
     let host = ''
@@ -211,7 +246,7 @@ export default function addSource(context: ExtensionContext, resolver: Resolver)
             return {
               word: renderWord(i, issueFormat),
               menu: `${i.title} ${this.shortcut}`,
-              abbr: `${i.id}`,
+              abbr: `${i.shouldIncludeOrganizationNameAndRepoNameInAbbr ? i.repo : ''}#${i.id}`,
               info: i.body,
               filterText: '#' + i.id + i.title,
               sortText: String.fromCharCode(65535 - i.id)
