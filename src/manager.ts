@@ -82,8 +82,8 @@ export default class DocumentManager {
   }
 
   private get showBlame(): boolean {
-    let blame = this.config.get<boolean>('addGlameToVirtualText', false)
-    let blameVar = this.config.get<boolean>('addGlameToBufferVar', false)
+    let blame = this.config.get<boolean>('addGBlameToVirtualText', false)
+    let blameVar = this.config.get<boolean>('addGBlameToBufferVar', false)
     return blame || blameVar
   }
 
@@ -112,7 +112,7 @@ export default class DocumentManager {
         blameText = `(${blameInfo.author} ${blameInfo.time}) ${blameInfo.summary}`
       }
     }
-    if (this.config.get<boolean>('addGlameToBufferVar', false)) {
+    if (this.config.get<boolean>('addGBlameToBufferVar', false)) {
       nvim.pauseNotification()
       doc.buffer.setVar('coc_git_blame', blameText, true)
       nvim.command('redraws', true)
@@ -134,7 +134,7 @@ export default class DocumentManager {
   }
 
   private get virtualText(): boolean {
-    return this.config.get<boolean>('addGlameToVirtualText', false) && workspace.isNvim
+    return this.config.get<boolean>('addGBlameToVirtualText', false) && workspace.isNvim
   }
 
   private get signOffset(): number {

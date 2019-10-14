@@ -59,8 +59,8 @@ In your vim/neovim, run command:
 - `git.changeRemovedSign.text`:Text of change removed sign., default: `"≃"`.
 - `git.changeRemovedSign.hlGroup`:Highlight group for change removed sign., default: `"DiffDelete"`.
 - `git.virtualTextPrefix`:Prefix of git blame information to virtual text, require virtual text feature of neovim. default: `5 <Space>`.
-- `git.addGlameToVirtualText`:Add git blame information to virtual text, require virtual text feature of neovim. default: `false`.
-- `git.addGlameToBufferVar`:Add git blame information to b:coc_git_blame. default: `false`.
+- `git.addGBlameToVirtualText`:Add git blame information to virtual text, require virtual text feature of neovim. default: `false`.
+- `git.addGBlameToBufferVar`:Add git blame information to b:coc_git_blame. default: `false`.
 - `git.semanticCommit.filetypes` filetype list to enable semantic commit completion, default: `["gitcommit", "gina-commit"]`
 - `git.gitlab.hosts`: Custom GitLab host list, defaults: `['gitlab.com']`
 - `coc.source.issues.enable` enable issues completion from github, default `true`.
