@@ -81,9 +81,19 @@ export default class DocumentManager {
     }, null, this.disposables)
   }
 
+  private getConfig<T>(key: string, defaultValue: T, deprecatedKey?: string): T {
+    if (deprecatedKey) {
+      let inspectDeprecated = this.config.inspect(deprecatedKey)
+      if (inspectDeprecated.globalValue != null || inspectDeprecated.workspaceValue != null) {
+        workspace.showMessage(`"${deprecatedKey}" is deprecated in favor of "${key}", please update your config file (:CocConfig)`, 'warning')
+      }
+    }
+    return this.config.get<T>(key, defaultValue)
+  }
+
   private get showBlame(): boolean {
-    let blame = this.config.get<boolean>('addGlameToVirtualText', false)
-    let blameVar = this.config.get<boolean>('addGlameToBufferVar', false)
+    let blame = this.getConfig<boolean>('addGBlameToVirtualText', false, 'addGlameToVirtualText')
+    let blameVar = this.getConfig<boolean>('addGBlameToBufferVar', false, 'addGlameToBufferVar')
     return blame || blameVar
   }
 
@@ -112,7 +122,7 @@ export default class DocumentManager {
         blameText = `(${blameInfo.author} ${blameInfo.time}) ${blameInfo.summary}`
       }
     }
-    if (this.config.get<boolean>('addGlameToBufferVar', false)) {
+    if (this.getConfig<boolean>('addGBlameToBufferVar', false, 'addGlameToBufferVar')) {
       nvim.pauseNotification()
       doc.buffer.setVar('coc_git_blame', blameText, true)
       nvim.command('redraws', true)
@@ -134,7 +144,7 @@ export default class DocumentManager {
   }
 
   private get virtualText(): boolean {
-    return this.config.get<boolean>('addGlameToVirtualText', false) && workspace.isNvim
+    return this.getConfig<boolean>('addGBlameToVirtualText', false, 'addGlameToVirtualText') && workspace.isNvim
   }
 
   private get signOffset(): number {
