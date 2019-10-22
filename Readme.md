@@ -147,8 +147,8 @@ nmap gc <Plug>(coc-git-commit)
 " create text object for git chunks
 omap ic <Plug>(coc-text-object-inner)
 xmap ic <Plug>(coc-text-object-inner)
-omap ic <Plug>(coc-text-object-outer)
-xmap ic <Plug>(coc-text-object-outer)
+omap ac <Plug>(coc-text-object-outer)
+xmap ac <Plug>(coc-text-object-outer)
 ```
 
 ### Commands
