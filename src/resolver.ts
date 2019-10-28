@@ -15,6 +15,7 @@ function getRealPath(fullpath: string): string {
 
 export default class Resolver {
   private resolvedRoots: Set<string> = new Set()
+  private failedDirs: Set<string> = new Set()
   constructor(private git: Git) {
   }
 
@@ -53,6 +54,7 @@ export default class Resolver {
       this.resolvedRoots.add(root)
       return root
     }
+    if (this.failedDirs.has(dir)) return
     try {
       let res = await this.git.getRepositoryRoot(dir)
       if (path.isAbsolute(res)) {
@@ -60,6 +62,7 @@ export default class Resolver {
         return res
       }
     } catch (e) {
+      this.failedDirs.add(dir)
       return
     }
   }

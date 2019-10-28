@@ -274,8 +274,8 @@ export default class DocumentManager {
     } else {
       root = await this.resolver.resolveGitRoot()
     }
-    this.channel.appendLine(`resolved root: ${root}`)
     if (!root) return null
+    this.channel.appendLine(`resolved root: ${root}`)
     let repo = this.repoMap.get(root)
     if (repo) return repo
     repo = new Repo(this.git, this.channel, root)
