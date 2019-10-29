@@ -4,6 +4,7 @@ import { EventEmitter } from 'events'
 import path from 'path'
 import readline from 'readline'
 import Manager from '../manager'
+import { shellescape } from '../util'
 
 class CommitsTask extends EventEmitter implements ListTask {
   private process: ChildProcess
@@ -91,6 +92,22 @@ export default class Bcommits extends BasicList {
         await nvim.resumeNotification()
       }
     })
+    this.addAction('view', async (item, context) => {
+      let { commit, root, file } = item.data
+      let { window, listWindow } = context
+      let content = await runCommand(`git show ${commit}:${shellescape(file)}`, { cwd: root })
+      let lines = content.replace(/\n$/, '').split('\n')
+      nvim.pauseNotification()
+      nvim.call('win_gotoid', [window.id], true)
+      nvim.command(`exe "edit ".fnameescape('(${commit}) ${file}')`, true)
+      nvim.call('append', [0, lines], true)
+      nvim.command('normal! Gdd', true)
+      nvim.command(`exe 1`, true)
+      nvim.command('setl buftype=nofile nomodifiable bufhidden=wipe nobuflisted', true)
+      nvim.command('filetype detect', true)
+      nvim.call('win_gotoid', [listWindow.id], true)
+      await nvim.resumeNotification()
+    }, { persist: true })
 
     this.addAction('diff', async (item, context) => {
       let buffer = await context.window.buffer
