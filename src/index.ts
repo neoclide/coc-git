@@ -151,17 +151,17 @@ export async function activate(context: ExtensionContext): Promise<void> {
     }
   }))
 
-  subscriptions.push(workspace.registerKeymap(['o', 'x'] as any, 'text-object-inner', async () => {
+  subscriptions.push(workspace.registerKeymap(['o', 'x'] as any, 'git-chunk-inner', async () => {
     let diff = await manager.getCurrentChunk()
     if (!diff) return
     // diff.start
     await nvim.command(`normal! ${diff.start}GV${diff.end}G`)
   }, { sync: true, silent: true }))
 
-  subscriptions.push(workspace.registerKeymap(['o', 'x'] as any, 'text-object-outer', async () => {
+  subscriptions.push(workspace.registerKeymap(['o', 'x'] as any, 'git-chunk-outer', async () => {
     let diff = await manager.getCurrentChunk()
     if (!diff) return
-    let total = await nvim.eval('getline("$")') as number
+    let total = await nvim.call('line', ['$']) as number
     let start = Math.max(1, diff.start - 1)
     let end = Math.min(diff.end + 1, total)
     await nvim.command(`normal! ${start}GV${end}G`)
