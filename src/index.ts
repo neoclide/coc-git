@@ -1,5 +1,5 @@
 import { commands, events, ExtensionContext, languages, listManager, workspace } from 'coc.nvim'
-import { CompletionItem, CompletionItemKind, InsertTextFormat } from 'vscode-languageserver-types'
+import { CompletionItem, CompletionItemKind, InsertTextFormat, Range, Position } from 'vscode-languageserver-types'
 import { DEFAULT_TYPES } from './constants'
 import Bcommits from './lists/bcommits'
 import Branches from './lists/branches'
@@ -133,8 +133,17 @@ export async function activate(context: ExtensionContext): Promise<void> {
   subscriptions.push(listManager.registerList(new Bcommits(nvim, manager)))
   subscriptions.push(listManager.registerList(new Gfiles(nvim, manager)))
   subscriptions.push(languages.registerCompletionItemProvider('semantic-commit', 'Commit', config.get<string[]>('semanticCommit.filetypes'), {
-    provideCompletionItems: async (_document, position): Promise<CompletionItem[]> => {
-      if (position.line == 0 && position.character <= 1) {
+    provideCompletionItems: async (document, position): Promise<CompletionItem[]> => {
+      if (position.line !== 0) {
+        return []
+      }
+      const text = document.getText(
+        Range.create(
+          Position.create(position.line, 0),
+          position
+        )
+      )
+      if (/^[a-z]*$/.test(text)) {
         return DEFAULT_TYPES.map(o => {
           return {
             label: o.value,
