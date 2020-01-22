@@ -49,6 +49,7 @@ export async function activate(context: ExtensionContext): Promise<void> {
   workspace.onDidOpenTextDocument(async e => {
     let doc = workspace.getDocument(e.uri)
     await resolver.resolveGitRoot(doc)
+    if (!doc) return
     await Promise.all([manager.refreshStatus(), manager.diffDocument(doc, true)])
   }, null, subscriptions)
 
