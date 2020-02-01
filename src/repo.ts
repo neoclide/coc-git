@@ -39,14 +39,14 @@ export default class Repo {
     }
   }
 
-  private async hasChanged(): Promise<boolean> {
+  public async hasChanged(): Promise<boolean> {
     let result = await this.exec(['diff', '--name-status'])
     if (!result.stdout) return false
     let lines = result.stdout.split(/\r?\n/)
     return lines.some(l => l.startsWith('M'))
   }
 
-  private async getStaged(): Promise<[number, number]> {
+  public async getStaged(): Promise<[number, number]> {
     let result = await this.exec(['diff', '--staged', '--name-status'])
     if (!result.stdout) return [0, 0]
     let lines = result.stdout.trim().split(/\r?\n/)
@@ -63,7 +63,7 @@ export default class Repo {
     return [conflicted, staged]
   }
 
-  private async hasUntracked(): Promise<boolean> {
+  public async hasUntracked(): Promise<boolean> {
     let cp = this.git.stream(this.root, ['ls-files', '--others', '--exclude-standard'])
     return new Promise(resolve => {
       let hasData = false
@@ -135,7 +135,7 @@ export default class Repo {
     return parseDiff(output)
   }
 
-  private async exec(args: string[], options: SpawnOptions = {}): Promise<IExecutionResult<string>> {
+  public async exec(args: string[], options: SpawnOptions = {}): Promise<IExecutionResult<string>> {
     return await this.git.exec(this.root, args, options)
   }
 }
