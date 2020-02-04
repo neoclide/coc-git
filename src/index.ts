@@ -55,6 +55,7 @@ export async function activate(context: ExtensionContext): Promise<void> {
 
   workspace.onDidChangeTextDocument(async e => {
     let doc = workspace.getDocument(e.textDocument.uri)
+    if (!doc) return
     await manager.diffDocument(doc)
   }, null, subscriptions)
 
