@@ -16,7 +16,13 @@ function emptyFn(): void {
   // noop
 }
 
-export async function activate(context: ExtensionContext): Promise<void> {
+export interface ExtensionApi {
+  git: Git
+  resolver: Resolver
+  manager: Manager
+}
+
+export async function activate(context: ExtensionContext): Promise<ExtensionApi | undefined> {
   const config = workspace.getConfiguration('git')
   const { subscriptions } = context
   const outputChannel = workspace.createOutputChannel('git')
@@ -177,4 +183,10 @@ export async function activate(context: ExtensionContext): Promise<void> {
     let end = Math.min(diff.end + 1, total)
     await nvim.command(`normal! ${start}GV${end}G`)
   }, { sync: true, silent: true }))
+
+  return {
+    git,
+    resolver,
+    manager
+  }
 }

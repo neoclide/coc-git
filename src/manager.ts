@@ -263,7 +263,7 @@ export default class DocumentManager {
     }
   }
 
-  private async getRepo(bufnr?: number): Promise<Repo> {
+  public async getRepo(bufnr?: number): Promise<Repo> {
     let { nvim } = this
     const buf = bufnr ? nvim.createBuffer(bufnr) : await nvim.buffer
     const doc = workspace.getDocument(buf.id)
