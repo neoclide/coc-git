@@ -186,6 +186,17 @@ To run a action, press `<tab>` and select the action.
 
 For more advance usage, checkout `:h coc-list`.
 
+### Issue autocomplete from multiple GitHub repositories
+
+To enable autocompletion of issues from multiple GitHub repositories, put a comma-separated list of issue repository specifiers in the git config variable `coc-git.issuesources`.
+An issue repository specifier looks like this: `github/neoclide/coc-git`.
+- The first part specifies the issue provider, currently only "github" is supported
+- The second part specifies the organization or owner of the repository
+- The third part specifies the repository name
+
+Multiple repositories can be specified using comma separation, like this: `github/neoclide/coc-git,github/neoclide/coc.nvim`
+
+
 ## F.A.Q
 
 Q: Virtual text not working.
