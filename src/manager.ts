@@ -381,6 +381,9 @@ export default class DocumentManager {
         return
       }
     }
+    if (await nvim.getOption('wrapscan')) {
+      await workspace.moveTo({ line: Math.max(diffs[0].start - 1, 0), character: 0 })
+    }
   }
 
   public async prevChunk(): Promise<void> {
@@ -394,6 +397,9 @@ export default class DocumentManager {
         await workspace.moveTo({ line: Math.max(diff.start - 1, 0), character: 0 })
         return
       }
+    }
+    if (await nvim.getOption('wrapscan')) {
+      await workspace.moveTo({ line: Math.max(diffs[diffs.length - 1].start - 1, 0), character: 0 })
     }
   }
 
