@@ -327,11 +327,12 @@ export default class DocumentManager {
     let diffs = this.cachedDiffs.get(bufnr)
     if (!diffs || diffs.length == 0) return
     return diffs.find(ch => {
-      let { start, delta } = ch
+      let { start, added, removed, changeType } = ch
       if (line == 1 && start == 0 && ch.end == 0) {
         return true
       }
-      let end = delta && delta[0] > delta[1] ? ch.end + delta[0] - delta[1] : ch.end
+      let end = changeType === ChangeType.Change && added.count > removed.count ?
+        ch.end + added.count - removed.count : ch.end
       if (start <= line && end >= line) {
         return true
       }
@@ -417,11 +418,11 @@ export default class DocumentManager {
       let signId = this.signOffset
       for (let diff of diffs) {
         if (diff.changeType == ChangeType.Add) {
-          added += diff.lines.length
+          added += diff.added.count
         } else if (diff.changeType == ChangeType.Delete) {
-          removed += diff.lines.length
+          removed += diff.removed.count
         } else if (diff.changeType == ChangeType.Change) {
-          let [add, remove] = diff.delta
+          let [add, remove] = [diff.added.count, diff.removed.count]
           let min = Math.min(add, remove)
           changed += min
           added += add - min
@@ -430,7 +431,7 @@ export default class DocumentManager {
         let { start, end } = diff
         for (let i = start; i <= end; i++) {
           let topdelete = diff.changeType == ChangeType.Delete && i == 0
-          let bottomdelete = diff.changeType == ChangeType.Change && diff.delta[1] > diff.delta[0] && i == end
+          let bottomdelete = diff.changeType == ChangeType.Change && diff.removed.count > diff.added.count && i == end
           signs.push({
             signId,
             changeType: topdelete ? 'topdelete' : bottomdelete ? 'bottomdelete' : diff.changeType,
@@ -439,7 +440,7 @@ export default class DocumentManager {
           signId = signId + 1
         }
         if (diff.changeType == ChangeType.Change) {
-          let [add, remove] = diff.delta
+          let [add, remove] = [diff.added.count, diff.removed.count]
           if (add > remove) {
             for (let i = 0; i < add - remove; i++) {
               signs.push({
@@ -505,12 +506,20 @@ export default class DocumentManager {
     let root = this.resolver.getRootOfDocument(doc)
     if (!root) return
     let filepath = path.relative(root, Uri.parse(doc.uri).fsPath)
+    let head: string
+    if (diff.changeType === ChangeType.Add) {
+      head = `@@ -${diff.removed.start + 1},0 +${diff.removed.start + 1},${diff.added.count} @@`
+    } else if (diff.changeType === ChangeType.Delete) {
+      head = `@@ -${diff.removed.start},${diff.removed.count} +${diff.removed.start},0 @@`
+    } else if (diff.changeType === ChangeType.Change) {
+      head = `@@ -${diff.removed.start},${diff.removed.count} +${diff.removed.start},${diff.added.count} @@`
+    }
     const lines = [
       `diff --git a/${filepath} b/${filepath}`,
       `index 000000..000000 100644`,
       `--- a/${filepath}`,
       `+++ b/${filepath}`,
-      diff.head
+      head
     ]
     lines.push(...diff.lines)
     lines.push('')
