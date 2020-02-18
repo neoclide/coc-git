@@ -431,10 +431,10 @@ export default class DocumentManager {
         let { start, end } = diff
         for (let i = start; i <= end; i++) {
           let topdelete = diff.changeType == ChangeType.Delete && i == 0
-          let bottomdelete = diff.changeType == ChangeType.Change && diff.removed.count > diff.added.count && i == end
+          let changedelete = diff.changeType == ChangeType.Change && diff.removed.count > diff.added.count && i == end
           signs.push({
             signId,
-            changeType: topdelete ? 'topdelete' : bottomdelete ? 'bottomdelete' : diff.changeType,
+            changeType: topdelete ? 'topdelete' : changedelete ? 'changedelete' : diff.changeType,
             lnum: topdelete ? 1 : i
           })
           signId = signId + 1
@@ -491,7 +491,7 @@ export default class DocumentManager {
         return 'CocGitChanged'
       case 'topdelete':
         return 'CocGitTopRemoved'
-      case 'bottomdelete':
+      case 'changedelete':
         return 'CocGitChangeRemoved'
     }
     return ''

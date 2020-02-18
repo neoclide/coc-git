@@ -23,6 +23,6 @@ export interface Diff {
 
 export interface SignInfo {
   lnum: number
-  changeType: ChangeType | 'topdelete' | 'bottomdelete'
+  changeType: ChangeType | 'topdelete' | 'changedelete'
   signId: number
 }
