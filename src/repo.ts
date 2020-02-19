@@ -162,41 +162,51 @@ export function parseDiff(diffStr: string): Diff[] {
       .split(/\s+/)
       .map(str => str.slice(1).split(','))
 
-    const deleteCount = parseInt(`${pres[1] || 1}`, 10)
-    const addCount = parseInt(`${nows[1] || 1}`, 10)
-    const lineNum = parseInt(nows[0], 10)
+    const removed = {
+      start: parseInt(pres[0], 10),
+      count: parseInt(`${pres[1] || 1}`, 10)
+    }
+    const added = {
+      start: parseInt(nows[0], 10),
+      count: parseInt(`${nows[1] || 1}`, 10)
+    }
 
-    // delete
-    if (nows[1] === '0') {
+    if (added.count === 0) {
+      // delete
       diff = {
         lines: [],
+        start: added.start,
+        end: added.start,
         head: line,
-        start: lineNum,
-        end: lineNum,
+        removed,
+        added,
         changeType: ChangeType.Delete
       }
       diffs.push(diff)
-    } else {
-      if (deleteCount == 0) {
-        diff = {
-          lines: [],
-          head: line,
-          start: lineNum,
-          end: lineNum + addCount - 1,
-          changeType: ChangeType.Add
-        }
-        diffs.push(diff)
-      } else {
-        diff = {
-          lines: [],
-          head: line,
-          start: lineNum,
-          end: lineNum + Math.min(addCount, deleteCount) - 1,
-          delta: [addCount, deleteCount],
-          changeType: ChangeType.Change
-        }
-        diffs.push(diff)
+    } else if (removed.count === 0) {
+      // add
+      diff = {
+        lines: [],
+        start: added.start,
+        end: added.start + added.count - 1,
+        head: line,
+        removed,
+        added,
+        changeType: ChangeType.Add
       }
+      diffs.push(diff)
+    } else {
+      // change
+      diff = {
+        lines: [],
+        start: added.start,
+        end: added.start + Math.min(added.count, removed.count) - 1,
+        head: line,
+        removed,
+        added,
+        changeType: ChangeType.Change
+      }
+      diffs.push(diff)
     }
   }
   return diffs

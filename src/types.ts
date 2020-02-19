@@ -10,13 +10,19 @@ export interface Diff {
   start: number
   end: number
   head: string
+  removed: {
+    start: number
+    count: number
+  }
+  added: {
+    start: number
+    count: number
+  }
   lines: string[]
-  // removed count and added count
-  delta?: [number, number]
 }
 
 export interface SignInfo {
   lnum: number
-  changeType: ChangeType | 'topdelete' | 'bottomdelete'
+  changeType: ChangeType | 'topdelete' | 'changedelete'
   signId: number
 }
