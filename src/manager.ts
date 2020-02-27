@@ -351,7 +351,7 @@ export default class DocumentManager {
   }
 
   public async showDoc(content: string, filetype = 'diff'): Promise<void> {
-    // @ts-ignore
+    // @ts-ignore TODO Waiting for coc.nvim to release a new version
     if (workspace.floatSupported) {
       let docs: Documentation[] = [{ content, filetype }]
       await this.floatFactory.create(docs, false)
