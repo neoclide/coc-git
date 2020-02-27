@@ -131,6 +131,27 @@ export default class Commits extends BasicList {
       let arg = list.map(o => o.data.commit).join(' ')
       await runCommand(`git revert ${arg}`, { cwd: list[0].data.root })
     })
+    this.addMultipleAction('tabdiff', async items => {
+      let list = items.filter(item => item.data.commit != null)
+      if (!list.length) return
+      let arg: string
+      if (list.length == 1) {
+        arg = `${list[0].data.commit} HEAD`
+      } else {
+        arg = `${list[1].data.commit} ${list[0].data.commit}`
+      }
+      let content = await runCommand(`git --no-pager diff ${arg}`, { cwd: list[0].data.root })
+      let lines = content.replace(/\n$/, '').split('\n')
+      nvim.pauseNotification()
+      nvim.command(`tabe [diff ${arg}]`, true)
+      nvim.command('setl winfixheight buftype=nofile foldmethod=syntax nofen', true)
+      nvim.command('setl nobuflisted bufhidden=wipe', true)
+      nvim.command('setf git', true)
+      nvim.call('append', [0, lines], true)
+      nvim.command('normal! Gdd', true)
+      nvim.command(`exe 1`, true)
+      await nvim.resumeNotification()
+    })
     this.addMultipleAction('diff', async (items, context) => {
       let list = items.filter(item => item.data.commit != null)
       if (!list.length) {
