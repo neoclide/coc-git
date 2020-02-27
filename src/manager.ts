@@ -351,14 +351,13 @@ export default class DocumentManager {
   }
 
   public async showDoc(content: string, filetype = 'diff'): Promise<void> {
-    if (workspace.env.floating) {
+    // @ts-ignore TODO Waiting for coc.nvim to release a new version
+    if (workspace.floatSupported) {
       let docs: Documentation[] = [{ content, filetype }]
       await this.floatFactory.create(docs, false)
     } else {
-      const lines = ['``` ' + filetype]
-      lines.push(...content.split('\n'))
-      lines.push('```')
-      this.nvim.call('coc#util#preview_info', [lines], true)
+      const lines = content.split('\n')
+      this.nvim.call('coc#util#preview_info', [lines, 'diff'], true)
     }
   }
 
