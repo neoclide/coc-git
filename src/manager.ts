@@ -351,7 +351,8 @@ export default class DocumentManager {
   }
 
   public async showDoc(content: string, filetype = 'diff'): Promise<void> {
-    if (workspace.env.floating) {
+    // @ts-ignore
+    if (workspace.floatSupported) {
       let docs: Documentation[] = [{ content, filetype }]
       await this.floatFactory.create(docs, false)
     } else {
