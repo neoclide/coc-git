@@ -214,6 +214,11 @@
             "type": "string"
           }
         },
+        "git.splitWindowCommand": {
+          "type": "string",
+          "default": "above sp",
+          "description": "Command used when split new window for show commit."
+        },
         "git.gitlab.hosts": {
           "type": "array",
           "default": [

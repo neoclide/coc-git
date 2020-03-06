@@ -566,7 +566,7 @@ export default class DocumentManager {
     }
   }
 
-  // show commit of current line in floating window
+  // show commit of current line in split window
   public async showCommit(): Promise<void> {
     let { nvim } = this
     let bufnr = await nvim.call('bufnr', '%')
@@ -592,7 +592,8 @@ export default class DocumentManager {
       workspace.showMessage('not committed yet!', 'warning')
       return
     }
-    await nvim.command('keepalt above sp')
+    let splitWindowCommand = this.config.get<string>('splitWindowCommand', 'above sp')
+    await nvim.command(`keepalt above ${splitWindowCommand}`)
 
     let hasFugitive = await nvim.getVar('loaded_fugitive')
     if (hasFugitive) {

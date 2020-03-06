@@ -58,6 +58,7 @@ In your vim/neovim, run command:
 - `git.topRemovedSign.hlGroup`: Highlight group for top removed sign., default: `"DiffDelete"`.
 - `git.changeRemovedSign.text`: Text of change removed sign., default: `"≃"`.
 - `git.changeRemovedSign.hlGroup`: Highlight group for change removed sign., default: `"DiffDelete"`.
+- `git.splitWindowCommand`: Command used when split new window for show commit, default: `above sp`
 - `git.virtualTextPrefix`: Prefix of git blame information to virtual text, require virtual text feature of neovim. default: `5 <Space>`.
 - `git.addGBlameToVirtualText`: Add git blame information to virtual text, require virtual text feature of neovim. default: `false`.
 - `git.addGBlameToBufferVar`: Add git blame information to b:coc_git_blame. default: `false`.
@@ -190,12 +191,12 @@ For more advance usage, checkout `:h coc-list`.
 
 To enable autocompletion of issues from multiple GitHub repositories, put a comma-separated list of issue repository specifiers in the git config variable `coc-git.issuesources`.
 An issue repository specifier looks like this: `github/neoclide/coc-git`.
+
 - The first part specifies the issue provider, currently only "github" is supported
 - The second part specifies the organization or owner of the repository
 - The third part specifies the repository name
 
 Multiple repositories can be specified using comma separation, like this: `github/neoclide/coc-git,github/neoclide/coc.nvim`
-
 
 ## F.A.Q
 
