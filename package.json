@@ -1,6 +1,6 @@
 {
   "name": "coc-git",
-  "version": "1.7.6",
+  "version": "1.7.7",
   "description": "Git extension for coc.nvim",
   "main": "lib/index.js",
   "publisher": "chemzqm",
