@@ -553,7 +553,6 @@ export default class DocumentManager {
     let added = lines.filter(s => s.startsWith('-')).map(s => s.slice(1))
     let removeCount = lines.filter(s => s.startsWith('+')).length
     let { nvim } = this
-    await nvim.eval(`feedkeys("\\<C-G>u", 'in')`)
     let buf = await nvim.buffer
     if (changeType == ChangeType.Delete) {
       await buf.setLines(added, { start, end: start, strictIndexing: false })
