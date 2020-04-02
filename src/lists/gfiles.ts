@@ -62,7 +62,7 @@ export default class Gfiles extends BasicList {
     }
     const { args } = context
     let arg = args.length ? args.join(' ') : 'HEAD'
-    let output = await runCommand(`git ls-tree -r ${arg}`, { cwd: root, maxBuffer: 500 * 1024 })
+    let output = await runCommand(`git ls-tree -r ${arg}`, { cwd: root })
     output = output.replace(/\s+$/, '')
     if (!output) return []
     // let root = this.manager.refreshStatus
