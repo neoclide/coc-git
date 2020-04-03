@@ -67,6 +67,7 @@ export async function activate(context: ExtensionContext): Promise<ExtensionApi 
 
   events.on('BufWritePost', bufnr => {
     let doc = workspace.getDocument(bufnr)
+    if (!doc) return
     if (doc.uri.startsWith('fugitive:') || doc.uri.endsWith("COMMIT_EDITMSG")) {
       updateAll()
     }
