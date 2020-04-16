@@ -32,6 +32,10 @@ In your vim/neovim, run command:
 - Commands for chunks, including `git.chunkInfo` `git.chunkStage` `git.chunkUndo` and more.
 - Completion support for semantic commit.
 - Completion support for GitHub/GitLab issues.
+  
+**Note** for GitHub issues completion support:
+
+- `GITHUB_API_TOKEN=xxx` needs to be set in env to fetch issues from private repositories
 
 **Note** for GitLab issues completion support:
 
