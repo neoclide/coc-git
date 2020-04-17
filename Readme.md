@@ -26,7 +26,7 @@ In your vim/neovim, run command:
 - Sign support for git status of current buffer.
 - Git status of current project, by `g:coc_git_status`.
 - Git status of current buffer, by`b:coc_git_status`.
-- Git status of current line, by`b:coc_git_blame`. used for statusline.
+- Git status of current line, by`b:coc_git_blame` for statusline, and `addGBlameToVirtualText` for inline blames.
 - Git related lists, including `issues`, `gfiles`, `gstatus`, `commits`, `branches` & `bcommits`
 - Keymaps for git chunks, including `<Plug>(coc-git-chunkinfo)` `<Plug>(coc-git-nextchunk)` & `<Plug>(coc-git-prevchunk)` ,
 - Commands for chunks, including `git.chunkInfo` `git.chunkStage` `git.chunkUndo` and more.
