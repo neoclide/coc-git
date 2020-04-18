@@ -35,6 +35,7 @@ export default class DocumentManager {
   private virtualTextSrcId: number
   private gitStatus = ''
   private gitStatusMap: Map<number, string> = new Map()
+  private userNames: Map<string, string> = new Map()
   constructor(
     private nvim: Neovim,
     private resolver: Resolver,
@@ -79,6 +80,14 @@ export default class DocumentManager {
       if (!this.enableGutters || this.realtime) return
       await this.updateGutters(bufnr)
     }, null, this.disposables)
+  }
+
+  private async getUsername(repositoryPath: string): Promise<string> {
+    let userName = this.userNames.get(repositoryPath)
+    if (userName) return userName
+    userName = await this.git.getUsername(repositoryPath)
+    this.userNames.set(repositoryPath, userName)
+    return userName
   }
 
   private getConfig<T>(key: string, defaultValue: T, deprecatedKey?: string): T {
@@ -144,7 +153,8 @@ export default class DocumentManager {
   }
 
   private get virtualText(): boolean {
-    return this.getConfig<boolean>('addGBlameToVirtualText', false, 'addGlameToVirtualText') && workspace.isNvim
+    if (!workspace.nvim.hasFunction('nvim_buf_set_virtual_text')) return false
+    return this.getConfig<boolean>('addGBlameToVirtualText', false, 'addGlameToVirtualText')
   }
 
   private get signOffset(): number {
@@ -167,7 +177,10 @@ export default class DocumentManager {
         nvim.command(`sign define CocGit${item} text=${text} texthl=CocGit${item}Sign`, true)
         nvim.command(`hi default link CocGit${item}Sign ${hlGroup}`, true)
       }
-      await nvim.resumeNotification()
+      await nvim.resumeNotification(false, true)
+    }
+    if (this.showBlame) {
+
     }
   }
 
@@ -704,13 +717,14 @@ export default class DocumentManager {
   private async getBlameInfo(relpath: string, lnum: number, root: string): Promise<BlameInfo> {
     let info: BlameInfo = {}
     try {
+      let currentAuthor = await this.getUsername(root)
       let res = await this.git.exec(root, ['--no-pager', 'blame', '-b', '-p', '--root', `-L${lnum},${lnum}`, '--date', 'relative', relpath])
       if (!res.stdout) return info
       for (let line of res.stdout.trim().split(/\r?\n/)) {
         let ms = line.match(/^(\S+)\s(.*)/)
         if (ms) {
           let [, field, text] = ms
-          if (field == 'author') info.author = text
+          if (field == 'author') info.author = text == currentAuthor ? 'You' : text
           if (field == 'author-time') info.time = format(parseInt(text, 10) * 1000, process.env.LANG)
           if (field == 'summary') info.summary = text
         }
