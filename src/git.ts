@@ -30,6 +30,11 @@ export default class Git {
     return path.normalize(result.stdout.trim())
   }
 
+  public async getUsername(repositoryPath: string): Promise<string> {
+    const result = await this.exec(repositoryPath, ['config', 'user.name'])
+    return result.stdout.trim()
+  }
+
   public async getRepositoryDotGit(repositoryPath: string): Promise<string> {
     const result = await this.exec(repositoryPath, ['rev-parse', '--git-dir'])
     let dotGitPath = result.stdout.trim()
