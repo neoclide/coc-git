@@ -179,9 +179,6 @@ export default class DocumentManager {
       }
       await nvim.resumeNotification(false, true)
     }
-    if (this.showBlame) {
-
-    }
   }
 
   public async toggleGutters(): Promise<void> {
@@ -625,7 +622,7 @@ export default class DocumentManager {
     }
   }
 
-  public async browser(action = 'open'): Promise<void> {
+  public async browser(action = 'open', range?: [number, number]): Promise<void> {
     let { nvim } = this
     let bufnr = await nvim.call('bufnr', '%')
     let root = await this.resolveGitRoot(bufnr)
@@ -645,11 +642,9 @@ export default class DocumentManager {
       workspace.showMessage(`Failed on git symbolic-ref`, 'warning')
       return
     }
-    const mode = await nvim.call('mode') as string
-
-    let lines: any = (mode.toLowerCase() === 'v') ? [
-      await nvim.eval(`line("'<")`) as number,
-      await nvim.eval(`line(">'")`) as number,
+    let lines: any = range && range.length == 2 ? [
+      range[0],
+      range[1]
     ] : [await nvim.eval('line(".")') as number]
     let doc = workspace.getDocument(bufnr)
     if (doc && doc.filetype == 'markdown') {
