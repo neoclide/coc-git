@@ -575,7 +575,7 @@ export default class DocumentManager {
     }
   }
 
-  // show commit of current line in split window
+  // show commit of current line in floating window
   public async showCommit(): Promise<void> {
     let { nvim } = this
     let bufnr = await nvim.call('bufnr', '%')
@@ -601,25 +601,10 @@ export default class DocumentManager {
       workspace.showMessage('not committed yet!', 'warning')
       return
     }
-    let splitWindowCommand = this.config.get<string>('splitWindowCommand', 'above sp')
-    await nvim.command(`keepalt above ${splitWindowCommand}`)
-
-    let hasFugitive = await nvim.getVar('loaded_fugitive')
-    if (hasFugitive) {
-      await nvim.command(`Gedit ${commit}`)
-    } else {
-      let content = await this.safeRun(['--no-pager', 'show', commit], root)
-      if (content == null) return
-      let lines = content.trim().split('\n')
-      nvim.pauseNotification()
-      nvim.command(`edit +setl\\ buftype=nofile [commit ${commit}]`, true)
-      nvim.command('setl foldmethod=syntax nobuflisted bufhidden=wipe', true)
-      nvim.command('setf git', true)
-      nvim.call('append', [0, lines], true)
-      nvim.command('normal! Gdd', true)
-      nvim.command(`exe 1`, true)
-      await nvim.resumeNotification(false, true)
-    }
+    let content = await this.safeRun(['--no-pager', 'show', commit], root)
+    if (content == null) return
+    let lines = content.trim()
+    await this.showDoc(lines)
   }
 
   public async browser(action = 'open', range?: [number, number]): Promise<void> {
