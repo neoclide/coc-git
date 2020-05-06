@@ -32,7 +32,7 @@ In your vim/neovim, run command:
 - Commands for chunks, including `git.chunkInfo` `git.chunkStage` `git.chunkUndo` and more.
 - Completion support for semantic commit.
 - Completion support for GitHub/GitLab issues.
-  
+
 **Note** for GitHub issues completion support:
 
 - `GITHUB_API_TOKEN=xxx` needs to be set in env to fetch issues from private repositories
@@ -62,7 +62,6 @@ In your vim/neovim, run command:
 - `git.topRemovedSign.hlGroup`: Highlight group for top removed sign., default: `"DiffDelete"`.
 - `git.changeRemovedSign.text`: Text of change removed sign., default: `"≃"`.
 - `git.changeRemovedSign.hlGroup`: Highlight group for change removed sign., default: `"DiffDelete"`.
-- `git.splitWindowCommand`: Command used when split new window for show commit, default: `above sp`
 - `git.virtualTextPrefix`: Prefix of git blame information to virtual text, require virtual text feature of neovim. default: `5 <Space>`.
 - `git.addGBlameToVirtualText`: Add git blame information to virtual text, require virtual text feature of neovim. default: `false`.
 - `git.addGBlameToBufferVar`: Add git blame information to b:coc_git_blame. default: `false`.
