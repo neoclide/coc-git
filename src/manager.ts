@@ -85,7 +85,12 @@ export default class DocumentManager {
   private async getUsername(repositoryPath: string): Promise<string> {
     let userName = this.userNames.get(repositoryPath)
     if (userName) return userName
-    userName = await this.git.getUsername(repositoryPath)
+    try {
+      userName = await this.git.getUsername(repositoryPath)
+    } catch (e) {
+      this.channel.appendLine(`Error on resolve user name: ${e.message}`)
+      userName = ''
+    }
     this.userNames.set(repositoryPath, userName)
     return userName
   }
