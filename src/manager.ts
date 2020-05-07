@@ -601,6 +601,14 @@ export default class DocumentManager {
       workspace.showMessage('not committed yet!', 'warning')
       return
     }
+    let useFloating = this.config.get<boolean>('showCommitInFloating', false)
+    if (useFloating) {
+      let content = await this.safeRun(['--no-pager', 'show', commit], root)
+      if (content == null) return
+      let lines = content.trim()
+      await this.showDoc(lines)
+      return
+    }
     let splitWindowCommand = this.config.get<string>('splitWindowCommand', 'above sp')
     await nvim.command(`keepalt above ${splitWindowCommand}`)
 
