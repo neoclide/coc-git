@@ -4,6 +4,7 @@ import { EventEmitter } from 'events'
 import readline from 'readline'
 import Manager from '../manager'
 import { runCommand, safeRun } from '../util'
+import { wait } from 'coc.nvim/lib/util'
 
 class CommitsTask extends EventEmitter implements ListTask {
   private process: ChildProcess
@@ -119,6 +120,8 @@ export default class Commits extends BasicList {
           break
       }
       await runCommand(`git reset ${opt} ${commit}`, { cwd: root })
+      this.nvim.command('checktime', true)
+      await wait(100)
     })
     this.addAction('checkout', async item => {
       let { root, commit } = item.data

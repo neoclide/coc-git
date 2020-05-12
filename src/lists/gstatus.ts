@@ -4,6 +4,7 @@ import fs from 'fs'
 import path from 'path'
 import Manager from '../manager'
 import { runCommand, spawnCommand } from '../util'
+import { wait } from 'coc.nvim/lib/util'
 
 const STATUS_MAP = {
   ' ': ' ',
@@ -78,6 +79,8 @@ export default class GStatus extends BasicList {
           fs.unlinkSync(fullpath)
         }
       }
+      this.nvim.command('checktime', true)
+      await wait(100)
     }, { reload: true, persist: true })
 
     // preview the diff
