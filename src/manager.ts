@@ -64,8 +64,8 @@ export default class DocumentManager {
         let doc = workspace.getDocument(bufnr)
         if (doc) doc.buffer.clearNamespace(this.virtualTextSrcId, 0, -1)
       }, null, this.disposables)
-      events.on('CursorHold', debounce(async (bufnr, cursor) => {
-        await this.showBlameInfo(bufnr, cursor[0])
+      events.on('CursorHold', debounce(async (bufnr) => {
+        await this.showBlameInfo(bufnr)
       }, 100), null, this.disposables)
       events.on('InsertEnter', async bufnr => {
         if (!this.virtualText) return
@@ -115,7 +115,7 @@ export default class DocumentManager {
     return this.config.get<boolean>('realtimeGutters', false)
   }
 
-  private async showBlameInfo(bufnr: number, lnum: number): Promise<void> {
+  private async showBlameInfo(bufnr: number): Promise<void> {
     let { virtualTextSrcId, nvim } = this
     if (!virtualTextSrcId || !this.showBlame) return
     let doc = workspace.getDocument(bufnr)
@@ -124,6 +124,11 @@ export default class DocumentManager {
     if (!root) return
     let filepath = Uri.parse(doc.uri).fsPath
     if (!fs.existsSync(filepath)) return
+
+    const window = await nvim.window
+    const cursor = await window.cursor
+    const lnum = cursor[0]
+
     let blameInfo = await this.getBlameInfo(path.relative(root, filepath), lnum, root)
     let buffer = nvim.createBuffer(bufnr)
     let modified = await buffer.getOption('modified')
