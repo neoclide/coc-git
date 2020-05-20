@@ -64,7 +64,7 @@ export default class DocumentManager {
         let doc = workspace.getDocument(bufnr)
         if (doc) doc.buffer.clearNamespace(this.virtualTextSrcId, 0, -1)
       }, null, this.disposables)
-      events.on('CursorMoved', debounce(async (bufnr, cursor) => {
+      events.on('CursorHold', debounce(async (bufnr, cursor) => {
         await this.showBlameInfo(bufnr, cursor[0])
       }, 100), null, this.disposables)
       events.on('InsertEnter', async bufnr => {
