@@ -153,6 +153,8 @@ export async function activate(context: ExtensionContext): Promise<ExtensionApi 
         )
       )
       if (/^[a-z]*$/.test(text)) {
+        const scope = config.get('semanticCommit.scope') as boolean;
+        const text = scope ? '(${1:scope}): ${2:commit}' : ': ${1:commit}'
         return DEFAULT_TYPES.map(o => {
           return {
             label: o.value,
@@ -161,7 +163,7 @@ export async function activate(context: ExtensionContext): Promise<ExtensionApi 
             // detail: o.name,
             insertTextFormat: InsertTextFormat.Snippet,
             // tslint:disable-next-line: no-invalid-template-strings
-            insertText: o.value + '(${1:scope}): ' + '${2:commit}\n\n'
+            insertText: o.value + text + '\n\n'
           } as CompletionItem
         })
       }
