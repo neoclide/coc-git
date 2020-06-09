@@ -214,6 +214,11 @@
             "type": "string"
           }
         },
+        "git.semanticCommit.scope": {
+          "type": "boolean",
+          "default": true,
+          "description": "Commit message with scope field"
+        },
         "git.splitWindowCommand": {
           "type": "string",
           "default": "above sp",
