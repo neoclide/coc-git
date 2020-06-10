@@ -139,7 +139,6 @@ export default class DocumentManager {
     if (this.getConfig<boolean>('addGBlameToBufferVar', false, 'addGlameToBufferVar')) {
       nvim.pauseNotification()
       doc.buffer.setVar('coc_git_blame', blameText, true)
-      nvim.command('redraws', true)
       nvim.call('coc#util#do_autocmd', ['CocGitStatusChange'], true)
       await nvim.resumeNotification(false, true)
     }
@@ -328,7 +327,6 @@ export default class DocumentManager {
     let { nvim } = this
     nvim.pauseNotification()
     nvim.setVar('coc_git_status', status, true)
-    nvim.command('redraws', true)
     nvim.call('coc#util#do_autocmd', ['CocGitStatusChange'], true)
     await nvim.resumeNotification(false, true)
   }
@@ -340,7 +338,6 @@ export default class DocumentManager {
     let { nvim } = this
     nvim.pauseNotification()
     buffer.setVar('coc_git_status', status, true)
-    nvim.command('redraws', true)
     nvim.call('coc#util#do_autocmd', ['CocGitStatusChange'], true)
     await nvim.resumeNotification(false, true)
   }
