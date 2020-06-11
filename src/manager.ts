@@ -744,7 +744,7 @@ export default class DocumentManager {
   public async safeRun(args: string[], root: string): Promise<string> {
     try {
       let res = await this.git.exec(root, args)
-      return res ? res.stdout.trim() : ''
+      return res ? res.stdout.replace(/\s*$/, '') : ''
     } catch (e) {
       return ''
     }

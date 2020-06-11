@@ -15,7 +15,7 @@ export default class Branches implements IList {
       execute: async (item: ListItem) => {
         let { root, branch } = item.data
         await safeRun(`git checkout ${branch}`, { cwd: root })
-        await nvim.command('bufdo e')
+        nvim.command('bufdo e', true)
       }
     })
     this.actions.push({
@@ -49,7 +49,7 @@ export default class Branches implements IList {
         let { root, branch } = item.data
         let cmd = `git merge ${branch}`
         await safeRun(cmd, { cwd: root })
-        await nvim.command('bufdo e')
+        nvim.command('bufdo e', true)
       }
     })
     this.actions.push({
@@ -58,7 +58,7 @@ export default class Branches implements IList {
         let { root, branch } = item.data
         let cmd = `git rebase ${branch}`
         await safeRun(cmd, { cwd: root })
-        await nvim.command('bufdo e')
+        nvim.command('bufdo e', true)
       }
     })
   }
@@ -71,7 +71,7 @@ export default class Branches implements IList {
       throw new Error(`Can't resolve git root.`)
       return
     }
-    let output = await this.manager.safeRun(['branch', '--no-color', '-a', ...context.args], root)
+    let output = await this.manager.safeRun(['branch', '--no-color', ...context.args], root)
     if (output == null) return
     output = output.replace(/\s+$/, '')
     for (let line of output.split(/\r?\n/)) {
