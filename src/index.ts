@@ -128,6 +128,10 @@ export async function activate(context: ExtensionContext): Promise<ExtensionApi 
     await manager.diffCached()
   }))
 
+  subscriptions.push(commands.registerCommand('git.toggleVirtualText', async () => {
+    await manager.toggleVirtualText()
+  }))
+
   subscriptions.push(commands.registerCommand('git.toggleGutters', async () => {
     await manager.toggleGutters()
   }))

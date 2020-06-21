@@ -170,6 +170,7 @@ related commands.
 - `:CocCommand git.showCommit` Show commit of current chunk.
 - `:CocCommand git.browserOpen` Open current line in browser, github url supported.
 - `:CocCommand git.foldUnchanged` Fold unchanged lines of current buffer.
+- `:CocCommand git.toggleVirtualText` Toggle git virtual text.
 - `:CocCommand git.toggleGutters` Toggle git gutters in sign column.
 
 ### Work with git lists

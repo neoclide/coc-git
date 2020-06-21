@@ -36,6 +36,7 @@ export default class DocumentManager {
   private gitStatus = ''
   private gitStatusMap: Map<number, string> = new Map()
   private userNames: Map<string, string> = new Map()
+  private isShowBlameInit = false
   constructor(
     private nvim: Neovim,
     private resolver: Resolver,
@@ -54,6 +55,20 @@ export default class DocumentManager {
       console.error(e)
     })
     if (this.showBlame) {
+      this.showBlameInit().catch(e => {
+        // tslint:disable-next-line: no-console
+        console.error(e)
+      })
+    }
+    events.on('BufWritePre', async bufnr => {
+      if (!this.enableGutters || this.realtime) return
+      await this.updateGutters(bufnr)
+    }, null, this.disposables)
+  }
+
+  private async showBlameInit(): Promise<void> {
+    if (!this.isShowBlameInit) {
+      const { nvim } = this
       nvim.createNamespace('coc-git').then(srcId => {
         this.virtualTextSrcId = srcId
       }, _e => {
@@ -61,7 +76,7 @@ export default class DocumentManager {
       })
       events.on('BufEnter', bufnr => {
         if (!this.virtualText) return
-        let doc = workspace.getDocument(bufnr)
+          let doc = workspace.getDocument(bufnr)
         if (doc) doc.buffer.clearNamespace(this.virtualTextSrcId, 0, -1)
       }, null, this.disposables)
       events.on('CursorMoved', debounce(async (bufnr, cursor) => {
@@ -69,17 +84,14 @@ export default class DocumentManager {
       }, 100), null, this.disposables)
       events.on('InsertEnter', async bufnr => {
         if (!this.virtualText) return
-        let { virtualTextSrcId } = this
+          let { virtualTextSrcId } = this
         if (virtualTextSrcId) {
           let buffer = nvim.createBuffer(bufnr)
           await buffer.request('nvim_buf_clear_namespace', [virtualTextSrcId, 0, -1])
         }
       }, null, this.disposables)
+      this.isShowBlameInit = true
     }
-    events.on('BufWritePre', async bufnr => {
-      if (!this.enableGutters || this.realtime) return
-      await this.updateGutters(bufnr)
-    }, null, this.disposables)
   }
 
   private async getUsername(repositoryPath: string): Promise<string> {
@@ -182,6 +194,17 @@ export default class DocumentManager {
         nvim.command(`hi default link CocGit${item}Sign ${hlGroup}`, true)
       }
       await nvim.resumeNotification(false, true)
+    }
+  }
+
+  public async toggleVirtualText(): Promise<void> {
+    let enabled = this.virtualText
+    this.config.update('addGBlameToVirtualText', !enabled, true)
+    if (this.showBlame) {
+      this.showBlameInit().catch(e => {
+        // tslint:disable-next-line: no-console
+        console.error(e)
+      })
     }
   }
 

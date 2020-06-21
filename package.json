@@ -58,6 +58,10 @@
         "command": "git.foldUnchanged"
       },
       {
+        "title": "Toggle git virtual text.",
+        "command": "git.toggleVirtualText"
+      },
+      {
         "title": "Toggle git gutters in sign column.",
         "command": "git.toggleGutters"
       }
