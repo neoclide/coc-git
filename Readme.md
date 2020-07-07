@@ -32,7 +32,7 @@ In your vim/neovim, run command:
 - Commands for chunks, including `git.chunkInfo` `git.chunkStage` `git.chunkUndo` and more.
 - Completion support for semantic commit.
 - Completion support for GitHub/GitLab issues.
-  
+
 **Note** for GitHub issues completion support:
 
 - `GITHUB_API_TOKEN=xxx` needs to be set in env to fetch issues from private repositories
@@ -45,34 +45,69 @@ In your vim/neovim, run command:
 
 ## Configuration
 
-- `git.enableGlobalStatus`: Enable global g:coc_git_status, default: `true`.
-- `git.command`: Command for git, could be absolute path of git executable, default: `"git"`.
-- `git.branchCharacter`: Branch character used with g:coc_git_status, default: `""`.
-- `git.remoteName`: Remote name used for fetch github issues, default: `origin`.
-- `git.enableGutters`: Enable gutters in sign column., default: `true`.
-- `git.realtimeGutters`: Change to `false` when you want gutters update only on save, default: `true`.
-- `git.signOffset`: Start offset of sign gutter, change to higher value to prevent overwrite by other plugin., default: `99`.
-- `git.changedSign.text`: Text of changed sign., default: `"~"`.
-- `git.changedSign.hlGroup`: Highlight group for changed sign., default: `"DiffChange"`.
-- `git.addedSign.text`: Text of added sign., default: `"+"`.
-- `git.addedSign.hlGroup`: Highlight group for added sign., default: `"DiffAdd"`.
-- `git.removedSign.text`: Text of removed sign., default: `"_"`.
-- `git.removedSign.hlGroup`: Highlight group for removed sign., default: `"DiffDelete"`.
-- `git.topRemovedSign.text`: Text of top removed sign., default: `"‾"`.
-- `git.topRemovedSign.hlGroup`: Highlight group for top removed sign., default: `"DiffDelete"`.
-- `git.changeRemovedSign.text`: Text of change removed sign., default: `"≃"`.
-- `git.changeRemovedSign.hlGroup`: Highlight group for change removed sign., default: `"DiffDelete"`.
-- `git.splitWindowCommand`: Command used when split new window for show commit, default: `above sp`
+- `git.command`: Command for git, could be absolute path of git executable., default: `"git"`
+
+- `git.remoteName`: Remote name for fetch github issues., default: `"origin"`
+
+- `git.issueFormat`: Formatting string for issue completion. Supported interpolation variables: %i - issue id. %r - repository name. %o - organization/owner name. %t - issue title. %b - issue body. %c - issue created at. %a - issue author. %u - issue url., default: `"#%i"`
+
+- `git.virtualTextPrefix`: Prefix of git blame infomation to virtual text, require virtual text feature of neovim., default: `" "`
+
+- `git.addGlameToVirtualText`: Deprecated: Add git blame information to virtual text, require virtual text feature of neovim., default: `false`
+
+- `git.addGlameToBufferVar`: Deprecated: Add git blame information to b:coc_git_blame., default: `false`
+
+- `git.addGBlameToVirtualText`: Add git blame information to virtual text, require virtual text feature of neovim., default: `false`
+
+- `git.addGBlameToBufferVar`: Add git blame information to b:coc_git_blame., default: `false`
+
+- `git.branchCharacter`: Branch character used with g:coc_git_status, default: `""`
+
+- `git.changedDecorator`: Git changed decorator used with g:coc_git_status, default: `"*"`
+
+- `git.conflictedDecorator`: Git conflicted decorator used with g:coc_git_status, default: `"x"`
+
+- `git.stagedDecorator`: Git staged decorator used with g:coc_git_status, default: `"●"`
+
+- `git.untrackedDecorator`: Git untracked decorator used with g:coc_git_status, default: `"…"`
+
+- `git.enableGlobalStatus`: Enable global g:coc_git_status., default: `true`
+
+- `git.enableGutters`: Enable gutters in sign column., default: `true`
+
+- `git.realtimeGutters`: Update gutters in realtime, default: true., default: `true`
+
+- `git.signOffset`: Start offset of sign gutter, change to higher value to prevent overwrite by other plugin., default: `99`
+
+- `git.changedSign.text`: Text of changed sign., default: `"~"`
+
+- `git.changedSign.hlGroup`: Highlight group for changed sign., default: `"DiffChange"`
+
+- `git.addedSign.text`: Text of added sign., default: `"+"`
+
+- `git.addedSign.hlGroup`: Highlight group for added sign., default: `"DiffAdd"`
+
+- `git.removedSign.text`: Text of removed sign., default: `"_"`
+
+- `git.removedSign.hlGroup`: Highlight group for removed sign., default: `"DiffDelete"`
+
+- `git.topRemovedSign.text`: Text of top removed sign., default: `"‾"`
+
+- `git.topRemovedSign.hlGroup`: Highlight group for top removed sign., default: `"DiffDelete"`
+
+- `git.changeRemovedSign.text`: Text of change removed sign., default: `"≃"`
+
+- `git.changeRemovedSign.hlGroup`: Highlight group for change removed sign., default: `"DiffChange"`
+
+- `git.semanticCommit.filetypes`: Enabled filetypes, default: `["gitcommit","gina-commit"]`
+
+- `git.semanticCommit.scope`: Commit message with scope field, default: `true`
+
+- `git.splitWindowCommand`: Command used when split new window for show commit., default: `"above sp"`
+
 - `git.showCommitInFloating`: Show commit in floating or popup window, default: `false`
-- `git.virtualTextPrefix`: Prefix of git blame information to virtual text, require virtual text feature of neovim. default: `5 <Space>`.
-- `git.addGBlameToVirtualText`: Add git blame information to virtual text, require virtual text feature of neovim. default: `false`.
-- `git.addGBlameToBufferVar`: Add git blame information to b:coc_git_blame. default: `false`.
-- `git.semanticCommit.filetypes`: filetype list to enable semantic commit completion, default: `["gitcommit", "gina-commit"]`
-- `git.gitlab.hosts`: Custom GitLab host list, defaults: `['gitlab.com']`
-- `coc.source.issues.enable`: enable issues completion from github, default `true`.
-- `coc.source.issues.priority`: priority of issues source, default: `9`.
-- `coc.source.issues.shortcut`: shortcut of issues source, default: `"I"`.
-- `coc.source.issues.filetypes`: filetype list to enable issues source, default: `["gitcommit", "gina-commit"]`
+
+- `git.gitlab.hosts`: Custom GitLab hosts, default: `["gitlab.com"]`
 
 more information, see [package.json](https://github.com/neoclide/coc-git/blob/master/package.json)
 
