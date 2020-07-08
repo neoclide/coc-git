@@ -79,6 +79,11 @@
           "default": "origin",
           "description": "Remote name for fetch github issues."
         },
+        "git.diffRevision": {
+          "type": "string",
+          "default": "",
+          "description": "Revision used for git diff used by gutters, default is current HEAD."
+        },
         "git.issueFormat": {
           "type": "string",
           "default": "#%i",

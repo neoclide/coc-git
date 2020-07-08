@@ -12,10 +12,6 @@ import Resolver from './resolver'
 import addSource from './source'
 import {findGit, IGit} from './util'
 
-function emptyFn(): void {
-  // noop
-}
-
 export interface ExtensionApi {
   git: Git
   resolver: Resolver
@@ -41,31 +37,16 @@ export async function activate(context: ExtensionContext): Promise<ExtensionApi 
   addSource(context, resolver)
   subscriptions.push(manager)
 
-  function updateAll(): void {
-    manager.refreshStatus().catch(emptyFn)
-    for (let doc of workspace.documents) {
-      manager.diffDocument(doc, true).catch(emptyFn)
-      manager.loadBlames(doc).then(async () => {
-        let [bufnr, lnum] = await nvim.eval('[bufnr("%"),line(".")]') as [number, number]
-        await manager.showBlameInfo(bufnr, lnum)
-      }, emptyFn)
-    }
-  }
-
   subscriptions.push(commands.registerCommand('git.refresh', () => {
-    updateAll()
+    manager.updateAll()
   }))
-
-  Promise.all(workspace.documents.map(doc => {
-    return resolver.resolveGitRoot(doc)
-  })).then(updateAll, emptyFn)
 
   events.on('BufWritePost', bufnr => {
     let doc = workspace.getDocument(bufnr)
     if (!doc) return
     if (doc.uri.startsWith('fugitive:') || doc.uri.endsWith("COMMIT_EDITMSG")) {
       let timer = setTimeout(() => {
-        updateAll()
+        manager.updateAll()
       }, 300)
       subscriptions.push({
         dispose: () => {

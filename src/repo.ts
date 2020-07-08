@@ -1,11 +1,11 @@
-import { Document, OutputChannel, Uri } from 'coc.nvim'
+import {Document, OutputChannel, Uri} from 'coc.nvim'
 import fs from 'fs'
 import os from 'os'
 import path from 'path'
 import util from 'util'
-import Git, { IExecutionResult, SpawnOptions } from './git'
-import { ChangeType, Diff } from './types'
-import { getStdout, shellescape } from './util'
+import Git, {IExecutionResult, SpawnOptions} from './git'
+import {ChangeType, Diff} from './types'
+import {getStdout, shellescape} from './util'
 import uuid = require('uuid/v4')
 
 interface Decorator {
@@ -90,7 +90,7 @@ export default class Repo {
       let head = await this.getHEAD()
       if (!head) return ''
       let [changed, staged, untracked] = await Promise.all([this.hasChanged(), this.getStaged(), this.hasUntracked()])
-      const { changedDecorator, conflictedDecorator, stagedDecorator, untrackedDecorator } = decorator
+      const {changedDecorator, conflictedDecorator, stagedDecorator, untrackedDecorator} = decorator
       let more = ''
       if (changed) more += changedDecorator
       if (staged[0]) more += conflictedDecorator
@@ -104,7 +104,7 @@ export default class Repo {
     }
   }
 
-  public async getDiff(doc: Document): Promise<Diff[]> {
+  public async getDiff(doc: Document, revision = ''): Promise<Diff[]> {
     if (!doc || doc.isIgnored || doc.buftype !== '' || doc.schema !== 'file') return
     let fsPath = Uri.parse(doc.uri).fsPath
     if (!fs.existsSync(fsPath)) return
@@ -116,7 +116,7 @@ export default class Repo {
     try {
       let res = await this.exec(['ls-files', '--', file])
       if (!res.stdout.trim().length) return
-      res = await this.exec(['--no-pager', 'show', `:${file}`])
+      res = await this.exec(['--no-pager', 'show', `${revision}:${file}`])
       if (!res.stdout) return
       staged = res.stdout.replace(/\r?\n$/, '').split(/\r?\n/).join('\n')
     } catch (e) {

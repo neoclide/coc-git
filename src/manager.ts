@@ -51,12 +51,16 @@ export default class DocumentManager {
     workspace.onDidChangeConfiguration(e => {
       if (e.affectsConfiguration('git')) {
         this.config = workspace.getConfiguration('git')
+        this.updateAll()
       }
     }, null, this.disposables)
 
     // tslint:disable-next-line: no-floating-promises
     this.init()
     this.virtualTextSrcId = workspace.createNameSpace('coc-git-virtual')
+    Promise.all(workspace.documents.map(doc => {
+      return resolver.resolveGitRoot(doc)
+    })).then(this.updateAll.bind(this), emptyFn)
     workspace.onDidOpenTextDocument(async e => {
       let doc = workspace.getDocument(e.uri)
       if (!doc) return
@@ -391,7 +395,8 @@ export default class DocumentManager {
     let {nvim} = workspace
     let repo = await this.getRepo(doc.bufnr)
     if (!repo) return
-    const diffs = await repo.getDiff(doc)
+    let revision = this.config.get<string>('diffRevision', '')
+    const diffs = await repo.getDiff(doc, revision)
     const {bufnr} = doc
     let changedtick = this.cachedChangeTick.get(bufnr)
     if (changedtick == doc.changedtick
@@ -782,6 +787,17 @@ export default class DocumentManager {
     return res
   }
 
+  public updateAll(): void {
+    this.refreshStatus().catch(emptyFn)
+    for (let doc of workspace.documents) {
+      this.diffDocument(doc, true).catch(emptyFn)
+      this.loadBlames(doc).then(async () => {
+        let [bufnr, lnum] = await this.nvim.eval('[bufnr("%"),line(".")]') as [number, number]
+        await this.showBlameInfo(bufnr, lnum)
+      }, emptyFn)
+    }
+  }
+
   public async safeRun(args: string[], root: string): Promise<string> {
     try {
       let res = await this.git.exec(root, args)
@@ -794,4 +810,8 @@ export default class DocumentManager {
   public dispose(): void {
     disposeAll(this.disposables)
   }
+}
+
+function emptyFn(): void {
+  // noop
 }
