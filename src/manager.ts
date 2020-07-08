@@ -1,13 +1,12 @@
-import { Buffer, Disposable, disposeAll, Document, Documentation, events, FloatFactory, Neovim, OutputChannel, Uri, workspace, WorkspaceConfiguration } from 'coc.nvim'
+import {Buffer, Disposable, disposeAll, Document, Documentation, events, FloatFactory, Neovim, OutputChannel, Uri, workspace, WorkspaceConfiguration} from 'coc.nvim'
 import debounce from 'debounce'
-import fs from 'fs'
 import path from 'path'
-import { format } from 'timeago.js'
+import {format} from 'timeago.js'
 import Git from './git'
 import Repo from './repo'
 import Resolver from './resolver'
-import { ChangeType, Diff, SignInfo } from './types'
-import { equals, getUrl, spawnCommand } from './util'
+import {ChangeType, Diff, SignInfo} from './types'
+import {equals, getUrl, spawnCommand} from './util'
 
 interface FoldSettings {
   foldmethod: string
@@ -16,6 +15,10 @@ interface FoldSettings {
 }
 
 interface BlameInfo {
+  sha: string
+  index: string
+  startLnum: number
+  endLnum: number
   author?: string
   time?: string
   summary?: string
@@ -28,6 +31,7 @@ export default class DocumentManager {
   private cachedChangeTick: Map<number, number> = new Map()
   private currentSigns: Map<number, SignInfo[]> = new Map()
   private foldSettingsMap: Map<number, FoldSettings> = new Map()
+  private blamesMap: Map<number, BlameInfo[]> = new Map()
   private enabledFolds: Set<number> = new Set()
   private floatFactory: FloatFactory
   private config: WorkspaceConfiguration
@@ -49,36 +53,45 @@ export default class DocumentManager {
         this.config = workspace.getConfiguration('git')
       }
     }, null, this.disposables)
-    this.init().catch(e => {
-      // tslint:disable-next-line: no-console
-      console.error(e)
-    })
-    if (this.showBlame) {
-      nvim.createNamespace('coc-git').then(srcId => {
-        this.virtualTextSrcId = srcId
-      }, _e => {
-        // noop
-      })
-      events.on('BufEnter', bufnr => {
-        if (!this.virtualText) return
-        let doc = workspace.getDocument(bufnr)
-        if (doc) doc.buffer.clearNamespace(this.virtualTextSrcId, 0, -1)
-      }, null, this.disposables)
-      events.on('CursorMoved', debounce(async (bufnr, cursor) => {
-        await this.showBlameInfo(bufnr, cursor[0])
-      }, 100), null, this.disposables)
-      events.on('InsertEnter', async bufnr => {
-        if (!this.virtualText) return
-        let { virtualTextSrcId } = this
-        if (virtualTextSrcId) {
-          let buffer = nvim.createBuffer(bufnr)
-          await buffer.request('nvim_buf_clear_namespace', [virtualTextSrcId, 0, -1])
-        }
-      }, null, this.disposables)
-    }
+
+    // tslint:disable-next-line: no-floating-promises
+    this.init()
+    this.virtualTextSrcId = workspace.createNameSpace('coc-git-virtual')
+    workspace.onDidOpenTextDocument(async e => {
+      let doc = workspace.getDocument(e.uri)
+      if (!doc) return
+      await resolver.resolveGitRoot(doc)
+      await Promise.all([this.refreshStatus(), this.diffDocument(doc, true), this.loadBlames(doc)])
+    }, null, this.disposables)
+    workspace.onDidChangeTextDocument(async e => {
+      let doc = workspace.getDocument(e.textDocument.uri)
+      if (!doc) return
+      // tslint:disable-next-line: no-floating-promises
+      this.diffDocument(doc)
+      // tslint:disable-next-line: no-floating-promises
+      this.loadBlames(doc)
+    }, null, this.disposables)
+    events.on('InsertEnter', bufnr => {
+      if (!this.enableVirtualText) return
+      this.nvim.call(`nvim_buf_clear_namespace`, [bufnr, this.virtualTextSrcId, 0, -1], true)
+    }, null, this.disposables)
+    events.on('CursorMoved', debounce((bufnr, cursor) => {
+      // tslint:disable-next-line: no-floating-promises
+      this.showBlameInfo(bufnr, cursor[0])
+    }, 100), null, this.disposables)
     events.on('BufWritePre', async bufnr => {
       if (!this.enableGutters || this.realtime) return
       await this.updateGutters(bufnr)
+    }, null, this.disposables)
+    events.on('BufUnload', bufnr => {
+      if (this.enableVirtualText) {
+        this.nvim.call(`nvim_buf_clear_namespace`, [bufnr, this.virtualTextSrcId, 0, -1], true)
+      }
+      this.cachedDiffs.delete(bufnr)
+      this.cachedSigns.delete(bufnr)
+      this.cachedChangeTick.delete(bufnr)
+      this.currentSigns.delete(bufnr)
+      this.blamesMap.delete(bufnr)
     }, null, this.disposables)
   }
 
@@ -106,6 +119,7 @@ export default class DocumentManager {
   }
 
   private get showBlame(): boolean {
+    if (!workspace.nvim.hasFunction('nvim_buf_set_virtual_text')) return false
     let blame = this.getConfig<boolean>('addGBlameToVirtualText', false, 'addGlameToVirtualText')
     let blameVar = this.getConfig<boolean>('addGBlameToBufferVar', false, 'addGlameToBufferVar')
     return blame || blameVar
@@ -115,48 +129,7 @@ export default class DocumentManager {
     return this.config.get<boolean>('realtimeGutters', false)
   }
 
-  private async showBlameInfo(bufnr: number, lnum: number): Promise<void> {
-    let { virtualTextSrcId, nvim } = this
-    if (!virtualTextSrcId || !this.showBlame) return
-    let doc = workspace.getDocument(bufnr)
-    if (!doc || doc.buftype != '' || doc.schema != 'file' || doc.isIgnored) return
-    let root = await this.resolveGitRoot(bufnr)
-    if (!root) return
-    let filepath = Uri.parse(doc.uri).fsPath
-    if (!fs.existsSync(filepath)) return
-    let blameInfo = await this.getBlameInfo(path.relative(root, filepath), lnum, root)
-    let buffer = nvim.createBuffer(bufnr)
-    let modified = await buffer.getOption('modified')
-    if (modified) blameInfo = {}
-    let blameText = ''
-    if (blameInfo.author) {
-      if (blameInfo.author.includes('Not Committed Yet')) {
-        blameText = `Not Committed Yet`
-      } else {
-        blameText = `(${blameInfo.author} ${blameInfo.time}) ${blameInfo.summary}`
-      }
-    }
-    if (this.getConfig<boolean>('addGBlameToBufferVar', false, 'addGlameToBufferVar')) {
-      nvim.pauseNotification()
-      doc.buffer.setVar('coc_git_blame', blameText, true)
-      nvim.call('coc#util#do_autocmd', ['CocGitStatusChange'], true)
-      await nvim.resumeNotification(false, true)
-    }
-    if (this.virtualText) {
-      try {
-        await buffer.request('nvim_buf_clear_namespace', [virtualTextSrcId, 0, -1])
-        if (blameText) {
-          const prefix = this.config.get<string>('virtualTextPrefix', '     ')
-          await buffer.setVirtualText(virtualTextSrcId, lnum - 1, [[prefix + blameText, 'CocCodeLens']])
-        }
-      } catch (err) {
-        // tslint:disable-next-line: no-console
-        console.error(err)
-      }
-    }
-  }
-
-  private get virtualText(): boolean {
+  private get enableVirtualText(): boolean {
     if (!workspace.nvim.hasFunction('nvim_buf_set_virtual_text')) return false
     return this.getConfig<boolean>('addGBlameToVirtualText', false, 'addGlameToVirtualText')
   }
@@ -170,7 +143,7 @@ export default class DocumentManager {
   }
 
   private async init(): Promise<void> {
-    const { nvim, config } = this
+    const {nvim, config} = this
     if (this.enableGutters) {
       let items = ['Changed', 'Added', 'Removed', 'TopRemoved', 'ChangeRemoved']
       nvim.pauseNotification()
@@ -210,7 +183,7 @@ export default class DocumentManager {
   }
 
   public async toggleFold(): Promise<void> {
-    let { nvim } = this
+    let {nvim} = this
     let buf = await nvim.buffer
     let win = await nvim.window
     let bufnr = buf.id
@@ -278,7 +251,7 @@ export default class DocumentManager {
   }
 
   public async getRepo(bufnr?: number): Promise<Repo> {
-    let { nvim } = this
+    let {nvim} = this
     const buf = bufnr ? nvim.createBuffer(bufnr) : await nvim.buffer
     const doc = workspace.getDocument(buf.id)
     if (!doc || doc.buftype != '') return null
@@ -324,7 +297,7 @@ export default class DocumentManager {
   private async setGitStatus(status: string): Promise<void> {
     if (this.gitStatus == status) return
     this.gitStatus = status
-    let { nvim } = this
+    let {nvim} = this
     nvim.pauseNotification()
     nvim.setVar('coc_git_status', status, true)
     nvim.call('coc#util#do_autocmd', ['CocGitStatusChange'], true)
@@ -335,7 +308,7 @@ export default class DocumentManager {
     let exists = this.gitStatusMap.get(buffer.id) || ''
     if (exists == status) return
     this.gitStatusMap.set(buffer.id, status)
-    let { nvim } = this
+    let {nvim} = this
     nvim.pauseNotification()
     buffer.setVar('coc_git_status', status, true)
     nvim.call('coc#util#do_autocmd', ['CocGitStatusChange'], true)
@@ -343,13 +316,13 @@ export default class DocumentManager {
   }
 
   public async getCurrentChunk(): Promise<Diff> {
-    const { nvim } = this
+    const {nvim} = this
     let bufnr = await nvim.call('bufnr', '%')
     let line = await nvim.call('line', '.')
     let diffs = this.cachedDiffs.get(bufnr)
     if (!diffs || diffs.length == 0) return
     return diffs.find(ch => {
-      let { start, added, removed, changeType } = ch
+      let {start, added, removed, changeType} = ch
       if (line == 1 && start == 0 && ch.end == 0) {
         return true
       }
@@ -364,7 +337,7 @@ export default class DocumentManager {
 
   public async showDoc(content: string, filetype = 'diff'): Promise<void> {
     if (workspace.floatSupported) {
-      let docs: Documentation[] = [{ content, filetype }]
+      let docs: Documentation[] = [{content, filetype}]
       await this.floatFactory.create(docs, false)
     } else {
       const lines = content.split('\n')
@@ -381,45 +354,45 @@ export default class DocumentManager {
   }
 
   public async nextChunk(): Promise<void> {
-    const { nvim } = this
+    const {nvim} = this
     let bufnr = await nvim.call('bufnr', '%')
     let diffs = this.cachedDiffs.get(bufnr)
     if (!diffs || diffs.length == 0) return
     let line = await nvim.call('line', '.')
     for (let diff of diffs) {
       if (diff.start > line) {
-        await workspace.moveTo({ line: Math.max(diff.start - 1, 0), character: 0 })
+        await workspace.moveTo({line: Math.max(diff.start - 1, 0), character: 0})
         return
       }
     }
     if (await nvim.getOption('wrapscan')) {
-      await workspace.moveTo({ line: Math.max(diffs[0].start - 1, 0), character: 0 })
+      await workspace.moveTo({line: Math.max(diffs[0].start - 1, 0), character: 0})
     }
   }
 
   public async prevChunk(): Promise<void> {
-    const { nvim } = this
+    const {nvim} = this
     let bufnr = await nvim.call('bufnr', '%')
     let line = await nvim.call('line', '.')
     let diffs = this.cachedDiffs.get(bufnr)
     if (!diffs || diffs.length == 0) return
     for (let diff of diffs.slice().reverse()) {
       if (diff.end < line) {
-        await workspace.moveTo({ line: Math.max(diff.start - 1, 0), character: 0 })
+        await workspace.moveTo({line: Math.max(diff.start - 1, 0), character: 0})
         return
       }
     }
     if (await nvim.getOption('wrapscan')) {
-      await workspace.moveTo({ line: Math.max(diffs[diffs.length - 1].start - 1, 0), character: 0 })
+      await workspace.moveTo({line: Math.max(diffs[diffs.length - 1].start - 1, 0), character: 0})
     }
   }
 
   public async diffDocument(doc: Document, init = false): Promise<void> {
-    let { nvim } = workspace
+    let {nvim} = workspace
     let repo = await this.getRepo(doc.bufnr)
     if (!repo) return
     const diffs = await repo.getDiff(doc)
-    const { bufnr } = doc
+    const {bufnr} = doc
     let changedtick = this.cachedChangeTick.get(bufnr)
     if (changedtick == doc.changedtick
       && equals(diffs, this.cachedDiffs.get(bufnr))) {
@@ -454,7 +427,7 @@ export default class DocumentManager {
           added += add - min
           removed += remove - min
         }
-        let { start, end } = diff
+        let {start, end} = diff
         for (let i = start; i <= end; i++) {
           let topdelete = diff.changeType == ChangeType.Delete && i == 0
           let changedelete = diff.changeType == ChangeType.Change && diff.removed.count > diff.added.count && i == end
@@ -491,9 +464,54 @@ export default class DocumentManager {
     }
   }
 
+  // load blame texts of document
+  public async loadBlames(doc: Document): Promise<void> {
+    if (!this.showBlame) return
+    if (!doc || doc.buftype != '' || doc.schema != 'file' || doc.isIgnored) return
+    let {bufnr} = doc
+    let result: BlameInfo[] = []
+    let filepath = Uri.parse(doc.uri).fsPath
+    let root = await this.resolveGitRoot(bufnr)
+    if (!root) return
+    let relpath = path.relative(root, filepath)
+    let indexed = await this.git.isIndexed(relpath, root)
+    if (indexed) result = await this.getBlameInfo(relpath, root, doc.content)
+    this.blamesMap.set(bufnr, result)
+  }
+
+  public async showBlameInfo(bufnr: number, lnum: number): Promise<void> {
+    let {nvim, virtualTextSrcId} = this
+    if (!this.showBlame) return
+    let infos = this.blamesMap.get(bufnr)
+    if (!infos) return
+    let blameText: string
+    if (infos.length == 0) {
+      blameText = 'File not indexed'
+    } else {
+      let info = infos.find(o => lnum >= o.startLnum && lnum <= o.endLnum)
+      if (info && info.author && info.author != 'Not Committed Yet') {
+        blameText = `(${info.author} ${info.time}) ${info.summary}`
+      } else {
+        blameText = 'Not committed yet'
+      }
+    }
+    let buffer = nvim.createBuffer(bufnr)
+    if (this.getConfig<boolean>('addGBlameToBufferVar', false, 'addGlameToBufferVar')) {
+      nvim.pauseNotification()
+      buffer.setVar('coc_git_blame', blameText, true)
+      nvim.call('coc#util#do_autocmd', ['CocGitStatusChange'], true)
+      await nvim.resumeNotification(false, true)
+    }
+    if (this.enableVirtualText) {
+      const prefix = this.config.get<string>('virtualTextPrefix', '     ')
+      await buffer.request('nvim_buf_clear_namespace', [virtualTextSrcId, 0, -1])
+      await buffer.setVirtualText(virtualTextSrcId, lnum - 1, [[prefix + blameText, 'CocCodeLens']])
+    }
+  }
+
   private async updateGutters(bufnr: number): Promise<void> {
     if (!this.enableGutters) return
-    let { nvim } = this
+    let {nvim} = this
     nvim.pauseNotification()
     let signs = this.currentSigns.get(bufnr) || []
     const cached = this.cachedSigns.get(bufnr)
@@ -550,7 +568,7 @@ export default class DocumentManager {
     lines.push(...diff.lines)
     lines.push('')
     try {
-      await this.git.exec(root, ['apply', '--cached', '--unidiff-zero', '-'], { input: lines.join('\n') })
+      await this.git.exec(root, ['apply', '--cached', '--unidiff-zero', '-'], {input: lines.join('\n')})
       await this.diffDocument(doc, true)
     } catch (e) {
       // tslint:disable-next-line: no-console
@@ -561,13 +579,13 @@ export default class DocumentManager {
   public async chunkUndo(): Promise<void> {
     let diff = await this.getCurrentChunk()
     if (!diff) return
-    let { start, lines, changeType } = diff
+    let {start, lines, changeType} = diff
     let added = lines.filter(s => s.startsWith('-')).map(s => s.slice(1))
     let removeCount = lines.filter(s => s.startsWith('+')).length
-    let { nvim } = this
+    let {nvim} = this
     let buf = await nvim.buffer
     if (changeType == ChangeType.Delete) {
-      await buf.setLines(added, { start, end: start, strictIndexing: false })
+      await buf.setLines(added, {start, end: start, strictIndexing: false})
     } else {
       await buf.setLines(added, {
         start: start - 1,
@@ -579,7 +597,7 @@ export default class DocumentManager {
 
   // show commit of current line in split window
   public async showCommit(): Promise<void> {
-    let { nvim } = this
+    let {nvim} = this
     let bufnr = await nvim.call('bufnr', '%')
     let root = await this.resolveGitRoot(bufnr)
     if (!root) {
@@ -633,7 +651,7 @@ export default class DocumentManager {
   }
 
   public async browser(action = 'open', range?: [number, number]): Promise<void> {
-    let { nvim } = this
+    let {nvim} = this
     let bufnr = await nvim.call('bufnr', '%')
     let root = await this.resolveGitRoot(bufnr)
     if (!root) {
@@ -697,7 +715,7 @@ export default class DocumentManager {
   }
 
   public async diffCached(): Promise<void> {
-    let { nvim } = this
+    let {nvim} = this
     let bufnr = await nvim.call('bufnr', '%')
     let root = await this.resolveGitRoot(bufnr)
     if (!root) {
@@ -719,26 +737,49 @@ export default class DocumentManager {
     await nvim.resumeNotification()
   }
 
-  private async getBlameInfo(relpath: string, lnum: number, root: string): Promise<BlameInfo> {
-    let info: BlameInfo = {}
+  private async getBlameInfo(relpath: string, root: string, input: string): Promise<BlameInfo[]> {
+    let res: BlameInfo[] = []
     try {
       let currentAuthor = await this.getUsername(root)
-      let res = await this.git.exec(root, ['--no-pager', 'blame', '-b', '-p', '--root', `-L${lnum},${lnum}`, '--date', 'relative', relpath])
-      if (!res.stdout) return info
-      for (let line of res.stdout.trim().split(/\r?\n/)) {
-        let ms = line.match(/^(\S+)\s(.*)/)
+      let r = await this.git.exec(root, ['--no-pager', 'blame', '-b', '-p', '--root', '--date', 'relative', '--contents', '-', relpath], {
+        log: false,
+        input
+      })
+      if (!r.stdout) return res
+      let info: BlameInfo
+      for (let line of r.stdout.trim().split(/\r?\n/)) {
+        line = line.trim()
+        let ms = line.match(/^([A-Za-z0-9]+)\s(\d+)\s(\d+)\s(\d+)/)
         if (ms) {
-          let [, field, text] = ms
-          if (field == 'author') info.author = text == currentAuthor ? 'You' : text
-          if (field == 'author-time') info.time = format(parseInt(text, 10) * 1000, process.env.LANG)
-          if (field == 'summary') info.summary = text
+          let startLnum = parseInt(ms[3], 10)
+          info = {startLnum, sha: ms[1], endLnum: startLnum + parseInt(ms[4], 10) - 1, index: ms[2]}
+          if (!/^0+$/.test(ms[1])) {
+            let find = res.find(o => o.sha == ms[1])
+            if (find) {
+              info.author = find.author
+              info.time = find.time
+              info.summary = find.summary
+            }
+          }
+          res.push(info)
+        } else if (info) {
+          if (line.startsWith('author ')) {
+            let author = line.replace(/^author/, '').trim()
+            info.author = author == currentAuthor ? 'You' : author
+          } else if (line.startsWith('author-time ')) {
+            let text = line.replace(/^author-time/, '').trim()
+            info.time = format(parseInt(text, 10) * 1000, process.env.LANG)
+          } else if (line.startsWith('summary ')) {
+            let text = line.replace(/^summary/, '').trim()
+            info.summary = text
+          }
         }
       }
-      return info
+      return res
     } catch (e) {
       this.channel.appendLine(e.stack)
     }
-    return info
+    return res
   }
 
   public async safeRun(args: string[], root: string): Promise<string> {

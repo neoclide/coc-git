@@ -1,9 +1,9 @@
-import { IGit, cpErrorHandler, onceEvent } from './util'
+import {IGit, cpErrorHandler, onceEvent} from './util'
 import * as cp from 'child_process'
 import iconv = require('iconv-lite')
 import path from 'path'
-import { OutputChannel, disposeAll } from 'coc.nvim'
-import { CancellationToken, Disposable } from 'vscode-jsonrpc'
+import {OutputChannel, disposeAll} from 'coc.nvim'
+import {CancellationToken, Disposable} from 'vscode-jsonrpc'
 
 export interface SpawnOptions extends cp.SpawnOptions {
   input?: string
@@ -47,12 +47,17 @@ export default class Git {
   }
 
   public async exec(cwd: string, args: string[], options: SpawnOptions = {}): Promise<IExecutionResult<string>> {
-    options = Object.assign({ cwd }, options || {})
+    options = Object.assign({cwd}, options || {})
     return await this._exec(args, options)
   }
 
+  public async isIndexed(relpath: string, root: string): Promise<boolean> {
+    let res = await this.exec(root, ['ls-files', relpath])
+    return res.stdout && res.stdout.trim().length > 0
+  }
+
   public stream(cwd: string, args: string[], options: SpawnOptions = {}): cp.ChildProcess {
-    options = Object.assign({ cwd }, options || {})
+    options = Object.assign({cwd}, options || {})
     return this.spawn(args, options)
   }
 
@@ -170,7 +175,7 @@ async function exec(child: cp.ChildProcess, cancellationToken?: CancellationToke
 
   try {
     const [exitCode, stdout, stderr] = await result
-    return { exitCode, stdout, stderr }
+    return {exitCode, stdout, stderr}
   } finally {
     disposeAll(disposables)
   }

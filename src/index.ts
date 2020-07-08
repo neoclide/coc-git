@@ -1,6 +1,6 @@
-import { commands, events, ExtensionContext, languages, listManager, workspace } from 'coc.nvim'
-import { CompletionItem, CompletionItemKind, InsertTextFormat, Range, Position } from 'vscode-languageserver-types'
-import { DEFAULT_TYPES } from './constants'
+import {commands, events, ExtensionContext, languages, listManager, workspace} from 'coc.nvim'
+import {CompletionItem, CompletionItemKind, InsertTextFormat, Range, Position} from 'vscode-languageserver-types'
+import {DEFAULT_TYPES} from './constants'
 import Bcommits from './lists/bcommits'
 import Branches from './lists/branches'
 import Commits from './lists/commits'
@@ -10,7 +10,7 @@ import Manager from './manager'
 import Git from './git'
 import Resolver from './resolver'
 import addSource from './source'
-import { findGit, IGit } from './util'
+import {findGit, IGit} from './util'
 
 function emptyFn(): void {
   // noop
@@ -24,7 +24,7 @@ export interface ExtensionApi {
 
 export async function activate(context: ExtensionContext): Promise<ExtensionApi | undefined> {
   const config = workspace.getConfiguration('git')
-  const { subscriptions } = context
+  const {subscriptions} = context
   const outputChannel = workspace.createOutputChannel('git')
   let gitInfo: IGit
   try {
@@ -34,7 +34,7 @@ export async function activate(context: ExtensionContext): Promise<ExtensionApi 
     workspace.showMessage('git command required for coc-git', 'error')
     return
   }
-  const { nvim } = workspace
+  const {nvim} = workspace
   const git = new Git(gitInfo, outputChannel)
   const resolver = new Resolver(git)
   const manager = new Manager(nvim, resolver, git, outputChannel)
@@ -45,60 +45,51 @@ export async function activate(context: ExtensionContext): Promise<ExtensionApi 
     manager.refreshStatus().catch(emptyFn)
     for (let doc of workspace.documents) {
       manager.diffDocument(doc, true).catch(emptyFn)
+      manager.loadBlames(doc).then(async () => {
+        let [bufnr, lnum] = await nvim.eval('[bufnr("%"),line(".")]') as [number, number]
+        await manager.showBlameInfo(bufnr, lnum)
+      }, emptyFn)
     }
   }
+
+  subscriptions.push(commands.registerCommand('git.refresh', () => {
+    updateAll()
+  }))
 
   Promise.all(workspace.documents.map(doc => {
     return resolver.resolveGitRoot(doc)
   })).then(updateAll, emptyFn)
 
-  workspace.onDidOpenTextDocument(async e => {
-    let doc = workspace.getDocument(e.uri)
-    await resolver.resolveGitRoot(doc)
-    if (!doc) return
-    await Promise.all([manager.refreshStatus(), manager.diffDocument(doc, true)])
-  }, null, subscriptions)
-
-  workspace.onDidChangeTextDocument(async e => {
-    let doc = workspace.getDocument(e.textDocument.uri)
-    if (!doc) return
-    await manager.diffDocument(doc)
-  }, null, subscriptions)
-
   events.on('BufWritePost', bufnr => {
     let doc = workspace.getDocument(bufnr)
     if (!doc) return
     if (doc.uri.startsWith('fugitive:') || doc.uri.endsWith("COMMIT_EDITMSG")) {
-      updateAll()
+      let timer = setTimeout(() => {
+        updateAll()
+      }, 300)
+      subscriptions.push({
+        dispose: () => {
+          clearTimeout(timer)
+        }
+      })
     }
-  }, null, subscriptions)
-
-  events.on('CursorHold', async bufnr => {
-    let doc = workspace.getDocument(bufnr)
-    if (!doc || doc.buftype != '') return
-    await Promise.all([manager.refreshStatus(bufnr), manager.diffDocument(doc)])
-  }, null, subscriptions)
-  events.on('BufEnter', async bufnr => {
-    let doc = workspace.getDocument(bufnr)
-    if (!doc || doc.buftype != '') return
-    await Promise.all([manager.refreshStatus(bufnr), manager.diffDocument(doc)])
   }, null, subscriptions)
 
   subscriptions.push(workspace.registerKeymap(['n'], 'git-nextchunk', async () => {
     await manager.nextChunk()
-  }, { sync: false }))
+  }, {sync: false}))
 
   subscriptions.push(workspace.registerKeymap(['n'], 'git-prevchunk', async () => {
     await manager.prevChunk()
-  }, { sync: false }))
+  }, {sync: false}))
 
   subscriptions.push(workspace.registerKeymap(['n'], 'git-chunkinfo', async () => {
     await manager.chunkInfo()
-  }, { sync: false }))
+  }, {sync: false}))
 
   subscriptions.push(workspace.registerKeymap(['n'], 'git-commit', async () => {
     await manager.showCommit()
-  }, { sync: false }))
+  }, {sync: false}))
 
   subscriptions.push(commands.registerCommand('git.chunkInfo', async () => {
     await manager.chunkInfo()
@@ -153,13 +144,14 @@ export async function activate(context: ExtensionContext): Promise<ExtensionApi 
         )
       )
       if (/^[a-z]*$/.test(text)) {
-        const scope = config.get('semanticCommit.scope') as boolean;
+        const scope = config.get('semanticCommit.scope') as boolean
+        // tslint:disable-next-line: no-invalid-template-strings
         const text = scope ? '(${1:scope}): ${2:commit}' : ': ${1:commit}'
         return DEFAULT_TYPES.map(o => {
           return {
             label: o.value,
             kind: CompletionItemKind.Snippet,
-            documentation: { kind: 'plaintext', value: o.name },
+            documentation: {kind: 'plaintext', value: o.name},
             // detail: o.name,
             insertTextFormat: InsertTextFormat.Snippet,
             // tslint:disable-next-line: no-invalid-template-strings
@@ -176,7 +168,7 @@ export async function activate(context: ExtensionContext): Promise<ExtensionApi 
     if (!diff) return
     // diff.start
     await nvim.command(`normal! ${diff.start}GV${diff.end}G`)
-  }, { sync: true, silent: true }))
+  }, {sync: true, silent: true}))
 
   subscriptions.push(workspace.registerKeymap(['o', 'x'] as any, 'git-chunk-outer', async () => {
     let diff = await manager.getCurrentChunk()
@@ -185,7 +177,7 @@ export async function activate(context: ExtensionContext): Promise<ExtensionApi 
     let start = Math.max(1, diff.start - 1)
     let end = Math.min(diff.end + 1, total)
     await nvim.command(`normal! ${start}GV${end}G`)
-  }, { sync: true, silent: true }))
+  }, {sync: true, silent: true}))
 
   return {
     git,
