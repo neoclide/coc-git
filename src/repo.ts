@@ -5,7 +5,7 @@ import path from 'path'
 import util from 'util'
 import Git, {IExecutionResult, SpawnOptions} from './git'
 import {ChangeType, Diff} from './types'
-import {getStdout, shellescape} from './util'
+import {getStdout, shellescape, toUnixSlash} from './util'
 import uuid = require('uuid/v4')
 
 interface Decorator {
@@ -116,7 +116,7 @@ export default class Repo {
     try {
       let res = await this.exec(['ls-files', '--', file])
       if (!res.stdout.trim().length) return
-      res = await this.exec(['--no-pager', 'show', `${revision}:${file}`])
+      res = await this.exec(['--no-pager', 'show', `${revision}:${toUnixSlash(file)}`])
       if (!res.stdout) return
       staged = res.stdout.replace(/\r?\n$/, '').split(/\r?\n/).join('\n')
     } catch (e) {
