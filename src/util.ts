@@ -21,6 +21,10 @@ export function shellescape(s: string): string {
   return s
 }
 
+export function toUnixSlash(fsPath: string): string {
+  return fsPath.replace(/\\/, '/')
+}
+
 export async function safeRun(cmd: string, opts: ExecOptions = {}): Promise<string> {
   try {
     return await runCommand(cmd, opts, 5000)
