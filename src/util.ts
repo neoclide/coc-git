@@ -22,7 +22,10 @@ export function shellescape(s: string): string {
 }
 
 export function toUnixSlash(fsPath: string): string {
-  return fsPath.replace(/\\/, '/')
+  if (process.platform == 'win32') {
+    return fsPath.replace(/\\/g, '/')
+  }
+  return fsPath
 }
 
 export async function safeRun(cmd: string, opts: ExecOptions = {}): Promise<string> {
