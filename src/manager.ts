@@ -58,9 +58,13 @@ export default class DocumentManager {
     // tslint:disable-next-line: no-floating-promises
     this.init()
     this.virtualTextSrcId = workspace.createNameSpace('coc-git-virtual')
+    let initialized = false
     Promise.all(workspace.documents.map(doc => {
       return resolver.resolveGitRoot(doc)
-    })).then(this.updateAll.bind(this), emptyFn)
+    })).then(() => {
+      initialized = true
+      this.updateAll()
+    }, emptyFn)
     workspace.onDidOpenTextDocument(async e => {
       let doc = workspace.getDocument(e.uri)
       if (!doc) return
@@ -93,6 +97,15 @@ export default class DocumentManager {
       this.cachedChangeTick.delete(bufnr)
       this.currentSigns.delete(bufnr)
       this.blamesMap.delete(bufnr)
+    }, null, this.disposables)
+    events.on('FocusGained', () => {
+      if (!initialized) return
+      this.updateAll()
+    }, null, this.disposables)
+    events.on('BufEnter', bufnr => {
+      if (initialized && workspace.getDocument(bufnr) != null) {
+        this.updateAll(bufnr)
+      }
     }, null, this.disposables)
   }
 
@@ -256,14 +269,9 @@ export default class DocumentManager {
     const buf = bufnr ? nvim.createBuffer(bufnr) : await nvim.buffer
     const doc = workspace.getDocument(buf.id)
     if (!doc || doc.buftype != '') return null
-    let root: string
-    if (doc && doc.schema == 'file') {
-      root = this.resolver.getGitRoot(Uri.parse(doc.uri).fsPath)
-    } else {
-      root = await this.resolver.resolveGitRoot()
-    }
+    let root = await this.resolver.resolveGitRoot(doc)
     if (!root) return null
-    this.channel.appendLine(`resolved root: ${root}`)
+    this.channel.appendLine(`resolved root of ${doc.uri}: ${root}`)
     let repo = this.repoMap.get(root)
     if (repo) return repo
     repo = new Repo(this.git, this.channel, root)
@@ -546,10 +554,10 @@ export default class DocumentManager {
   public async chunkStage(): Promise<void> {
     let bufnr = await this.nvim.call('bufnr', '%')
     let doc = workspace.getDocument(bufnr)
-    if (!doc) return
+    if (!doc || doc.buftype != '' || doc.schema != 'file') return
     let diff = await this.getCurrentChunk()
     if (!diff) return
-    let root = this.resolver.getRootOfDocument(doc)
+    let root = await this.resolver.resolveGitRoot(doc)
     if (!root) return
     let filepath = path.relative(root, Uri.parse(doc.uri).fsPath)
     let head: string

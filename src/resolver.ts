@@ -1,11 +1,12 @@
 import { Document, Uri, workspace } from 'coc.nvim'
+import { promisify } from 'util'
 import path from 'path'
 import Git from './git'
 import fs from 'fs'
 
-function getRealPath(fullpath: string): string {
+async function getRealPath(fullpath: string): Promise<string> {
   try {
-    let res = fs.realpathSync(fullpath, 'utf8')
+    let res = await promisify(fs.realpath)(fullpath, 'utf8')
     return res
   } catch (e) {
     // noop
@@ -14,36 +15,27 @@ function getRealPath(fullpath: string): string {
 }
 
 export default class Resolver {
-  private resolvedRoots: Set<string> = new Set()
-  private failedDirs: Set<string> = new Set()
+  private resolvedRoots: Map<string, string> = new Map()
   constructor(private git: Git) {
   }
 
-  public getGitRoot(fullpath: string): string | null {
-    fullpath = getRealPath(fullpath)
+  private getGitRoot(dir: string): string | null {
     if (process.platform == 'win32') {
-      fullpath = path.win32.normalize(fullpath)
+      dir = path.win32.normalize(dir)
     }
-    for (let p of this.resolvedRoots) {
-      let rel = path.relative(p, fullpath)
-      if (!rel.startsWith('..')) return p
-    }
-    return null
-  }
-
-  public getRootOfDocument(document: Document): string | null {
-    if (document.schema != 'file' || document.buftype != '') return null
-    let fullpath = Uri.parse(document.uri).fsPath
-    return this.getGitRoot(fullpath)
+    return this.resolvedRoots.get(dir)
   }
 
   public async resolveGitRoot(doc?: Document): Promise<string> {
     let dir: string
     if (!doc || doc.buftype != '' || doc.schema != 'file') {
-      dir = workspace.cwd
+      dir = await getRealPath(workspace.cwd)
     } else {
-      let fullpath = Uri.parse(doc.uri).fsPath
-      dir = path.dirname(getRealPath(fullpath))
+      let fullpath = await getRealPath(Uri.parse(doc.uri).fsPath)
+      dir = path.dirname(fullpath)
+    }
+    if (process.platform == 'win32') {
+      dir = path.win32.normalize(dir)
     }
     let root = this.getGitRoot(dir)
     if (root) return root
@@ -51,19 +43,17 @@ export default class Resolver {
     let idx = parts.indexOf('.git')
     if (idx !== -1) {
       let root = parts.slice(0, idx).join(path.sep)
-      this.resolvedRoots.add(root)
+      this.resolvedRoots.set(dir, root)
       return root
     }
-    if (this.failedDirs.has(dir)) return
     try {
       let res = await this.git.getRepositoryRoot(dir)
       if (path.isAbsolute(res)) {
-        this.resolvedRoots.add(res)
+        this.resolvedRoots.set(dir, res)
         return res
       }
     } catch (e) {
-      this.failedDirs.add(dir)
-      return
+      return null
     }
   }
 }

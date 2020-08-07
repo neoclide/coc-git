@@ -1,4 +1,4 @@
-import { commands, events, ExtensionContext, languages, listManager, workspace } from 'coc.nvim'
+import { commands, ExtensionContext, languages, listManager, workspace } from 'coc.nvim'
 import { CompletionItem, CompletionItemKind, InsertTextFormat, Range, Position } from 'vscode-languageserver-types'
 import { DEFAULT_TYPES } from './constants'
 import Bcommits from './lists/bcommits'
@@ -40,27 +40,6 @@ export async function activate(context: ExtensionContext): Promise<ExtensionApi 
   subscriptions.push(commands.registerCommand('git.refresh', () => {
     manager.updateAll()
   }))
-
-  events.on('BufWritePost', bufnr => {
-    let doc = workspace.getDocument(bufnr)
-    if (!doc) return
-    if (doc.uri.startsWith('fugitive:') || doc.uri.endsWith("COMMIT_EDITMSG")) {
-      let timer = setTimeout(() => {
-        manager.updateAll()
-      }, 300)
-      subscriptions.push({
-        dispose: () => {
-          clearTimeout(timer)
-        }
-      })
-    }
-  }, null, subscriptions)
-  events.on('FocusGained', () => {
-    manager.updateAll()
-  })
-  events.on('BufEnter', bufnr => {
-    manager.updateAll(bufnr)
-  })
 
   subscriptions.push(workspace.registerKeymap(['n'], 'git-nextchunk', async () => {
     await manager.nextChunk()
