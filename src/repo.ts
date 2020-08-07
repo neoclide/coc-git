@@ -1,11 +1,11 @@
-import {Document, OutputChannel, Uri} from 'coc.nvim'
+import { Document, OutputChannel, Uri } from 'coc.nvim'
 import fs from 'fs'
 import os from 'os'
 import path from 'path'
 import util from 'util'
-import Git, {IExecutionResult, SpawnOptions} from './git'
-import {ChangeType, Diff} from './types'
-import {getStdout, shellescape, toUnixSlash} from './util'
+import Git, { IExecutionResult, SpawnOptions } from './git'
+import { ChangeType, Diff } from './types'
+import { getStdout, shellescape, toUnixSlash } from './util'
 import uuid = require('uuid/v4')
 
 interface Decorator {
@@ -90,7 +90,7 @@ export default class Repo {
       let head = await this.getHEAD()
       if (!head) return ''
       let [changed, staged, untracked] = await Promise.all([this.hasChanged(), this.getStaged(), this.hasUntracked()])
-      const {changedDecorator, conflictedDecorator, stagedDecorator, untrackedDecorator} = decorator
+      const { changedDecorator, conflictedDecorator, stagedDecorator, untrackedDecorator } = decorator
       let more = ''
       if (changed) more += changedDecorator
       if (staged[0]) more += conflictedDecorator

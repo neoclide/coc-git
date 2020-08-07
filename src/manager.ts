@@ -1,12 +1,12 @@
-import {Buffer, Disposable, disposeAll, Document, Documentation, events, FloatFactory, Neovim, OutputChannel, Uri, workspace, WorkspaceConfiguration} from 'coc.nvim'
+import { Buffer, Disposable, disposeAll, Document, Documentation, events, FloatFactory, Neovim, OutputChannel, Uri, workspace, WorkspaceConfiguration } from 'coc.nvim'
 import debounce from 'debounce'
 import path from 'path'
-import {format} from 'timeago.js'
+import { format } from 'timeago.js'
 import Git from './git'
 import Repo from './repo'
 import Resolver from './resolver'
-import {ChangeType, Diff, SignInfo} from './types'
-import {equals, getUrl, spawnCommand} from './util'
+import { ChangeType, Diff, SignInfo } from './types'
+import { equals, getUrl, spawnCommand } from './util'
 
 interface FoldSettings {
   foldmethod: string
@@ -88,9 +88,6 @@ export default class DocumentManager {
       await this.updateGutters(bufnr)
     }, null, this.disposables)
     events.on('BufUnload', bufnr => {
-      if (this.enableVirtualText) {
-        this.nvim.call(`nvim_buf_clear_namespace`, [bufnr, this.virtualTextSrcId, 0, -1], true)
-      }
       this.cachedDiffs.delete(bufnr)
       this.cachedSigns.delete(bufnr)
       this.cachedChangeTick.delete(bufnr)
@@ -147,7 +144,7 @@ export default class DocumentManager {
   }
 
   private async init(): Promise<void> {
-    const {nvim, config} = this
+    const { nvim, config } = this
     if (this.enableGutters) {
       let items = ['Changed', 'Added', 'Removed', 'TopRemoved', 'ChangeRemoved']
       nvim.pauseNotification()
@@ -187,7 +184,7 @@ export default class DocumentManager {
   }
 
   public async toggleFold(): Promise<void> {
-    let {nvim} = this
+    let { nvim } = this
     let buf = await nvim.buffer
     let win = await nvim.window
     let bufnr = buf.id
@@ -255,7 +252,7 @@ export default class DocumentManager {
   }
 
   public async getRepo(bufnr?: number): Promise<Repo> {
-    let {nvim} = this
+    let { nvim } = this
     const buf = bufnr ? nvim.createBuffer(bufnr) : await nvim.buffer
     const doc = workspace.getDocument(buf.id)
     if (!doc || doc.buftype != '') return null
@@ -301,7 +298,7 @@ export default class DocumentManager {
   private async setGitStatus(status: string): Promise<void> {
     if (this.gitStatus == status) return
     this.gitStatus = status
-    let {nvim} = this
+    let { nvim } = this
     nvim.pauseNotification()
     nvim.setVar('coc_git_status', status, true)
     nvim.call('coc#util#do_autocmd', ['CocGitStatusChange'], true)
@@ -312,7 +309,7 @@ export default class DocumentManager {
     let exists = this.gitStatusMap.get(buffer.id) || ''
     if (exists == status) return
     this.gitStatusMap.set(buffer.id, status)
-    let {nvim} = this
+    let { nvim } = this
     nvim.pauseNotification()
     buffer.setVar('coc_git_status', status, true)
     nvim.call('coc#util#do_autocmd', ['CocGitStatusChange'], true)
@@ -320,13 +317,13 @@ export default class DocumentManager {
   }
 
   public async getCurrentChunk(): Promise<Diff> {
-    const {nvim} = this
+    const { nvim } = this
     let bufnr = await nvim.call('bufnr', '%')
     let line = await nvim.call('line', '.')
     let diffs = this.cachedDiffs.get(bufnr)
     if (!diffs || diffs.length == 0) return
     return diffs.find(ch => {
-      let {start, added, removed, changeType} = ch
+      let { start, added, removed, changeType } = ch
       if (line == 1 && start == 0 && ch.end == 0) {
         return true
       }
@@ -341,7 +338,7 @@ export default class DocumentManager {
 
   public async showDoc(content: string, filetype = 'diff'): Promise<void> {
     if (workspace.floatSupported) {
-      let docs: Documentation[] = [{content, filetype}]
+      let docs: Documentation[] = [{ content, filetype }]
       await this.floatFactory.create(docs, false)
     } else {
       const lines = content.split('\n')
@@ -358,46 +355,46 @@ export default class DocumentManager {
   }
 
   public async nextChunk(): Promise<void> {
-    const {nvim} = this
+    const { nvim } = this
     let bufnr = await nvim.call('bufnr', '%')
     let diffs = this.cachedDiffs.get(bufnr)
     if (!diffs || diffs.length == 0) return
     let line = await nvim.call('line', '.')
     for (let diff of diffs) {
       if (diff.start > line) {
-        await workspace.moveTo({line: Math.max(diff.start - 1, 0), character: 0})
+        await workspace.moveTo({ line: Math.max(diff.start - 1, 0), character: 0 })
         return
       }
     }
     if (await nvim.getOption('wrapscan')) {
-      await workspace.moveTo({line: Math.max(diffs[0].start - 1, 0), character: 0})
+      await workspace.moveTo({ line: Math.max(diffs[0].start - 1, 0), character: 0 })
     }
   }
 
   public async prevChunk(): Promise<void> {
-    const {nvim} = this
+    const { nvim } = this
     let bufnr = await nvim.call('bufnr', '%')
     let line = await nvim.call('line', '.')
     let diffs = this.cachedDiffs.get(bufnr)
     if (!diffs || diffs.length == 0) return
     for (let diff of diffs.slice().reverse()) {
       if (diff.end < line) {
-        await workspace.moveTo({line: Math.max(diff.start - 1, 0), character: 0})
+        await workspace.moveTo({ line: Math.max(diff.start - 1, 0), character: 0 })
         return
       }
     }
     if (await nvim.getOption('wrapscan')) {
-      await workspace.moveTo({line: Math.max(diffs[diffs.length - 1].start - 1, 0), character: 0})
+      await workspace.moveTo({ line: Math.max(diffs[diffs.length - 1].start - 1, 0), character: 0 })
     }
   }
 
   public async diffDocument(doc: Document, init = false): Promise<void> {
-    let {nvim} = workspace
+    let { nvim } = workspace
     let repo = await this.getRepo(doc.bufnr)
     if (!repo) return
     let revision = this.config.get<string>('diffRevision', '')
     const diffs = await repo.getDiff(doc, revision)
-    const {bufnr} = doc
+    const { bufnr } = doc
     let changedtick = this.cachedChangeTick.get(bufnr)
     if (changedtick == doc.changedtick
       && equals(diffs, this.cachedDiffs.get(bufnr))) {
@@ -432,7 +429,7 @@ export default class DocumentManager {
           added += add - min
           removed += remove - min
         }
-        let {start, end} = diff
+        let { start, end } = diff
         for (let i = start; i <= end; i++) {
           let topdelete = diff.changeType == ChangeType.Delete && i == 0
           let changedelete = diff.changeType == ChangeType.Change && diff.removed.count > diff.added.count && i == end
@@ -473,7 +470,7 @@ export default class DocumentManager {
   public async loadBlames(doc: Document): Promise<void> {
     if (!this.showBlame) return
     if (!doc || doc.buftype != '' || doc.schema != 'file' || doc.isIgnored) return
-    let {bufnr} = doc
+    let { bufnr } = doc
     let result: BlameInfo[] = []
     let filepath = Uri.parse(doc.uri).fsPath
     let root = await this.resolveGitRoot(bufnr)
@@ -485,7 +482,7 @@ export default class DocumentManager {
   }
 
   public async showBlameInfo(bufnr: number, lnum: number): Promise<void> {
-    let {nvim, virtualTextSrcId} = this
+    let { nvim, virtualTextSrcId } = this
     if (!this.showBlame) return
     let infos = this.blamesMap.get(bufnr)
     if (!infos) return
@@ -516,7 +513,7 @@ export default class DocumentManager {
 
   private async updateGutters(bufnr: number): Promise<void> {
     if (!this.enableGutters) return
-    let {nvim} = this
+    let { nvim } = this
     nvim.pauseNotification()
     let signs = this.currentSigns.get(bufnr) || []
     const cached = this.cachedSigns.get(bufnr)
@@ -573,7 +570,7 @@ export default class DocumentManager {
     lines.push(...diff.lines)
     lines.push('')
     try {
-      await this.git.exec(root, ['apply', '--cached', '--unidiff-zero', '-'], {input: lines.join('\n')})
+      await this.git.exec(root, ['apply', '--cached', '--unidiff-zero', '-'], { input: lines.join('\n') })
       await this.diffDocument(doc, true)
     } catch (e) {
       // tslint:disable-next-line: no-console
@@ -584,13 +581,13 @@ export default class DocumentManager {
   public async chunkUndo(): Promise<void> {
     let diff = await this.getCurrentChunk()
     if (!diff) return
-    let {start, lines, changeType} = diff
+    let { start, lines, changeType } = diff
     let added = lines.filter(s => s.startsWith('-')).map(s => s.slice(1))
     let removeCount = lines.filter(s => s.startsWith('+')).length
-    let {nvim} = this
+    let { nvim } = this
     let buf = await nvim.buffer
     if (changeType == ChangeType.Delete) {
-      await buf.setLines(added, {start, end: start, strictIndexing: false})
+      await buf.setLines(added, { start, end: start, strictIndexing: false })
     } else {
       await buf.setLines(added, {
         start: start - 1,
@@ -602,7 +599,7 @@ export default class DocumentManager {
 
   // show commit of current line in split window
   public async showCommit(): Promise<void> {
-    let {nvim} = this
+    let { nvim } = this
     let bufnr = await nvim.call('bufnr', '%')
     let root = await this.resolveGitRoot(bufnr)
     if (!root) {
@@ -656,7 +653,7 @@ export default class DocumentManager {
   }
 
   public async browser(action = 'open', range?: [number, number]): Promise<void> {
-    let {nvim} = this
+    let { nvim } = this
     let bufnr = await nvim.call('bufnr', '%')
     let root = await this.resolveGitRoot(bufnr)
     if (!root) {
@@ -720,7 +717,7 @@ export default class DocumentManager {
   }
 
   public async diffCached(): Promise<void> {
-    let {nvim} = this
+    let { nvim } = this
     let bufnr = await nvim.call('bufnr', '%')
     let root = await this.resolveGitRoot(bufnr)
     if (!root) {
@@ -757,7 +754,7 @@ export default class DocumentManager {
         let ms = line.match(/^([A-Za-z0-9]+)\s(\d+)\s(\d+)\s(\d+)/)
         if (ms) {
           let startLnum = parseInt(ms[3], 10)
-          info = {startLnum, sha: ms[1], endLnum: startLnum + parseInt(ms[4], 10) - 1, index: ms[2]}
+          info = { startLnum, sha: ms[1], endLnum: startLnum + parseInt(ms[4], 10) - 1, index: ms[2] }
           if (!/^0+$/.test(ms[1])) {
             let find = res.find(o => o.sha == ms[1])
             if (find) {
@@ -787,8 +784,8 @@ export default class DocumentManager {
     return res
   }
 
-  public updateAll(): void {
-    this.refreshStatus().catch(emptyFn)
+  public updateAll(bufnr?: number): void {
+    this.refreshStatus(bufnr).catch(emptyFn)
     for (let doc of workspace.documents) {
       this.diffDocument(doc, true).catch(emptyFn)
       this.loadBlames(doc).then(async () => {

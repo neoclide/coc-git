@@ -33,12 +33,6 @@ In your vim/neovim, run command:
 - Completion support for semantic commit.
 - Completion support for GitHub/GitLab issues.
 
-**Note** Sometimes your gutters may not update as expected, you may need add:
-
-```
-autocmd CursorHold * CocCommand git.refresh
-```
-
 to your vimrc or invoke vim command `:CocCommand git.refresh` manually.
 
 **Note** for GitHub issues completion support:

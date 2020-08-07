@@ -58,6 +58,9 @@ export async function activate(context: ExtensionContext): Promise<ExtensionApi 
   events.on('FocusGained', () => {
     manager.updateAll()
   })
+  events.on('BufEnter', bufnr => {
+    manager.updateAll(bufnr)
+  })
 
   subscriptions.push(workspace.registerKeymap(['n'], 'git-nextchunk', async () => {
     await manager.nextChunk()
