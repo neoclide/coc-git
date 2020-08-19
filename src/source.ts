@@ -304,7 +304,7 @@ export default function addSource(context: ExtensionContext, resolver: Resolver)
       return issues.map(o => {
         return {
           label: `${colors.red('#' + o.id.toFixed(0))} ${o.title} (${colors.green(o.createAt.toUTCString())}) <${colors.blue(o.creator)}>`,
-          data: { id: o.id, repo: o.repo, body: o.body }
+          data: { id: o.id, url: o.url, body: o.body }
         } as ListItem
       })
     }
