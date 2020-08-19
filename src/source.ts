@@ -28,10 +28,10 @@ function issuesFiletypes(): string[] {
 
 function getOrganizationNameAndRepoNameFromGitHubRemoteUrl(remoteUrl: string): {organizationName: string, repoName: string} | null {
   try {
-    const matchResult = remoteUrl.match(/github.com(:|\/)([^/]+)\/([^/]+).git/)
+    const matchResult = remoteUrl.match(/github.com(:|\/)([^/]+)\/([^/]+)/)
     return {
       organizationName: matchResult[2],
-      repoName: matchResult[3],
+      repoName: matchResult[3].replace(/\.git$/, ''),
     }
   } catch (e) {
     return null
