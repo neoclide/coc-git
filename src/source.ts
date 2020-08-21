@@ -28,10 +28,10 @@ function issuesFiletypes(): string[] {
 
 function getOrganizationNameAndRepoNameFromGitHubRemoteUrl(remoteUrl: string): {organizationName: string, repoName: string} | null {
   try {
-    const matchResult = remoteUrl.match(/github.com(:|\/)([^/]+)\/([^/]+).git/)
+    const matchResult = remoteUrl.match(/github.com(:|\/)([^/]+)\/([^/]+)/)
     return {
       organizationName: matchResult[2],
-      repoName: matchResult[3],
+      repoName: matchResult[3].replace(/\.git$/, ''),
     }
   } catch (e) {
     return null
@@ -304,7 +304,7 @@ export default function addSource(context: ExtensionContext, resolver: Resolver)
       return issues.map(o => {
         return {
           label: `${colors.red('#' + o.id.toFixed(0))} ${o.title} (${colors.green(o.createAt.toUTCString())}) <${colors.blue(o.creator)}>`,
-          data: { id: o.id, repo: o.repo, body: o.body }
+          data: { id: o.id, url: o.url, body: o.body }
         } as ListItem
       })
     }
