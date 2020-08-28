@@ -137,27 +137,36 @@ export default function addSource(context: ExtensionContext, resolver: Resolver)
       headers['Authorization'] = `token ${process.env.GITHUB_API_TOKEN}`
     }
     const repo = `${organizationName}/${repoName}`
-    const uri = `https://api.github.com/repos/${repo}/issues?scope=all`
+    const uri = `https://api.github.com/repos/${repo}/issues?scope=all&per_page=100`
     onStartLoading()
     let issues: Issue[] = []
-    try {
-      let response = await xhr({ url: uri, followRedirects: 5, headers })
-      let { responseText } = response
-      let info = JSON.parse(responseText)
-      for (let i = 0, len = info.length; i < len; i++) {
-        issues.push({
-          id: info[i].number,
-          title: info[i].title,
-          createAt: new Date(info[i].created_at),
-          creator: info[i].user.login,
-          body: info[i].body,
-          repo,
-          url: `https://github.com/${repo}/issues/${info[i].number}`,
-          shouldIncludeOrganizationNameAndRepoNameInAbbr,
-        })
+    let page_idx = 1
+    while (true) {
+      let page_uri = `${uri}&page=${page_idx}`
+      page_idx ++
+      try {
+        let response = await xhr({ url: page_uri, followRedirects: 5, headers })
+        let { responseText } = response
+        let info = JSON.parse(responseText)
+        if (info.length == 0) {
+          break
+        }
+        for (let i = 0, len = info.length; i < len; i++) {
+          issues.push({
+            id: info[i].number,
+            title: info[i].title,
+            createAt: new Date(info[i].created_at),
+            creator: info[i].user.login,
+            body: info[i].body,
+            repo,
+            url: `https://github.com/${repo}/issues/${info[i].number}`,
+            shouldIncludeOrganizationNameAndRepoNameInAbbr,
+          })
+        }
+      } catch (e) {
+        logger.error(`Request github issues error:`, e)
+        break
       }
-    } catch (e) {
-      logger.error(`Request github issues error:`, e)
     }
     onEndLoading()
     return issues
