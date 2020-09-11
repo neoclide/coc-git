@@ -1,59 +1,84 @@
-import { Document, Uri, workspace } from 'coc.nvim'
+import { Document, OutputChannel, Uri, workspace } from 'coc.nvim'
 import { promisify } from 'util'
 import path from 'path'
 import Git from './git'
 import fs from 'fs'
 
 async function getRealPath(fullpath: string): Promise<string> {
+  let resolved: string
   try {
-    let res = await promisify(fs.realpath)(fullpath, 'utf8')
-    return res
+    resolved = await promisify(fs.realpath)(fullpath, 'utf8')
   } catch (e) {
-    // noop
+    if (e.message.includes('ENOENT')) {
+      try {
+        resolved = await workspace.nvim.call('expand', [fullpath])
+      } catch (e) {
+        // noop
+      }
+    }
   }
-  return fullpath
+  return resolved || fullpath
 }
 
 export default class Resolver {
   private resolvedRoots: Map<string, string> = new Map()
-  constructor(private git: Git) {
+  private relativePaths: Map<string, string> = new Map()
+  constructor(private git: Git, private channel: OutputChannel) {
   }
 
-  private getGitRoot(dir: string): string | null {
-    if (process.platform == 'win32') {
-      dir = path.win32.normalize(dir)
-    }
-    return this.resolvedRoots.get(dir)
+  public delete(uri: string): void {
+    this.resolvedRoots.delete(uri)
+    this.relativePaths.delete(uri)
   }
 
-  public async resolveGitRoot(doc?: Document): Promise<string> {
-    let dir: string
+  public clear(): void {
+    this.resolvedRoots.clear()
+    this.relativePaths.clear()
+  }
+
+  public getGitRoot(uri: string): string | undefined {
+    return this.resolvedRoots.get(uri)
+  }
+
+  public getRelativePath(uri: string): string | undefined {
+    return this.relativePaths.get(uri)
+  }
+
+  public async resolveGitRoot(doc?: Document): Promise<string | null> {
+    let root: string
+    const { uri } = doc
     if (!doc || doc.buftype != '' || doc.schema != 'file') {
-      dir = await getRealPath(workspace.cwd)
-    } else {
-      let fullpath = await getRealPath(Uri.parse(doc.uri).fsPath)
-      dir = path.dirname(fullpath)
-    }
-    if (process.platform == 'win32') {
-      dir = path.win32.normalize(dir)
-    }
-    let root = this.getGitRoot(dir)
-    if (root) return root
-    let parts = dir.split(path.sep)
-    let idx = parts.indexOf('.git')
-    if (idx !== -1) {
-      let root = parts.slice(0, idx).join(path.sep)
-      this.resolvedRoots.set(dir, root)
-      return root
-    }
-    try {
-      let res = await this.git.getRepositoryRoot(dir)
-      if (path.isAbsolute(res)) {
-        this.resolvedRoots.set(dir, res)
-        return res
-      }
-    } catch (e) {
       return null
     }
+    root = this.resolvedRoots.get(uri)
+    if (root) return root
+    let fullpath = await getRealPath(Uri.parse(uri).fsPath)
+    if (process.platform == 'win32') {
+      fullpath = path.win32.normalize(fullpath)
+    }
+    if (!root) {
+      let parts = fullpath.split(path.sep)
+      let idx = parts.indexOf('.git')
+      if (idx !== -1) {
+        root = parts.slice(0, idx).join(path.sep)
+        this.resolvedRoots.set(uri, root)
+      } else {
+        try {
+          root = await this.git.getRepositoryRoot(path.dirname(fullpath))
+          if (path.isAbsolute(root)) {
+            this.resolvedRoots.set(uri, root)
+          } else {
+            root = undefined
+          }
+        } catch (e) {
+          // Noop
+        }
+      }
+    }
+    if (root) {
+      this.relativePaths.set(uri, path.relative(root, fullpath))
+    }
+    this.channel.appendLine(`resolved root of ${fullpath}: ${root}`)
+    return root
   }
 }

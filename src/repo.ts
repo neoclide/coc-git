@@ -1,4 +1,4 @@
-import { Document, OutputChannel, Uri } from 'coc.nvim'
+import { OutputChannel } from 'coc.nvim'
 import fs from 'fs'
 import os from 'os'
 import path from 'path'
@@ -104,19 +104,16 @@ export default class Repo {
     }
   }
 
-  public async getDiff(doc: Document, revision = ''): Promise<Diff[]> {
-    if (!doc || doc.isIgnored || doc.buftype !== '' || doc.schema !== 'file') return
-    let fsPath = Uri.parse(doc.uri).fsPath
-    if (!fs.existsSync(fsPath)) return
-    fsPath = fs.realpathSync(fsPath, 'utf8')
-    let file = path.relative(this.root, fsPath)
-    if (file.startsWith(`.git${path.sep}`)) return
+  public async getDiff(relFilepath: string, content: string, revision = ''): Promise<Diff[]> {
+    if (relFilepath.startsWith(`.git${path.sep}`)) return
+    let fullpath = path.join(this.root, relFilepath)
+    if (!fs.existsSync(fullpath)) return
     // check if indexed
     let staged: string
     try {
-      let res = await this.exec(['ls-files', '--', file])
+      let res = await this.exec(['ls-files', '--', relFilepath])
       if (!res.stdout.trim().length) return
-      res = await this.exec(['--no-pager', 'show', `${revision}:${toUnixSlash(file)}`])
+      res = await this.exec(['--no-pager', 'show', `${revision}:${toUnixSlash(relFilepath)}`])
       if (!res.stdout) return
       staged = res.stdout.replace(/\r?\n$/, '').split(/\r?\n/).join('\n')
     } catch (e) {
@@ -126,12 +123,12 @@ export default class Repo {
     const stagedFile = path.join(os.tmpdir(), `coc-${uuid()}`)
     const currentFile = path.join(os.tmpdir(), `coc-${uuid()}`)
     await util.promisify(fs.writeFile)(stagedFile, staged + '\n', 'utf8')
-    await util.promisify(fs.writeFile)(currentFile, doc.getDocumentContent(), 'utf8')
+    await util.promisify(fs.writeFile)(currentFile, content, 'utf8')
     let output = await getStdout(`git --no-pager diff -p -U0 --no-color ${shellescape(stagedFile)} ${shellescape(currentFile)}`)
     await util.promisify(fs.unlink)(stagedFile)
     await util.promisify(fs.unlink)(currentFile)
     if (!output) return
-    this.channel.appendLine(`> git diff ${fsPath}`)
+    this.channel.appendLine(`> git diff ${relFilepath}`)
     return parseDiff(output)
   }
 

@@ -1,7 +1,6 @@
 import { ChildProcess, spawn } from 'child_process'
 import { ansiparse, BasicList, events, ListAction, ListContext, ListTask, Neovim, runCommand, Uri, workspace } from 'coc.nvim'
 import { EventEmitter } from 'events'
-import path from 'path'
 import readline from 'readline'
 import Manager from '../manager'
 import { shellescape } from '../util'
@@ -143,28 +142,24 @@ export default class Bcommits extends BasicList {
   }
 
   public async loadItems(context: ListContext): Promise<ListTask> {
-    let buf = await context.window.buffer
-    let root = await this.manager.resolveGitRoot(buf.id)
+    let doc = workspace.getDocument((context as any).buffer.id)
+    if (!doc) return
+    let root = await this.manager.resolveGitRoot(doc.bufnr)
     if (!root) {
       throw new Error(`Can't resolve git root.`)
       return
     }
-    let doc = workspace.getDocument(buf.id)
-    if (!doc || doc.schema != 'file') {
-      throw new Error(`Current buffer is not file`)
-      return
-    }
-    let file = path.relative(root, Uri.parse(doc.uri).fsPath)
-    const output = await this.manager.safeRun(['ls-files', ...context.args, '--', file], root)
+    let relpath = this.manager.getRelativePath(doc.uri)
+    const output = await this.manager.safeRun(['ls-files', ...context.args, '--', relpath], root)
     if (!output || output.trim().length == 0) {
-      throw new Error(`${file} not indexed`)
+      throw new Error(`${relpath} not indexed`)
       return
     }
-    this.bufnr = buf.id
+    this.bufnr = doc.bufnr
     const args = ['--no-pager', 'log', '--pretty', '--color',
       `--format=%Cred%h%Creset -%C(yellow)%d%Creset %s %Cgreen(%cr) %C(bold blue)<%an>%Creset`,
-      '--abbrev-commit', '--date=iso', '--', file]
-    let task = new CommitsTask(root, file)
+      '--abbrev-commit', '--date=iso', '--', relpath]
+    let task = new CommitsTask(root, relpath)
     task.start('git', args, root)
     return task
   }

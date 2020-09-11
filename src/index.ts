@@ -32,7 +32,7 @@ export async function activate(context: ExtensionContext): Promise<ExtensionApi 
   }
   const { nvim } = workspace
   const git = new Git(gitInfo, outputChannel)
-  const resolver = new Resolver(git)
+  const resolver = new Resolver(git, outputChannel)
   const manager = new Manager(nvim, resolver, git, outputChannel)
   addSource(context, resolver)
   subscriptions.push(manager)

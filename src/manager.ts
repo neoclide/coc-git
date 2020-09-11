@@ -1,6 +1,5 @@
-import { Buffer, Disposable, disposeAll, Document, Documentation, events, FloatFactory, Neovim, OutputChannel, Uri, workspace, WorkspaceConfiguration } from 'coc.nvim'
+import { Buffer, Disposable, disposeAll, Document, Documentation, events, FloatFactory, Neovim, OutputChannel, workspace, WorkspaceConfiguration } from 'coc.nvim'
 import debounce from 'debounce'
-import path from 'path'
 import { format } from 'timeago.js'
 import Git from './git'
 import Repo from './repo'
@@ -78,6 +77,9 @@ export default class DocumentManager {
       this.diffDocument(doc)
       // tslint:disable-next-line: no-floating-promises
       this.loadBlames(doc)
+    }, null, this.disposables)
+    workspace.onDidCloseTextDocument(e => {
+      this.resolver.delete(e.uri)
     }, null, this.disposables)
     events.on('InsertEnter', bufnr => {
       if (!this.enableVirtualText) return
@@ -271,7 +273,6 @@ export default class DocumentManager {
     if (!doc || doc.buftype != '') return null
     let root = await this.resolver.resolveGitRoot(doc)
     if (!root) return null
-    this.channel.appendLine(`resolved root of ${doc.uri}: ${root}`)
     let repo = this.repoMap.get(root)
     if (repo) return repo
     repo = new Repo(this.git, this.channel, root)
@@ -301,6 +302,10 @@ export default class DocumentManager {
   public async resolveGitRoot(bufnr: number): Promise<string> {
     let doc = workspace.getDocument(bufnr)
     return this.resolver.resolveGitRoot(doc)
+  }
+
+  public getRelativePath(uri: string): string {
+    return this.resolver.getRelativePath(uri)
   }
 
   private async setGitStatus(status: string): Promise<void> {
@@ -400,8 +405,10 @@ export default class DocumentManager {
     let { nvim } = workspace
     let repo = await this.getRepo(doc.bufnr)
     if (!repo) return
+    let relpath = this.resolver.getRelativePath(doc.uri)
+    if (!relpath) return
     let revision = this.config.get<string>('diffRevision', '')
-    const diffs = await repo.getDiff(doc, revision)
+    const diffs = await repo.getDiff(relpath, doc.getDocumentContent(), revision)
     const { bufnr } = doc
     let changedtick = this.cachedChangeTick.get(bufnr)
     if (changedtick == doc.changedtick
@@ -477,16 +484,15 @@ export default class DocumentManager {
   // load blame texts of document
   public async loadBlames(doc: Document): Promise<void> {
     if (!this.showBlame) return
-    if (!doc || doc.buftype != '' || doc.schema != 'file' || doc.isIgnored) return
-    let { bufnr } = doc
+    if (!doc || doc.isIgnored) return
     let result: BlameInfo[] = []
-    let filepath = Uri.parse(doc.uri).fsPath
-    let root = await this.resolveGitRoot(bufnr)
+    let root = await this.resolver.resolveGitRoot(doc)
     if (!root) return
-    let relpath = path.relative(root, filepath)
+    let relpath = this.resolver.getRelativePath(doc.uri)
+    if (!relpath) return
     let indexed = await this.git.isIndexed(relpath, root)
     if (indexed) result = await this.getBlameInfo(relpath, root, doc.content)
-    this.blamesMap.set(bufnr, result)
+    this.blamesMap.set(doc.bufnr, result)
   }
 
   public async showBlameInfo(bufnr: number, lnum: number): Promise<void> {
@@ -554,12 +560,12 @@ export default class DocumentManager {
   public async chunkStage(): Promise<void> {
     let bufnr = await this.nvim.call('bufnr', '%')
     let doc = workspace.getDocument(bufnr)
-    if (!doc || doc.buftype != '' || doc.schema != 'file') return
-    let diff = await this.getCurrentChunk()
-    if (!diff) return
     let root = await this.resolver.resolveGitRoot(doc)
     if (!root) return
-    let filepath = path.relative(root, Uri.parse(doc.uri).fsPath)
+    let relpath = this.resolver.getRelativePath(doc.uri)
+    if (!relpath) return
+    let diff = await this.getCurrentChunk()
+    if (!diff) return
     let head: string
     if (diff.changeType === ChangeType.Add) {
       head = `@@ -${diff.removed.start + 1},0 +${diff.removed.start + 1},${diff.added.count} @@`
@@ -569,10 +575,10 @@ export default class DocumentManager {
       head = `@@ -${diff.removed.start},${diff.removed.count} +${diff.removed.start},${diff.added.count} @@`
     }
     const lines = [
-      `diff --git a/${filepath} b/${filepath}`,
+      `diff --git a/${relpath} b/${relpath}`,
       `index 000000..000000 100644`,
-      `--- a/${filepath}`,
-      `+++ b/${filepath}`,
+      `--- a/${relpath}`,
+      `+++ b/${relpath}`,
       head
     ]
     lines.push(...diff.lines)
@@ -609,13 +615,10 @@ export default class DocumentManager {
   public async showCommit(): Promise<void> {
     let { nvim } = this
     let bufnr = await nvim.call('bufnr', '%')
-    let root = await this.resolveGitRoot(bufnr)
-    if (!root) {
-      workspace.showMessage(`not a git repository.`, 'warning')
-      return
-    }
-    let fullpath = await nvim.eval('expand("%:p")') as string
-    let relpath = path.relative(root, fullpath)
+    let doc = workspace.getDocument(bufnr)
+    let root = await this.resolver.resolveGitRoot(doc)
+    let relpath = this.resolver.getRelativePath(doc.uri)
+    if (!root || !relpath) return
     let res = await this.safeRun(['ls-files', '--', relpath], root)
     if (!res.length) {
       workspace.showMessage(`"${relpath}" not indexed.`, 'warning')
@@ -663,6 +666,7 @@ export default class DocumentManager {
   public async browser(action = 'open', range?: [number, number]): Promise<void> {
     let { nvim } = this
     let bufnr = await nvim.call('bufnr', '%')
+    let doc = workspace.getDocument(bufnr)
     let root = await this.resolveGitRoot(bufnr)
     if (!root) {
       workspace.showMessage(`not a git repository.`, 'warning')
@@ -684,7 +688,6 @@ export default class DocumentManager {
       range[0],
       range[1]
     ] : [await nvim.eval('line(".")') as number]
-    let doc = workspace.getDocument(bufnr)
     if (doc && doc.filetype == 'markdown') {
       let line = await nvim.call('getline', ['.']) as string
       if (line.startsWith('#')) {
@@ -692,9 +695,8 @@ export default class DocumentManager {
         lines = words.map(s => s.toLowerCase()).join('-')
       }
     }
-
-    let fullpath = await nvim.eval('expand("%:p")') as string
-    let relpath = path.relative(root, fullpath)
+    let relpath = this.resolver.getRelativePath(doc.uri)
+    if (!relpath) return
     let names = output.trim().split(/\r?\n/)
     let urls: string[] = []
     for (let name of names) {
@@ -816,6 +818,7 @@ export default class DocumentManager {
   }
 
   public dispose(): void {
+    this.resolver.clear()
     disposeAll(this.disposables)
   }
 }
