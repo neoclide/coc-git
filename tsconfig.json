@@ -2,7 +2,7 @@
   "extends": "./node_modules/@chemzqm/tsconfig/tsconfig.json",
   "compilerOptions": {
     "noUnusedLocals": true,
-    "declaration": true,
+    "declaration": false,
     "outDir": "lib",
     "target": "es2017",
     "module": "commonjs",

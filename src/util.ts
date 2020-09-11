@@ -8,6 +8,14 @@ export interface IGit {
   version: string
 }
 
+export function wait(ms: number): Promise<any> {
+  return new Promise(resolve => {
+    setTimeout(() => {
+      resolve()
+    }, ms)
+  })
+}
+
 export function shellescape(s: string): string {
   if (process.platform == 'win32') {
     return `"${s.replace(/"/g, '\\"')}"`

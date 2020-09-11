@@ -18,8 +18,10 @@ module.exports = {
       use: [{
         loader: 'ts-loader',
         options: {
+          transpileOnly: true,
+          experimentalWatchApi: true,
           compilerOptions: {
-            "sourceMap": true,
+            sourceMap: true
           }
         }
       }]

@@ -3,8 +3,7 @@ import { ansiparse, BasicList, ListAction, ListContext, ListTask, Neovim } from 
 import { EventEmitter } from 'events'
 import readline from 'readline'
 import Manager from '../manager'
-import { runCommand, safeRun } from '../util'
-import { wait } from 'coc.nvim/lib/util'
+import { runCommand, safeRun, wait } from '../util'
 
 class CommitsTask extends EventEmitter implements ListTask {
   private process: ChildProcess

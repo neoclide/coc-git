@@ -3,8 +3,7 @@ import colors from 'colors/safe'
 import fs from 'fs'
 import path from 'path'
 import Manager from '../manager'
-import { runCommand, spawnCommand } from '../util'
-import { wait } from 'coc.nvim/lib/util'
+import { runCommand, wait, spawnCommand } from '../util'
 
 const STATUS_MAP = {
   ' ': ' ',
