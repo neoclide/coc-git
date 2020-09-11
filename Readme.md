@@ -195,13 +195,13 @@ xmap ag <Plug>(coc-git-chunk-outer)
 Use command `:CocCommand` to open commands and type `git.` to get all git
 related commands.
 
-- `:CocCommand git.copyUrl` Copy url of current line to clipboard, github url supported.
+- `:CocCommand git.copyUrl` Copy url of current line to clipboard
 - `:CocCommand git.chunkInfo` Show chunk info under cursor.
 - `:CocCommand git.chunkUndo` Undo current chunk.
 - `:CocCommand git.chunkStage` Stage current chunk.
 - `:CocCommand git.diffCached` Show cached diff in preview window.
 - `:CocCommand git.showCommit` Show commit of current chunk.
-- `:CocCommand git.browserOpen` Open current line in browser, github url supported.
+- `:CocCommand git.browserOpen` Open current line in browser
 - `:CocCommand git.foldUnchanged` Fold unchanged lines of current buffer.
 - `:CocCommand git.toggleGutters` Toggle git gutters in sign column.
 

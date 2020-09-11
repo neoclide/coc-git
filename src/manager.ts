@@ -1,4 +1,5 @@
 import { Buffer, Disposable, disposeAll, Document, Documentation, events, FloatFactory, Neovim, OutputChannel, workspace, WorkspaceConfiguration } from 'coc.nvim'
+import path from 'path'
 import debounce from 'debounce'
 import { format } from 'timeago.js'
 import Git from './git'
@@ -701,7 +702,7 @@ export default class DocumentManager {
       let uri = await this.safeRun(['remote', 'get-url', name], root)
       uri = uri.replace(/\s+$/, '')
       if (!uri.length) continue
-      let url = getUrl(uri, head, relpath, lines)
+      let url = getUrl(uri, head, relpath.replace(/\\\\/g, '/'), lines)
       if (url) urls.push(url)
     }
     if (urls.length == 1) {
