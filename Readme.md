@@ -55,10 +55,6 @@ to your vimrc or invoke vim command `:CocCommand git.refresh` manually.
 
 - `git.virtualTextPrefix`: Prefix of git blame infomation to virtual text, require virtual text feature of neovim., default: `" "`
 
-- `git.addGlameToVirtualText`: Deprecated: Add git blame information to virtual text, require virtual text feature of neovim., default: `false`
-
-- `git.addGlameToBufferVar`: Deprecated: Add git blame information to b:coc_git_blame., default: `false`
-
 - `git.addGBlameToVirtualText`: Add git blame information to virtual text, require virtual text feature of neovim., default: `false`
 
 - `git.addGBlameToBufferVar`: Add git blame information to b:coc_git_blame., default: `false`
