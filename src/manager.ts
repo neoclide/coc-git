@@ -210,30 +210,45 @@ export default class DocumentManager {
       workspace.showMessage('No changes', 'warning')
       return
     }
+    let lnums = infos.map(o => o.lnum)
+    let ranges = []
+    let start = null
+    for (let i = 1; i <= doc.lineCount; i++) {
+      let fold = lnums.indexOf(i) == -1
+      if (fold && start == null) {
+        start = i
+        continue
+      }
+      if (start != null && !fold) {
+        ranges.push([start, i - 1])
+        start = null
+      }
+      if (start != null && fold && i == doc.lineCount) {
+        ranges.push([start, i])
+      }
+    }
     let enabled = this.enabledFolds.has(bufnr)
     if (enabled) {
       this.enabledFolds.delete(bufnr)
-      let cursor = await nvim.eval('getpos(".")')
-      for (let i = 1; i <= doc.lineCount; i++) {
-        let foldend = Number(await nvim.eval(`foldclosedend("${i}}")`))
-        if (foldend != -1) {
-          await nvim.command(`${foldend}normal! zd`)
-          i = foldend + 1
-        }
-      }
-      await nvim.eval(`setpos(".", ${cursor})`)
+      let cursor = await nvim.eval('getpos(".")') as number[]
+      let lnums = ranges.map(o => o[0])
       let settings = this.foldSettingsMap.get(bufnr)
       nvim.pauseNotification()
+      for (let lnum of lnums) {
+        nvim.command(`${lnum}normal! zd`, true)
+      }
       win.setOption('foldmethod', settings.foldmethod, true)
       win.setOption('foldenable', settings.foldenable, true)
       win.setOption('foldlevel', settings.foldlevel, true)
+      nvim.call('setpos', ['.', cursor], true)
       await nvim.resumeNotification()
     } else {
       this.enabledFolds.add(bufnr)
+      let [foldmethod, foldenable, foldlevel] = await nvim.eval('[&foldmethod,&foldenable,&foldlevel]') as [string, number, number]
       let settings: FoldSettings = {
-        foldmethod: await win.getOption('foldmethod') as string,
-        foldenable: await win.getOption('foldenable') as boolean,
-        foldlevel: await win.getOption('foldlevel') as number
+        foldmethod,
+        foldenable: foldenable !== 0,
+        foldlevel
       }
       this.foldSettingsMap.set(bufnr, settings)
       nvim.pauseNotification()
@@ -241,23 +256,6 @@ export default class DocumentManager {
       win.setOption('foldenable', true, true)
       win.setOption('foldlevel', 0, true)
       await nvim.resumeNotification()
-      let lnums = infos.map(o => o.lnum)
-      let ranges = []
-      let start = null
-      for (let i = 1; i <= doc.lineCount; i++) {
-        let fold = lnums.indexOf(i) == -1
-        if (fold && start == null) {
-          start = i
-          continue
-        }
-        if (start != null && !fold) {
-          ranges.push([start, i - 1])
-          start = null
-        }
-        if (start != null && fold && i == doc.lineCount) {
-          ranges.push([start, i])
-        }
-      }
       nvim.pauseNotification()
       for (let r of ranges) {
         nvim.command(`${r[0]},${r[1]}fold`, true)
