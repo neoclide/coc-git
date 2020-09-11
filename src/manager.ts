@@ -796,6 +796,9 @@ export default class DocumentManager {
     this.refreshStatus(bufnr).catch(emptyFn)
     for (let doc of workspace.documents) {
       this.diffDocument(doc, true).catch(emptyFn)
+      if (!this.config.get<boolean>('addGBlameToVirtualText', false)) {
+        doc.buffer.clearNamespace(this.virtualTextSrcId)
+      }
       this.loadBlames(doc).then(async () => {
         let [bufnr, lnum] = await this.nvim.eval('[bufnr("%"),line(".")]') as [number, number]
         await this.showBlameInfo(bufnr, lnum)
