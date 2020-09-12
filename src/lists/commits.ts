@@ -186,7 +186,7 @@ export default class Commits extends BasicList {
       let list = items.filter(item => item.data.message != null)
       let lines = list.map(o => o.data.message)
       await this.nvim.call('setreg', ['+', lines.join('\n')])
-    })
+    }, { persist: true })
     this.addAction('files', async item => {
       let { commit } = item.data
       if (!commit) return
