@@ -9,7 +9,7 @@
     "git"
   ],
   "engines": {
-    "coc": "^0.0.72"
+    "coc": "^0.0.79"
   },
   "repository": {
     "type": "git",
@@ -288,7 +288,6 @@
     "colors": "^1.4.0",
     "debounce": "^1.2.0",
     "iconv-lite": "^0.6.2",
-    "request-light": "^0.4.0",
     "rimraf": "^3.0.2",
     "timeago.js": "^4.0.2",
     "ts-loader": "^8.0.3",

@@ -1,6 +1,5 @@
-import { CompleteResult, Document, ExtensionContext, IList, ListContext, ListItem, listManager, SourceConfig, sources, workspace } from 'coc.nvim'
+import { CompleteResult, fetch, Document, ExtensionContext, IList, ListContext, ListItem, listManager, SourceConfig, sources, workspace } from 'coc.nvim'
 import colors from 'colors/safe'
-import { configure as configureHttpRequests, xhr } from 'request-light'
 import Resolver from './resolver'
 import { safeRun } from './util'
 
@@ -16,17 +15,11 @@ interface Issue {
 }
 
 const issuesMap: Map<number, Issue[]> = new Map()
-
-function configure(): void {
-  let httpConfig = workspace.getConfiguration('http')
-  configureHttpRequests(httpConfig.get<string>('proxy', undefined), httpConfig.get<boolean>('proxyStrictSSL', undefined))
-}
-
 function issuesFiletypes(): string[] {
   return workspace.getConfiguration().get<string[]>('coc.source.issues.filetypes')
 }
 
-function getOrganizationNameAndRepoNameFromGitHubRemoteUrl(remoteUrl: string): {organizationName: string, repoName: string} | null {
+function getOrganizationNameAndRepoNameFromGitHubRemoteUrl(remoteUrl: string): { organizationName: string, repoName: string } | null {
   try {
     const matchResult = remoteUrl.match(/github.com(:|\/)([^/]+)\/([^/]+)/)
     return {
@@ -80,9 +73,7 @@ export default function addSource(context: ExtensionContext, resolver: Resolver)
 
   async function loadGitLabIssues(res: string, host: string): Promise<Issue[]> {
     const token = process.env['GITLAB_PRIVATE_TOKEN']
-    if (!token) {
-      return []
-    }
+    if (!token) return []
 
     let repo: string
     if (res.startsWith('https')) {
@@ -98,18 +89,11 @@ export default function addSource(context: ExtensionContext, resolver: Resolver)
       return []
     }
 
-    const headers = {
-      'Private-Token': token,
-      'Accept-Encoding': 'gzip, deflate',
-      'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_13_4) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/74.0.3729.169 Safari/537.36'
-    }
     const uri = `https://${host}/api/v4/projects/${encodeURIComponent(repo)}/issues`
     onStartLoading()
     let issues: Issue[] = []
     try {
-      let response = await xhr({ url: uri, followRedirects: 5, headers })
-      let { responseText } = response
-      let info = JSON.parse(responseText)
+      let info = await fetch(uri, { headers: { 'Private-Token': token } })
       for (let i = 0, len = info.length; i < len; i++) {
         issues.push({
           id: info[i].iid,
@@ -129,10 +113,7 @@ export default function addSource(context: ExtensionContext, resolver: Resolver)
   }
 
   async function loadGitHubIssues(organizationName: string, repoName: string, shouldIncludeOrganizationNameAndRepoNameInAbbr = false): Promise<Issue[]> {
-    const headers = {
-      'Accept-Encoding': 'gzip, deflate',
-      'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_13_4) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/74.0.3729.169 Safari/537.36'
-    }
+    const headers = {}
     if (process.env.GITHUB_API_TOKEN) {
       headers['Authorization'] = `token ${process.env.GITHUB_API_TOKEN}`
     }
@@ -143,11 +124,10 @@ export default function addSource(context: ExtensionContext, resolver: Resolver)
     let page_idx = 1
     while (true) {
       let page_uri = `${uri}&page=${page_idx}`
-      page_idx ++
+      page_idx++
       try {
-        let response = await xhr({ url: page_uri, followRedirects: 5, headers })
-        let { responseText } = response
-        let info = JSON.parse(responseText)
+        let info = await fetch(page_uri, { headers })
+        console.log(JSON.stringify(info, null, 2))
         if (info.length == 0) {
           break
         }
@@ -174,7 +154,7 @@ export default function addSource(context: ExtensionContext, resolver: Resolver)
 
   async function loadIssues(root: string): Promise<Issue[]> {
     let config = workspace.getConfiguration('git')
-    const issueSources = (await safeRun(`git config --get coc-git.issuesources`, {cwd: root}) || '').trim()
+    const issueSources = (await safeRun(`git config --get coc-git.issuesources`, { cwd: root }) || '').trim()
     if (issueSources) {
       return Array.prototype.concat.apply([],
         await Promise.all(issueSources.split(',').map(issueSource => {
@@ -213,7 +193,6 @@ export default function addSource(context: ExtensionContext, resolver: Resolver)
     return []
   }
 
-  configure()
   const loadIssuesFromDocument = (doc: Document) => {
     resolver.resolveGitRoot(doc).then(async root => {
       if (root) {
@@ -222,11 +201,6 @@ export default function addSource(context: ExtensionContext, resolver: Resolver)
       }
     }).catch(onError)
   }
-  workspace.onDidChangeConfiguration(e => {
-    if (e.affectsConfiguration('http')) {
-      configure()
-    }
-  }, null, subscriptions)
   for (let doc of workspace.documents) {
     if (issuesFiletypes().includes(doc.filetype)) {
       loadIssuesFromDocument(doc)
