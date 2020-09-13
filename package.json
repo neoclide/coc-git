@@ -149,6 +149,17 @@
           "default": 99,
           "description": "Start offset of sign gutter, change to higher value to prevent overwrite by other plugin."
         },
+        "git.pushArguments": {
+          "type": [
+            "array",
+            "null"
+          ],
+          "default": null,
+          "description": "Default arguments used for git.pushCode command, ex: [\"--force-with-lease\"]",
+          "items": {
+            "type": "string"
+          }
+        },
         "git.changedSign.text": {
           "type": "string",
           "default": "~",

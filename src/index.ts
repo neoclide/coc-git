@@ -81,6 +81,10 @@ export async function activate(context: ExtensionContext): Promise<ExtensionApi 
     await manager.browser('copy', args as [number, number])
   }))
 
+  subscriptions.push(commands.registerCommand('git.push', async (...args) => {
+    await manager.push(args)
+  }))
+
   subscriptions.push(commands.registerCommand('git.diffCached', async () => {
     await manager.diffCached()
   }))

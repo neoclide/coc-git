@@ -1,5 +1,4 @@
 import { Buffer, Disposable, disposeAll, Document, Documentation, events, FloatFactory, Neovim, OutputChannel, workspace, WorkspaceConfiguration } from 'coc.nvim'
-import path from 'path'
 import debounce from 'debounce'
 import { format } from 'timeago.js'
 import Git from './git'
@@ -173,6 +172,35 @@ export default class DocumentManager {
       }
       await nvim.resumeNotification(false, true)
     }
+  }
+
+  // push code
+  public async push(args: string[]): Promise<void> {
+    let bufnr = await workspace.nvim.call('bufnr', '%')
+    let root = await this.resolveGitRoot(bufnr)
+    let extra = this.config.get<string[]>('pushArguments', [])
+    if (!root) {
+      workspace.showMessage(`not belongs to git repository.`, 'warning')
+      return
+    }
+    if (args && args.length) {
+      await workspace.runTerminalCommand(`git push ${[...args, ...extra].join(' ')}`, root, true)
+      return
+    }
+    // resolve remote
+    let output = await this.safeRun(['remote'], root)
+    let remote = output.trim().split(/\r?\n/)[0]
+    if (!remote) {
+      workspace.showMessage(`remote not found`, 'warning')
+      return
+    }
+    // resolve current branch
+    output = await this.safeRun(['rev-parse', '--abbrev-ref', 'HEAD'], root)
+    if (!output) {
+      workspace.showMessage(`current branch not found`, 'warning')
+      return
+    }
+    await workspace.runTerminalCommand(`git push ${remote} ${output}${extra.length ? ' ' + extra.join(' ') : ''}`, root, true)
   }
 
   public async toggleGutters(): Promise<void> {

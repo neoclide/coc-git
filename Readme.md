@@ -204,6 +204,7 @@ related commands.
 - `:CocCommand git.browserOpen` Open current line in browser
 - `:CocCommand git.foldUnchanged` Fold unchanged lines of current buffer.
 - `:CocCommand git.toggleGutters` Toggle git gutters in sign column.
+- `:CocCommand git.push` push code of current branch to remote.
 
 ### Work with git lists
 
