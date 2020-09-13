@@ -64,6 +64,10 @@
       {
         "title": "Toggle git gutters in sign column.",
         "command": "git.toggleGutters"
+      },
+      {
+        "title": "Push code of current branch to remote",
+        "command": "git.push"
       }
     ],
     "configuration": {
