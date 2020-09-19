@@ -196,7 +196,7 @@ export default class Commits extends BasicList {
 
   public async loadItems(context: ListContext): Promise<ListTask> {
     let buf = await context.window.buffer
-    let root = await this.manager.resolveGitRoot(buf.id)
+    let root = await this.manager.resolveGitRootFromBufferOrCwd(buf.id)
     if (!root) {
       throw new Error(`Can't resolve git root.`)
       return

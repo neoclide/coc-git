@@ -328,7 +328,19 @@ export default class DocumentManager {
 
   public async resolveGitRoot(bufnr: number): Promise<string> {
     let doc = workspace.getDocument(bufnr)
-    return this.resolver.resolveGitRoot(doc)
+    return await this.resolver.resolveGitRoot(doc)
+  }
+
+  public async resolveGitRootFromBufferOrCwd(bufnr: number): Promise<string | undefined> {
+    let doc = workspace.getDocument(bufnr)
+    let root: string
+    if (doc) {
+      root = await this.resolver.resolveGitRoot(doc)
+    }
+    if (!root) {
+      root = await this.resolver.resolveRootFromCwd()
+    }
+    return root
   }
 
   public getRelativePath(uri: string): string {

@@ -81,4 +81,16 @@ export default class Resolver {
     this.channel.appendLine(`resolved root of ${fullpath}: ${root}`)
     return root
   }
+
+  public async resolveRootFromCwd(): Promise<string | null> {
+    let parts = workspace.cwd.split(path.sep)
+    let idx = parts.indexOf('.git')
+    if (idx !== -1) return parts.slice(0, idx).join(path.sep)
+    try {
+      return await this.git.getRepositoryRoot(workspace.cwd)
+    } catch (e) {
+      // Noop
+    }
+    return null
+  }
 }
