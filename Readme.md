@@ -33,8 +33,6 @@ In your vim/neovim, run command:
 - Completion support for semantic commit.
 - Completion support for GitHub/GitLab issues.
 
-to your vimrc or invoke vim command `:CocCommand git.refresh` manually.
-
 **Note** for GitHub issues completion support:
 
 - `GITHUB_API_TOKEN=xxx` needs to be set in env to fetch issues from private repositories
@@ -242,6 +240,10 @@ Multiple repositories can be specified using comma separation, like this: `githu
 Q: Virtual text not working.
 
 A: Make sure your neovim support virtual text by command `:echo exists('*nvim_buf_set_virtual_text')`.
+
+Q: Git status not refreshed as expected.
+
+A: Try add `autocmd CursorHold * :CocCommand git.refresh` to your vimrc.
 
 ## License
 
