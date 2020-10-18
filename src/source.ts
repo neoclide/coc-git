@@ -89,24 +89,33 @@ export default function addSource(context: ExtensionContext, resolver: Resolver)
       return []
     }
 
-    const uri = `https://${host}/api/v4/projects/${encodeURIComponent(repo)}/issues`
+    const uri = `https://${host}/api/v4/projects/${encodeURIComponent(repo)}/issues?per_page=100`
     onStartLoading()
     let issues: Issue[] = []
-    try {
-      let info = await fetch(uri, { headers: { 'Private-Token': token } })
-      for (let i = 0, len = info.length; i < len; i++) {
-        issues.push({
-          id: info[i].iid,
-          title: info[i].title,
-          createAt: new Date(info[i].created_at),
-          creator: info[i].author.username,
-          body: info[i].description,
-          repo,
-          url: `https://${host}/${repo}/issues/${info[i].iid}`
-        })
+    let pageIndex = 1
+    while (true) {
+      const pageUri = `${uri}&page=${pageIndex}`
+      pageIndex++
+      try {
+        let info = await fetch(pageUri, { headers: { 'Private-Token': token } })
+        if (!info.length) {
+          break
+        }
+
+        for (let i = 0, len = info.length; i < len; i++) {
+          issues.push({
+            id: info[i].iid,
+            title: info[i].title,
+            createAt: new Date(info[i].created_at),
+            creator: info[i].author.username,
+            body: info[i].description,
+            repo,
+            url: `https://${host}/${repo}/issues/${info[i].iid}`
+          })
+        }
+      } catch (e) {
+        logger.error(`Request GitLab ${host} issues error:`, e)
       }
-    } catch (e) {
-      logger.error(`Request GitLab ${host} issues error:`, e)
     }
     onEndLoading()
     return issues
