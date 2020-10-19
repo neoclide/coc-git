@@ -94,6 +94,10 @@ export default class DocumentManager {
       await this.updateGutters(bufnr)
     }, null, this.disposables)
     events.on('BufUnload', bufnr => {
+      let signs = this.cachedSigns.get(bufnr)
+      if (signs && signs.length) {
+        this.nvim.call('coc#util#unplace_signs', [bufnr, signs.map(o => o.signId)], true)
+      }
       this.cachedDiffs.delete(bufnr)
       this.cachedSigns.delete(bufnr)
       this.cachedChangeTick.delete(bufnr)
