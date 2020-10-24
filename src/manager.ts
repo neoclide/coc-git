@@ -140,6 +140,10 @@ export default class DocumentManager {
 
   private get showBlame(): boolean {
     if (!workspace.nvim.hasFunction('nvim_buf_set_virtual_text')) return false
+    const disableBlame = await workspace.nvim.getVar('coc_git_no_virtual_blame')
+    if (disableBlame) {
+      return false
+    }
     let blame = this.getConfig<boolean>('addGBlameToVirtualText', false, 'addGlameToVirtualText')
     let blameVar = this.getConfig<boolean>('addGBlameToBufferVar', false, 'addGlameToBufferVar')
     return blame || blameVar
