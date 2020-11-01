@@ -4,7 +4,7 @@ import { format } from 'timeago.js'
 import Git from './git'
 import Repo from './repo'
 import Resolver from './resolver'
-import { ChangeType, Diff, SignInfo } from './types'
+import { ChangeType, Diff, Conflict, SignInfo } from './types'
 import { equals, getUrl, spawnCommand } from './util'
 
 interface FoldSettings {
@@ -23,9 +23,16 @@ interface BlameInfo {
   summary?: string
 }
 
+enum ConflictParseState {
+  Initial,
+  MatchedStart,
+  MatchedSep,
+}
+
 export default class DocumentManager {
   private repoMap: Map<string, Repo> = new Map()
   private cachedDiffs: Map<number, Diff[]> = new Map()
+  private cachedConflicts: Map<number, Conflict[]> = new Map()
   private cachedSigns: Map<number, SignInfo[]> = new Map()
   private cachedChangeTick: Map<number, number> = new Map()
   private currentSigns: Map<number, SignInfo[]> = new Map()
@@ -68,13 +75,16 @@ export default class DocumentManager {
       let doc = workspace.getDocument(e.uri)
       if (!doc) return
       await resolver.resolveGitRoot(doc)
-      await Promise.all([this.refreshStatus(), this.diffDocument(doc, true), this.loadBlames(doc)])
+      await Promise.all([this.refreshStatus(), this.diffDocument(doc, true),
+                        this.parseConflicts(doc), this.loadBlames(doc)])
     }, null, this.disposables)
     workspace.onDidChangeTextDocument(async e => {
       let doc = workspace.getDocument(e.textDocument.uri)
       if (!doc) return
       // tslint:disable-next-line: no-floating-promises
       this.diffDocument(doc)
+      // tslint:disable-next-line: no-floating-promises
+      this.parseConflicts(doc)
       // tslint:disable-next-line: no-floating-promises
       this.loadBlames(doc)
     }, null, this.disposables)
@@ -99,6 +109,7 @@ export default class DocumentManager {
         this.nvim.call('coc#util#unplace_signs', [bufnr, signs.map(o => o.signId)], true)
       }
       this.cachedDiffs.delete(bufnr)
+      this.cachedConflicts.delete(bufnr)
       this.cachedSigns.delete(bufnr)
       this.cachedChangeTick.delete(bufnr)
       this.currentSigns.delete(bufnr)
@@ -444,6 +455,40 @@ export default class DocumentManager {
     }
   }
 
+  public async nextConflict(): Promise<void> {
+    const { nvim } = this
+    let bufnr = await nvim.call('bufnr', '%')
+    let conflicts = this.cachedConflicts.get(bufnr)
+    if (!conflicts || conflicts.length == 0) return
+    let line = await nvim.call('line', '.')
+    for (let conflict of conflicts) {
+      if (conflict.start > line) {
+        await workspace.moveTo({ line: Math.max(conflict.start - 1, 0), character: 0 })
+        return
+      }
+    }
+    if (await nvim.getOption('wrapscan')) {
+      await workspace.moveTo({ line: Math.max(conflicts[0].start - 1, 0), character: 0 })
+    }
+  }
+
+  public async prevConflict(): Promise<void> {
+    const { nvim } = this
+    let bufnr = await nvim.call('bufnr', '%')
+    let conflicts = this.cachedConflicts.get(bufnr)
+    if (!conflicts || conflicts.length == 0) return
+    let line = await nvim.call('line', '.')
+    for (let conflict of conflicts) {
+      if (conflict.start > line) {
+        await workspace.moveTo({ line: Math.max(conflict.start - 1, 0), character: 0 })
+        return
+      }
+    }
+    if (await nvim.getOption('wrapscan')) {
+      await workspace.moveTo({ line: Math.max(conflicts[conflicts.length - 1].start - 1, 0), character: 0 })
+    }
+  }
+
   public async diffDocument(doc: Document, init = false): Promise<void> {
     let { nvim } = workspace
     let repo = await this.getRepo(doc.bufnr)
@@ -522,6 +567,67 @@ export default class DocumentManager {
       if (!this.realtime && !init) return
       await this.updateGutters(bufnr)
     }
+  }
+
+  public async parseConflicts(doc: Document): Promise<void> {
+    const { bufnr, content } = doc
+
+    const lines = content.trim().split(/\r?\n/)
+    const revPattern = '([0-9A-Za-z_.:/]+)'
+    const startPattern = new RegExp(`^<{7} (${revPattern})(:? .+)?$`)
+    const sepPattern = new RegExp(`^={7}$`)
+    const endPattern = new RegExp(`^<{7} (${revPattern})(:? .+)?$`)
+
+    let conflicts: Conflict[] = []
+    let conflict: Conflict = null
+    let state = ConflictParseState.Initial
+
+    const mkConflict = (start, our_rev) => ({
+      start,
+      sep: 0,
+      end: 0,
+      our_rev,
+      their_rev: '',
+    });
+
+    lines.forEach((line, index) => {
+      switch(state) {
+        case ConflictParseState.Initial: {
+          const match = line.match(startPattern)
+          if(match) {
+            conflict = mkConflict(index, match[1])
+            state = ConflictParseState.MatchedStart
+          }
+        }
+        case ConflictParseState.MatchedStart: {
+          const match = line.match(sepPattern)
+          if(match) {
+            conflict.sep = index
+            state = ConflictParseState.MatchedSep
+          }
+          else if(line.match(startPattern) || line.match(endPattern)) {
+            conflict = null
+            state = ConflictParseState.Initial
+          }
+        }
+        case ConflictParseState.MatchedSep: {
+          const match = line.match(endPattern)
+          if(match) {
+            conflict.end = index
+            conflict.their_rev = match[1]
+            conflicts.push(conflict)
+            conflict = null
+            state = ConflictParseState.Initial
+          }
+          else if(line.match(startPattern) || line.match(sepPattern)) {
+            conflict = null
+            state = ConflictParseState.Initial
+          }
+        }
+      }
+    })
+
+    this.cachedConflicts.set(bufnr, conflicts || null)
   }
 
   // load blame texts of document
@@ -841,6 +947,7 @@ export default class DocumentManager {
     this.refreshStatus(bufnr).catch(emptyFn)
     for (let doc of workspace.documents) {
       this.diffDocument(doc, true).catch(emptyFn)
+      this.parseConflicts(doc).catch(emptyFn)
       if (!this.config.get<boolean>('addGBlameToVirtualText', false)) {
         doc.buffer.clearNamespace(this.virtualTextSrcId)
       }
