@@ -21,6 +21,14 @@ export interface Diff {
   lines: string[]
 }
 
+export interface Conflict {
+  start: number
+  sep: number
+  end: number
+  their_rev: string
+  our_rev: string
+}
+
 export interface SignInfo {
   lnum: number
   changeType: ChangeType | 'topdelete' | 'changedelete'
