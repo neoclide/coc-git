@@ -255,6 +255,16 @@
           ],
           "description": "Custom GitLab hosts"
         },
+        "git.conflict.current.hlGroup": {
+          "type": "string",
+          "default": "DiffChange",
+          "description": "Highlight group for the current version of a merge conflict."
+        },
+        "git.conflict.incoming.hlGroup": {
+          "type": "string",
+          "default": "DiffChange",
+          "description": "Highlight group for the incoming version of a merge conflict."
+        },
         "coc.source.issues.enable": {
           "type": "boolean",
           "default": true

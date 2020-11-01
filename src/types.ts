@@ -25,8 +25,8 @@ export interface Conflict {
   start: number
   sep: number
   end: number
-  their_rev: string
-  our_rev: string
+  current: string
+  incoming: string
 }
 
 export interface SignInfo {
