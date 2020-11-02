@@ -459,7 +459,9 @@ export default class DocumentManager {
     const { nvim } = this
     let bufnr = await nvim.call('bufnr', '%')
     let conflicts = this.cachedConflicts.get(bufnr)
+
     if (!conflicts || conflicts.length == 0) return
+
     let line = await nvim.call('line', '.')
     for (let conflict of conflicts) {
       if (conflict.start > line) {
@@ -476,10 +478,12 @@ export default class DocumentManager {
     const { nvim } = this
     let bufnr = await nvim.call('bufnr', '%')
     let conflicts = this.cachedConflicts.get(bufnr)
+
     if (!conflicts || conflicts.length == 0) return
+
     let line = await nvim.call('line', '.')
-    for (let conflict of conflicts) {
-      if (conflict.start > line) {
+    for (let conflict of conflicts.slice().reverse()) {
+      if (conflict.end < line) {
         await workspace.moveTo({ line: Math.max(conflict.start - 1, 0), character: 0 })
         return
       }
@@ -576,13 +580,13 @@ export default class DocumentManager {
     const revPattern = '([0-9A-Za-z_.:/]+)'
     const startPattern = new RegExp(`^<{7} (${revPattern})(:? .+)?$`)
     const sepPattern = new RegExp(`^={7}$`)
-    const endPattern = new RegExp(`^<{7} (${revPattern})(:? .+)?$`)
+    const endPattern = new RegExp(`^>{7} (${revPattern})(:? .+)?$`)
 
     let conflicts: Conflict[] = []
     let conflict: Conflict = null
     let state = ConflictParseState.Initial
 
-    const mkConflict = (start, our_rev) => ({
+    const mkConflict = (start: number, our_rev: string) => ({
       start,
       sep: 0,
       end: 0,
@@ -595,25 +599,29 @@ export default class DocumentManager {
         case ConflictParseState.Initial: {
           const match = line.match(startPattern)
           if(match) {
-            conflict = mkConflict(index, match[1])
+            conflict = mkConflict(index + 1, match[1])
             state = ConflictParseState.MatchedStart
           }
+
+          break
         }
         case ConflictParseState.MatchedStart: {
           const match = line.match(sepPattern)
           if(match) {
-            conflict.sep = index
+            conflict.sep = index + 1
             state = ConflictParseState.MatchedSep
           }
           else if(line.match(startPattern) || line.match(endPattern)) {
             conflict = null
             state = ConflictParseState.Initial
           }
+
+          break
         }
         case ConflictParseState.MatchedSep: {
           const match = line.match(endPattern)
           if(match) {
-            conflict.end = index
+            conflict.end = index + 1
             conflict.their_rev = match[1]
             conflicts.push(conflict)
             conflict = null
@@ -623,6 +631,8 @@ export default class DocumentManager {
             conflict = null
             state = ConflictParseState.Initial
           }
+
+          break
         }
       }
     })
