@@ -46,8 +46,14 @@ export default class Resolver {
 
   public async resolveGitRoot(doc?: Document): Promise<string | null> {
     let root: string
-    const { uri } = doc
-    if (!doc || doc.buftype != '' || doc.schema != 'file') {
+    let { uri } = doc
+    if (!doc) {
+      return null
+    }
+    // Support using `acwrite` with `BufWriteCmd` to create gitcommit, e.g. gina.vim
+    if (doc.buftype == 'acwrite') {
+      uri = (await workspace.nvim.eval(`getcwd(bufwinnr(${doc.bufnr}))`)) as string
+    } else if (doc.buftype != '' || doc.schema != 'file') {
       return null
     }
     root = this.resolvedRoots.get(uri)
