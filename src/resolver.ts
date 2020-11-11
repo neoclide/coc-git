@@ -57,6 +57,7 @@ export default class Resolver {
     if (doc.buftype == 'acwrite') {
       root = await this.resolveRootFromCwd()
       this.resolvedRoots.set(uri, root)
+      return root
     }
 
     if (doc.buftype != '' || doc.schema != 'file') {
