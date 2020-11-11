@@ -45,13 +45,24 @@ export default class Resolver {
   }
 
   public async resolveGitRoot(doc?: Document): Promise<string | null> {
+    if (!doc) return null
+
     let root: string
     const { uri } = doc
-    if (!doc || doc.buftype != '' || doc.schema != 'file') {
-      return null
-    }
+
     root = this.resolvedRoots.get(uri)
     if (root) return root
+
+    // Support using `acwrite` with `BufWriteCmd` to create gitcommit, e.g. gina.vim
+    if (doc.buftype == 'acwrite') {
+      root = await this.resolveRootFromCwd()
+      this.resolvedRoots.set(uri, root)
+      return root
+    }
+
+    if (doc.buftype != '' || doc.schema != 'file') {
+      return null
+    }
     let fullpath = await getRealPath(Uri.parse(uri).fsPath)
     if (process.platform == 'win32') {
       fullpath = path.win32.normalize(fullpath)
