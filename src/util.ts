@@ -21,11 +21,11 @@ export function isDirectory(path: string): Promise<boolean> {
   return new Promise<boolean>((resolve) => {
     fs.stat(path, (err, stat) => {
       if (err) {
-        return resolve(false);
+        return resolve(false)
       }
-      resolve(stat.isDirectory());
-    });
-  });
+      resolve(stat.isDirectory())
+    })
+  })
 }
 
 export function shellescape(s: string): string {
