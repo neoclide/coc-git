@@ -3,7 +3,6 @@ import { promisify } from 'util'
 import path from 'path'
 import Git from './git'
 import fs from 'fs'
-import { isDirectory } from './util'
 
 async function getRealPath(fullpath: string): Promise<string> {
   let resolved: string
@@ -46,19 +45,23 @@ export default class Resolver {
   }
 
   public async resolveGitRoot(doc?: Document): Promise<string | null> {
+    if (!doc) return null
+
     let root: string
-    let { uri } = doc
-    if (!doc) {
-      return null
-    }
-    // Support using `acwrite` with `BufWriteCmd` to create gitcommit, e.g. gina.vim
-    if (doc.buftype == 'acwrite') {
-      uri = await doc.getcwd()
-    } else if (doc.buftype != '' || doc.schema != 'file') {
-      return null
-    }
+    const { uri } = doc
+
     root = this.resolvedRoots.get(uri)
     if (root) return root
+
+    // Support using `acwrite` with `BufWriteCmd` to create gitcommit, e.g. gina.vim
+    if (doc.buftype == 'acwrite') {
+      root = await this.resolveRootFromCwd()
+      this.resolvedRoots.set(uri, root)
+    }
+
+    if (doc.buftype != '' || doc.schema != 'file') {
+      return null
+    }
     let fullpath = await getRealPath(Uri.parse(uri).fsPath)
     if (process.platform == 'win32') {
       fullpath = path.win32.normalize(fullpath)
@@ -71,8 +74,7 @@ export default class Resolver {
         this.resolvedRoots.set(uri, root)
       } else {
         try {
-          const cwd = (await isDirectory(fullpath)) ? fullpath : path.dirname(fullpath)
-          root = await this.git.getRepositoryRoot(cwd)
+          root = await this.git.getRepositoryRoot(path.dirname(fullpath))
           if (path.isAbsolute(root)) {
             this.resolvedRoots.set(uri, root)
           } else {
