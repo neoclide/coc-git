@@ -2,6 +2,7 @@ import { exec, ExecOptions, spawn } from 'child_process'
 import path from 'path'
 import { workspace, Event } from 'coc.nvim'
 import which from 'which'
+import fs from 'fs'
 
 export interface IGit {
   path: string
@@ -14,6 +15,17 @@ export function wait(ms: number): Promise<any> {
       resolve()
     }, ms)
   })
+}
+
+export function isDirectory(path: string): Promise<boolean> {
+  return new Promise<boolean>((resolve) => {
+    fs.stat(path, (err, stat) => {
+      if (err) {
+        return resolve(false);
+      }
+      resolve(stat.isDirectory());
+    });
+  });
 }
 
 export function shellescape(s: string): string {

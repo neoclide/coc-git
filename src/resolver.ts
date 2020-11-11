@@ -3,6 +3,7 @@ import { promisify } from 'util'
 import path from 'path'
 import Git from './git'
 import fs from 'fs'
+import { isDirectory } from './util'
 
 async function getRealPath(fullpath: string): Promise<string> {
   let resolved: string
@@ -52,7 +53,7 @@ export default class Resolver {
     }
     // Support using `acwrite` with `BufWriteCmd` to create gitcommit, e.g. gina.vim
     if (doc.buftype == 'acwrite') {
-      uri = (await workspace.nvim.eval(`getcwd(bufwinnr(${doc.bufnr}))`)) as string
+      uri = await doc.getcwd()
     } else if (doc.buftype != '' || doc.schema != 'file') {
       return null
     }
@@ -70,7 +71,8 @@ export default class Resolver {
         this.resolvedRoots.set(uri, root)
       } else {
         try {
-          root = await this.git.getRepositoryRoot(path.dirname(fullpath))
+          const cwd = isDirectory(fullpath) ? fullpath : path.dirname(fullpath)
+          root = await this.git.getRepositoryRoot(cwd)
           if (path.isAbsolute(root)) {
             this.resolvedRoots.set(uri, root)
           } else {
