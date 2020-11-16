@@ -49,6 +49,14 @@ export async function activate(context: ExtensionContext): Promise<ExtensionApi 
     await manager.prevChunk()
   }, { sync: false }))
 
+  subscriptions.push(workspace.registerKeymap(['n'], 'git-nextconflict', async () => {
+    await manager.nextConflict()
+  }, { sync: false }))
+
+  subscriptions.push(workspace.registerKeymap(['n'], 'git-prevconflict', async () => {
+    await manager.prevConflict()
+  }, { sync: false }))
+
   subscriptions.push(workspace.registerKeymap(['n'], 'git-chunkinfo', async () => {
     await manager.chunkInfo()
   }, { sync: false }))

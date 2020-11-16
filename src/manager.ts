@@ -4,7 +4,7 @@ import { format } from 'timeago.js'
 import Git from './git'
 import Repo from './repo'
 import Resolver from './resolver'
-import { ChangeType, Diff, SignInfo } from './types'
+import { ChangeType, Diff, Conflict, SignInfo } from './types'
 import { equals, getUrl, spawnCommand } from './util'
 
 interface FoldSettings {
@@ -21,6 +21,12 @@ interface BlameInfo {
   author?: string
   time?: string
   summary?: string
+}
+
+enum ConflictParseState {
+  Initial,
+  MatchedFirst,
+  MatchedSep,
 }
 
 export default class DocumentManager {
@@ -444,6 +450,32 @@ export default class DocumentManager {
     }
   }
 
+  public async nextConflict(): Promise<void> {
+    const { nvim } = this
+    const bufnr = await nvim.call('bufnr', '%')
+    const doc = workspace.getDocument(bufnr)
+    const line = await nvim.call('line', '.')
+    const wrapscan = await nvim.getOption('wrapscan') ? true : false
+    const conflict = await this.findConflict(doc, line, true, wrapscan)
+
+    if(conflict !== null) {
+      await workspace.moveTo({ line: Math.max(conflict.start, 0), character: 0 })
+    }
+  }
+
+  public async prevConflict(): Promise<void> {
+    const { nvim } = this
+    const bufnr = await nvim.call('bufnr', '%')
+    const doc = workspace.getDocument(bufnr)
+    const line = await nvim.call('line', '.')
+    const wrapscan = await nvim.getOption('wrapscan') ? true : false
+    const conflict = await this.findConflict(doc, line, false, wrapscan)
+
+    if(conflict !== null) {
+      await workspace.moveTo({ line: Math.max(conflict.start, 0), character: 0 })
+    }
+  }
+
   public async diffDocument(doc: Document, init = false): Promise<void> {
     let { nvim } = workspace
     let repo = await this.getRepo(doc.bufnr)
@@ -522,6 +554,109 @@ export default class DocumentManager {
       if (!this.realtime && !init) return
       await this.updateGutters(bufnr)
     }
+  }
+
+  public async findConflict(doc: Document, start: number, forward: boolean, wrapscan: boolean): Promise<Conflict | null> {
+    let lines: String[]
+
+    if (forward) {
+        lines = doc.getLines(start, doc.lineCount)
+    }
+    else {
+        lines = doc.getLines(0, start+1).reverse()
+    }
+
+    const revPattern = '([0-9A-Za-z_.:/]+)'
+    const startPattern = new RegExp(`^<{7} (${revPattern})(:? .+)?$`)
+    const sepPattern = new RegExp(`^={7}$`)
+    const endPattern = new RegExp(`^>{7} (${revPattern})(:? .+)?$`)
+
+    let conflict: Conflict = null
+    let state = ConflictParseState.Initial
+
+    let index = start
+    for (const line of lines) {
+      switch(state) {
+        case ConflictParseState.Initial: {
+          const match = forward ? line.match(startPattern) :
+              line.match(endPattern)
+
+          if(match) {
+            if (forward) {
+              conflict = {
+                start: index,
+                sep: 0,
+                end: 0,
+                our_rev: match[1],
+                their_rev: '',
+              }
+            }
+            else {
+              conflict = {
+                start: 0,
+                sep: 0,
+                end: index,
+                our_rev: '',
+                their_rev: match[1],
+              }
+            }
+
+            state = ConflictParseState.MatchedFirst
+          }
+
+          break
+        }
+        case ConflictParseState.MatchedFirst: {
+          const match = line.match(sepPattern)
+          if(match) {
+            conflict.sep = index
+            state = ConflictParseState.MatchedSep
+          }
+          else if(line.match(startPattern) || line.match(endPattern)) {
+            conflict = null
+            state = ConflictParseState.Initial
+          }
+
+          break
+        }
+        case ConflictParseState.MatchedSep: {
+          const match = forward ? line.match(endPattern) :
+              line.match(startPattern)
+
+          if(match) {
+            if (forward) {
+              conflict.end = index
+              conflict.their_rev = match[1]
+            }
+            else {
+              conflict.start = index
+              conflict.our_rev = match[1]
+            }
+
+            return conflict
+          }
+          else if((forward && line.match(startPattern))
+            || (!forward && line.match(endPattern))
+            || line.match(sepPattern)) {
+            conflict = null
+            state = ConflictParseState.Initial
+          }
+
+          break
+        }
+      }
+
+      index = forward ? index+1 : index-1
+    }
+
+    if (forward && wrapscan && start > 0) {
+        return this.findConflict(doc, 0, forward, false)
+    }
+    if (!forward && wrapscan && start < doc.lineCount-1) {
+        return this.findConflict(doc, doc.lineCount-1, forward, false)
+    }
+
+    return null
   }
 
   // load blame texts of document
