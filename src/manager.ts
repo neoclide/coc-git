@@ -929,6 +929,7 @@ export default class DocumentManager {
 
   private async getBlameInfo(relpath: string, root: string, input: string): Promise<BlameInfo[]> {
     let res: BlameInfo[] = []
+    const useRealTime = this.config.get<boolean>('blameUseRealTime')
     try {
       let currentAuthor = await this.getUsername(root)
       let r = await this.git.exec(root, ['--no-pager', 'blame', '-b', '-p', '--root', '--date', 'relative', '--contents', '-', relpath], {
@@ -958,7 +959,8 @@ export default class DocumentManager {
             info.author = author == currentAuthor ? 'You' : author
           } else if (line.startsWith('author-time ')) {
             let text = line.replace(/^author-time/, '').trim()
-            info.time = format(parseInt(text, 10) * 1000, process.env.LANG)
+            const timestamps = parseInt(text, 10) * 1000
+            info.time = useRealTime ? new Date(timestamps).toLocaleString() : format(timestamps, process.env.LANG)
           } else if (line.startsWith('summary ')) {
             let text = line.replace(/^summary/, '').trim()
             info.summary = text
