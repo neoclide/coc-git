@@ -5,7 +5,7 @@ import Git from './git'
 import Repo from './repo'
 import Resolver from './resolver'
 import { ChangeType, Diff, Conflict, SignInfo } from './types'
-import { equals, getUrl, spawnCommand } from './util'
+import { equals, getUrl, spawnCommand, toUnixSlash } from './util'
 
 interface FoldSettings {
   foldmethod: string
@@ -742,6 +742,7 @@ export default class DocumentManager {
     if (!root) return
     let relpath = this.resolver.getRelativePath(doc.uri)
     if (!relpath) return
+    relpath = toUnixSlash(relpath)
     let diff = await this.getCurrentChunk()
     if (!diff) return
     let head: string
