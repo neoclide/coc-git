@@ -1,6 +1,6 @@
 {
   "name": "coc-git",
-  "version": "2.0.4",
+  "version": "2.0.5",
   "description": "Git extension for coc.nvim",
   "main": "lib/index.js",
   "publisher": "chemzqm",
@@ -24,7 +24,7 @@
     "*"
   ],
   "contributes": {
-   "commands": [
+    "commands": [
       {
         "title": "Refresh git information for all buffers.",
         "command": "git.refresh"
