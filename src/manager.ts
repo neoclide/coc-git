@@ -34,6 +34,7 @@ export default class DocumentManager {
   private cachedDiffs: Map<number, Diff[]> = new Map()
   private cachedConflicts: Map<number, Conflict[]> = new Map()
   private highlightedConflicts: Map<number, number[]> = new Map()
+  private conflictSrcId: number = 0
   private cachedSigns: Map<number, SignInfo[]> = new Map()
   private cachedChangeTick: Map<number, number> = new Map()
   private currentSigns: Map<number, SignInfo[]> = new Map()
@@ -65,6 +66,7 @@ export default class DocumentManager {
     // tslint:disable-next-line: no-floating-promises
     this.init()
     this.virtualTextSrcId = workspace.createNameSpace('coc-git-virtual')
+    this.conflictSrcId = workspace.createNameSpace('coc-git-conflicts')
     let initialized = false
     Promise.all(workspace.documents.map(doc => {
       return resolver.resolveGitRoot(doc)
@@ -588,18 +590,21 @@ export default class DocumentManager {
     let conflict: Conflict = null
     let state = ConflictParseState.Initial
 
+    let mkStartConflict = (index: number, current: string) => ({
+        start: index + 1,
+        sep: 0,
+        end: 0,
+        current,
+        incoming: '',
+    });
+
+
     lines.forEach((line, index) => {
       switch(state) {
         case ConflictParseState.Initial: {
           const match = line.match(startPattern)
           if(match) {
-            conflict = {
-              start: index + 1,
-              sep: 0,
-              end: 0,
-              current: match[1],
-              incoming: '',
-            }
+            conflict = mkStartConflict(index, match[1])
             state = ConflictParseState.MatchedStart
           }
 
@@ -611,9 +616,16 @@ export default class DocumentManager {
             conflict.sep = index + 1
             state = ConflictParseState.MatchedSep
           }
-          else if(line.match(startPattern) || line.match(endPattern)) {
-            conflict = null
-            state = ConflictParseState.Initial
+          else {
+            const startMatch = line.match(startPattern);
+            if(startMatch) {
+              conflict = mkStartConflict(index, startMatch[1])
+              state = ConflictParseState.MatchedStart
+            }
+            else if(line.match(endPattern)) {
+                conflict = null
+                state = ConflictParseState.Initial
+            }
           }
 
           break
@@ -627,9 +639,16 @@ export default class DocumentManager {
             conflict = null
             state = ConflictParseState.Initial
           }
-          else if(line.match(startPattern) || line.match(sepPattern)) {
-            conflict = null
-            state = ConflictParseState.Initial
+          else {
+            const startMatch = line.match(startPattern);
+            if(startMatch) {
+              conflict = mkStartConflict(index, startMatch[1])
+              state = ConflictParseState.MatchedStart
+            }
+            else if(line.match(sepPattern)) {
+                conflict = null
+                state = ConflictParseState.Initial
+            }
           }
 
           break
@@ -642,36 +661,24 @@ export default class DocumentManager {
   }
 
   public async highlightConflicts(doc: Document, conflicts: Conflict[]): Promise<void> {
-    await this.clearConflictHighlights(doc)
+    doc.buffer.clearHighlight({srcId: this.conflictSrcId});
 
-    let currentHlGroup = this.config.get<string>(`conflicts.current.hlGroup`, '')
-    let incomingHlGroup = this.config.get<string>(`conflicts.incoming.hlGroup`, '')
+    let currentHlGroup = this.config.get<string>(`conflict.current.hlGroup`, '')
+    let incomingHlGroup = this.config.get<string>(`conflict.incoming.hlGroup`, '')
 
-    let highlighted = await Promise.all(conflicts.map(async conflict => {
-      let srcId = await doc.buffer.addHighlight({hlGroup: currentHlGroup, line: conflict.start, srcId: 0})
-
-      for (let line = conflict.start+1; line < conflict.sep; line++) {
-        await doc.buffer.addHighlight({hlGroup: currentHlGroup, line, srcId})
+    await Promise.all(conflicts.map(async conflict => {
+      await doc.buffer.addHighlight({hlGroup: currentHlGroup, line: conflict.start,
+                                                colStart: 0, colEnd: 10000, srcId: this.conflictSrcId})
+      for (let line = conflict.start-1; line < conflict.sep-1; line++) {
+        await doc.buffer.addHighlight({hlGroup: currentHlGroup, line, srcId:
+                                      this.conflictSrcId})
       }
 
-      for (let line = conflict.end; line > conflict.sep; line++) {
-        await doc.buffer.addHighlight({hlGroup: incomingHlGroup, line, srcId})
+      for (let line = conflict.end-1; line >= conflict.sep; line--) {
+        await doc.buffer.addHighlight({hlGroup: incomingHlGroup, line, srcId:
+                                      this.conflictSrcId})
       }
-
-      return srcId
     }))
-
-    this.highlightedConflicts.set(doc.bufnr, highlighted)
-  }
-
-  public async clearConflictHighlights(doc: Document): Promise<void> {
-    let highlighted = this.highlightedConflicts.get(doc.bufnr)
-
-    if(highlighted) {
-     await Promise.all(highlighted.map(srcId =>
-        doc.buffer.clearHighlight({srcId})
-      ))
-    }
   }
 
   // load blame texts of document
