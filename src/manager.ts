@@ -29,6 +29,11 @@ enum ConflictParseState {
   MatchedSep,
 }
 
+enum ConflictPart {
+  Current,
+  Incoming,
+}
+
 export default class DocumentManager {
   private repoMap: Map<string, Repo> = new Map()
   private cachedDiffs: Map<number, Diff[]> = new Map()
@@ -464,7 +469,10 @@ export default class DocumentManager {
     let bufnr = await nvim.call('bufnr', '%')
     let conflicts = this.cachedConflicts.get(bufnr)
 
-    if (!conflicts || conflicts.length == 0) return
+    if (!conflicts || conflicts.length == 0) {
+      workspace.showMessage('No conflicts detected')
+      return
+    }
 
     let line = await nvim.call('line', '.')
     for (let conflict of conflicts) {
@@ -483,7 +491,10 @@ export default class DocumentManager {
     let bufnr = await nvim.call('bufnr', '%')
     let conflicts = this.cachedConflicts.get(bufnr)
 
-    if (!conflicts || conflicts.length == 0) return
+    if (!conflicts || conflicts.length == 0) {
+      workspace.showMessage('No conflicts detected')
+      return
+    }
 
     let line = await nvim.call('line', '.')
     for (let conflict of conflicts.slice().reverse()) {
@@ -495,6 +506,41 @@ export default class DocumentManager {
     if (await nvim.getOption('wrapscan')) {
       await workspace.moveTo({ line: Math.max(conflicts[conflicts.length - 1].start - 1, 0), character: 0 })
     }
+  }
+
+  public async keepCurrent(): Promise<void> {
+    return this.conflictKeepPart(ConflictPart.Current)
+  }
+
+  public async keepIncoming(): Promise<void> {
+    return this.conflictKeepPart(ConflictPart.Incoming)
+  }
+
+  public async conflictKeepPart(part: ConflictPart) {
+    const { nvim } = this
+    let bufnr = await nvim.call('bufnr', '%')
+    let conflicts = this.cachedConflicts.get(bufnr)
+
+    if (!conflicts || conflicts.length == 0) {
+      workspace.showMessage('No conflicts detected')
+      return
+    }
+
+    let line = await nvim.call('line', '.')
+    for (let conflict of conflicts) {
+      if (conflict.start <= line && conflict.end >= line) {
+        if(part == ConflictPart.Current) {
+          await nvim.command(`${conflict.start}d`)
+          return nvim.command(`${conflict.sep-1},${conflict.end-1}d`)
+        }
+        else {
+          await nvim.command(`${conflict.start},${conflict.sep}d`)
+          return nvim.command(`${conflict.end - (conflict.sep - conflict.start + 1)}d`)
+        }
+      }
+    }
+
+    workspace.showMessage('Not positioned on a conflict')
   }
 
   public async diffDocument(doc: Document, init = false): Promise<void> {
