@@ -38,7 +38,6 @@ export default class DocumentManager {
   private repoMap: Map<string, Repo> = new Map()
   private cachedDiffs: Map<number, Diff[]> = new Map()
   private cachedConflicts: Map<number, Conflict[]> = new Map()
-  private highlightedConflicts: Map<number, number[]> = new Map()
   private conflictSrcId: number = 0
   private cachedSigns: Map<number, SignInfo[]> = new Map()
   private cachedChangeTick: Map<number, number> = new Map()
@@ -118,7 +117,6 @@ export default class DocumentManager {
       }
       this.cachedDiffs.delete(bufnr)
       this.cachedConflicts.delete(bufnr)
-      this.highlightedConflicts.delete(bufnr)
       this.cachedSigns.delete(bufnr)
       this.cachedChangeTick.delete(bufnr)
       this.currentSigns.delete(bufnr)
