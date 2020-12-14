@@ -262,7 +262,7 @@
         },
         "git.conflict.incoming.hlGroup": {
           "type": "string",
-          "default": "DiffChange",
+          "default": "DiffAdd",
           "description": "Highlight group for the incoming version of a merge conflict."
         },
         "coc.source.issues.enable": {
