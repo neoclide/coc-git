@@ -1,9 +1,8 @@
-import { IGit, cpErrorHandler, onceEvent } from './util'
 import * as cp from 'child_process'
+import { disposeAll, OutputChannel, CancellationToken, Disposable } from 'coc.nvim'
 import iconv from 'iconv-lite'
 import path from 'path'
-import { OutputChannel, disposeAll } from 'coc.nvim'
-import { CancellationToken, Disposable } from 'vscode-jsonrpc'
+import { cpErrorHandler, IGit, onceEvent } from './util'
 
 export interface SpawnOptions extends cp.SpawnOptions {
   input?: string

@@ -1,4 +1,4 @@
-import { CompleteResult, fetch, Document, ExtensionContext, IList, ListContext, ListItem, listManager, SourceConfig, sources, workspace } from 'coc.nvim'
+import { CompleteResult, Document, ExtensionContext, fetch, IList, ListContext, ListItem, listManager, SourceConfig, sources, window, workspace } from 'coc.nvim'
 import colors from 'colors/safe'
 import Resolver from './resolver'
 import { safeRun } from './util'
@@ -49,7 +49,7 @@ function renderWord(issue: Issue, issueFormat: string): string {
 
 export default function addSource(context: ExtensionContext, resolver: Resolver): void {
   let { subscriptions, logger } = context
-  let statusItem = workspace.createStatusBarItem(0, { progress: true })
+  let statusItem = window.createStatusBarItem(0, { progress: true })
   statusItem.text = 'loading issues'
   let statusItemCounter = 0
 
@@ -224,8 +224,6 @@ export default function addSource(context: ExtensionContext, resolver: Resolver)
 
   let source: SourceConfig = {
     name: 'issues',
-    filetypes: ['gitcommit', 'gina-commit'],
-    triggerCharacters: ['#'],
     async doComplete(opt): Promise<CompleteResult> {
       const config = workspace.getConfiguration('git')
       const issueFormat = config.get<string>('issueFormat', '#%i')

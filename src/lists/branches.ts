@@ -1,4 +1,4 @@
-import { IList, ListAction, ListContext, ListItem, Neovim, workspace } from 'coc.nvim'
+import { IList, ListAction, ListContext, ListItem, Neovim, window } from 'coc.nvim'
 import colors from 'colors/safe'
 import Manager from '../manager'
 import { safeRun } from '../util'
@@ -26,7 +26,7 @@ export default class Branches implements IList {
         let cmd: string
         let { root, branch, remote } = item.data
         if (remote) {
-          let res = await workspace.showPrompt(`Delete remote branch ${branch}?`)
+          let res = await window.showPrompt(`Delete remote branch ${branch}?`)
           if (!res) return
           let parts = branch.split('/', 2)
           cmd = `git push ${parts[0]} --delete ${parts[1]}`
@@ -36,7 +36,7 @@ export default class Branches implements IList {
           cmd = `git branch -d ${branch}`
           let res = await safeRun(cmd, { cwd: root })
           if (res == null) {
-            let res = await workspace.showPrompt(`Delete failed, force delete ${branch}?`)
+            let res = await window.showPrompt(`Delete failed, force delete ${branch}?`)
             if (!res) return
             await safeRun(`git branch -D ${branch}`, { cwd: root })
           }

@@ -1,10 +1,10 @@
-import { Buffer, Disposable, disposeAll, Document, Documentation, events, FloatFactory, Neovim, OutputChannel, workspace, WorkspaceConfiguration } from 'coc.nvim'
+import { Buffer, Disposable, disposeAll, Document, Documentation, events, FloatFactory, Neovim, OutputChannel, window, workspace, WorkspaceConfiguration } from 'coc.nvim'
 import debounce from 'debounce'
 import { format } from 'timeago.js'
 import Git from './git'
 import Repo from './repo'
 import Resolver from './resolver'
-import { ChangeType, Diff, Conflict, SignInfo } from './types'
+import { ChangeType, Conflict, Diff, SignInfo } from './types'
 import { equals, getUrl, spawnCommand, toUnixSlash } from './util'
 
 interface FoldSettings {
@@ -58,7 +58,7 @@ export default class DocumentManager {
     public git: Git,
     private channel: OutputChannel
   ) {
-    this.floatFactory = new FloatFactory(nvim, workspace.env, false, 20, 300)
+    this.floatFactory = new FloatFactory(nvim)
     this.config = workspace.getConfiguration('git')
     workspace.onDidChangeConfiguration(e => {
       if (e.affectsConfiguration('git')) {
@@ -83,7 +83,7 @@ export default class DocumentManager {
       if (!doc) return
       await resolver.resolveGitRoot(doc)
       await Promise.all([this.refreshStatus(), this.diffDocument(doc, true),
-                        this.parseConflicts(doc), this.loadBlames(doc)])
+      this.parseConflicts(doc), this.loadBlames(doc)])
     }, null, this.disposables)
     workspace.onDidChangeTextDocument(async e => {
       let doc = workspace.getDocument(e.textDocument.uri)
@@ -150,7 +150,7 @@ export default class DocumentManager {
     if (deprecatedKey) {
       let inspectDeprecated = this.config.inspect(deprecatedKey)
       if (inspectDeprecated.globalValue != null || inspectDeprecated.workspaceValue != null) {
-        workspace.showMessage(`"${deprecatedKey}" is deprecated in favor of "${key}", please update your config file (:CocConfig)`, 'warning')
+        window.showMessage(`"${deprecatedKey}" is deprecated in favor of "${key}", please update your config file (:CocConfig)`, 'warning')
       }
     }
     return this.config.get<T>(key, defaultValue)
@@ -202,27 +202,27 @@ export default class DocumentManager {
     let root = await this.resolveGitRoot(bufnr)
     let extra = this.config.get<string[]>('pushArguments', [])
     if (!root) {
-      workspace.showMessage(`not belongs to git repository.`, 'warning')
+      window.showMessage(`not belongs to git repository.`, 'warning')
       return
     }
     if (args && args.length) {
-      await workspace.runTerminalCommand(`git push ${[...args, ...extra].join(' ')}`, root, true)
+      await window.runTerminalCommand(`git push ${[...args, ...extra].join(' ')}`, root, true)
       return
     }
     // resolve remote
     let output = await this.safeRun(['remote'], root)
     let remote = output.trim().split(/\r?\n/)[0]
     if (!remote) {
-      workspace.showMessage(`remote not found`, 'warning')
+      window.showMessage(`remote not found`, 'warning')
       return
     }
     // resolve current branch
     output = await this.safeRun(['rev-parse', '--abbrev-ref', 'HEAD'], root)
     if (!output) {
-      workspace.showMessage(`current branch not found`, 'warning')
+      window.showMessage(`current branch not found`, 'warning')
       return
     }
-    await workspace.runTerminalCommand(`git push ${remote} ${output}${extra.length ? ' ' + extra.join(' ') : ''}`, root, true)
+    await window.runTerminalCommand(`git push ${remote} ${output}${extra.length ? ' ' + extra.join(' ') : ''}`, root, true)
   }
 
   public async toggleGutters(): Promise<void> {
@@ -258,7 +258,7 @@ export default class DocumentManager {
     if (!doc) return
     let infos = this.cachedSigns.get(bufnr)
     if (!infos || infos.length == 0) {
-      workspace.showMessage('No changes', 'warning')
+      window.showMessage('No changes', 'warning')
       return
     }
     let lnums = infos.map(o => o.lnum)
@@ -413,7 +413,7 @@ export default class DocumentManager {
   public async showDoc(content: string, filetype = 'diff'): Promise<void> {
     if (workspace.floatSupported) {
       let docs: Documentation[] = [{ content, filetype }]
-      await this.floatFactory.create(docs, false)
+      await this.floatFactory.show(docs)
     } else {
       const lines = content.split('\n')
       this.nvim.call('coc#util#preview_info', [lines, 'diff'], true)
@@ -436,12 +436,12 @@ export default class DocumentManager {
     let line = await nvim.call('line', '.')
     for (let diff of diffs) {
       if (diff.start > line) {
-        await workspace.moveTo({ line: Math.max(diff.start - 1, 0), character: 0 })
+        await window.moveTo({ line: Math.max(diff.start - 1, 0), character: 0 })
         return
       }
     }
     if (await nvim.getOption('wrapscan')) {
-      await workspace.moveTo({ line: Math.max(diffs[0].start - 1, 0), character: 0 })
+      await window.moveTo({ line: Math.max(diffs[0].start - 1, 0), character: 0 })
     }
   }
 
@@ -453,12 +453,12 @@ export default class DocumentManager {
     if (!diffs || diffs.length == 0) return
     for (let diff of diffs.slice().reverse()) {
       if (diff.end < line) {
-        await workspace.moveTo({ line: Math.max(diff.start - 1, 0), character: 0 })
+        await window.moveTo({ line: Math.max(diff.start - 1, 0), character: 0 })
         return
       }
     }
     if (await nvim.getOption('wrapscan')) {
-      await workspace.moveTo({ line: Math.max(diffs[diffs.length - 1].start - 1, 0), character: 0 })
+      await window.moveTo({ line: Math.max(diffs[diffs.length - 1].start - 1, 0), character: 0 })
     }
   }
 
@@ -468,19 +468,19 @@ export default class DocumentManager {
     let conflicts = this.cachedConflicts.get(bufnr)
 
     if (!conflicts || conflicts.length == 0) {
-      workspace.showMessage('No conflicts detected')
+      window.showMessage('No conflicts detected')
       return
     }
 
     let line = await nvim.call('line', '.')
     for (let conflict of conflicts) {
       if (conflict.start > line) {
-        await workspace.moveTo({ line: Math.max(conflict.start - 1, 0), character: 0 })
+        await window.moveTo({ line: Math.max(conflict.start - 1, 0), character: 0 })
         return
       }
     }
     if (await nvim.getOption('wrapscan')) {
-      await workspace.moveTo({ line: Math.max(conflicts[0].start - 1, 0), character: 0 })
+      await window.moveTo({ line: Math.max(conflicts[0].start - 1, 0), character: 0 })
     }
   }
 
@@ -490,19 +490,19 @@ export default class DocumentManager {
     let conflicts = this.cachedConflicts.get(bufnr)
 
     if (!conflicts || conflicts.length == 0) {
-      workspace.showMessage('No conflicts detected')
+      window.showMessage('No conflicts detected')
       return
     }
 
     let line = await nvim.call('line', '.')
     for (let conflict of conflicts.slice().reverse()) {
       if (conflict.end < line) {
-        await workspace.moveTo({ line: Math.max(conflict.start - 1, 0), character: 0 })
+        await window.moveTo({ line: Math.max(conflict.start - 1, 0), character: 0 })
         return
       }
     }
     if (await nvim.getOption('wrapscan')) {
-      await workspace.moveTo({ line: Math.max(conflicts[conflicts.length - 1].start - 1, 0), character: 0 })
+      await window.moveTo({ line: Math.max(conflicts[conflicts.length - 1].start - 1, 0), character: 0 })
     }
   }
 
@@ -520,16 +520,16 @@ export default class DocumentManager {
     let conflicts = this.cachedConflicts.get(bufnr)
 
     if (!conflicts || conflicts.length == 0) {
-      workspace.showMessage('No conflicts detected')
+      window.showMessage('No conflicts detected')
       return
     }
 
     let line = await nvim.call('line', '.')
     for (let conflict of conflicts) {
       if (conflict.start <= line && conflict.end >= line) {
-        if(part == ConflictPart.Current) {
+        if (part == ConflictPart.Current) {
           await nvim.command(`${conflict.start}d`)
-          return nvim.command(`${conflict.sep-1},${conflict.end-1}d`)
+          return nvim.command(`${conflict.sep - 1},${conflict.end - 1}d`)
         }
         else {
           await nvim.command(`${conflict.start},${conflict.sep}d`)
@@ -538,7 +538,7 @@ export default class DocumentManager {
       }
     }
 
-    workspace.showMessage('Not positioned on a conflict')
+    window.showMessage('Not positioned on a conflict')
   }
 
   public async diffDocument(doc: Document, init = false): Promise<void> {
@@ -635,19 +635,19 @@ export default class DocumentManager {
     let state = ConflictParseState.Initial
 
     let mkStartConflict = (index: number, current: string) => ({
-        start: index + 1,
-        sep: 0,
-        end: 0,
-        current,
-        incoming: '',
-    });
+      start: index + 1,
+      sep: 0,
+      end: 0,
+      current,
+      incoming: '',
+    })
 
 
     lines.forEach((line, index) => {
-      switch(state) {
+      switch (state) {
         case ConflictParseState.Initial: {
           const match = line.match(startPattern)
-          if(match) {
+          if (match) {
             conflict = mkStartConflict(index, match[1])
             state = ConflictParseState.MatchedStart
           }
@@ -656,19 +656,19 @@ export default class DocumentManager {
         }
         case ConflictParseState.MatchedStart: {
           const match = line.match(sepPattern)
-          if(match) {
+          if (match) {
             conflict.sep = index + 1
             state = ConflictParseState.MatchedSep
           }
           else {
-            const startMatch = line.match(startPattern);
-            if(startMatch) {
+            const startMatch = line.match(startPattern)
+            if (startMatch) {
               conflict = mkStartConflict(index, startMatch[1])
               state = ConflictParseState.MatchedStart
             }
-            else if(line.match(endPattern)) {
-                conflict = null
-                state = ConflictParseState.Initial
+            else if (line.match(endPattern)) {
+              conflict = null
+              state = ConflictParseState.Initial
             }
           }
 
@@ -676,7 +676,7 @@ export default class DocumentManager {
         }
         case ConflictParseState.MatchedSep: {
           const match = line.match(endPattern)
-          if(match) {
+          if (match) {
             conflict.end = index + 1
             conflict.incoming = match[1]
             conflicts.push(conflict)
@@ -684,14 +684,14 @@ export default class DocumentManager {
             state = ConflictParseState.Initial
           }
           else {
-            const startMatch = line.match(startPattern);
-            if(startMatch) {
+            const startMatch = line.match(startPattern)
+            if (startMatch) {
               conflict = mkStartConflict(index, startMatch[1])
               state = ConflictParseState.MatchedStart
             }
-            else if(line.match(sepPattern)) {
-                conflict = null
-                state = ConflictParseState.Initial
+            else if (line.match(sepPattern)) {
+              conflict = null
+              state = ConflictParseState.Initial
             }
           }
 
@@ -705,22 +705,28 @@ export default class DocumentManager {
   }
 
   public async highlightConflicts(doc: Document, conflicts: Conflict[]): Promise<void> {
-    doc.buffer.clearHighlight({srcId: this.conflictSrcId});
+    doc.buffer.clearHighlight({ srcId: this.conflictSrcId })
 
     let currentHlGroup = this.config.get<string>(`conflict.current.hlGroup`, '')
     let incomingHlGroup = this.config.get<string>(`conflict.incoming.hlGroup`, '')
 
     await Promise.all(conflicts.map(async conflict => {
-      await doc.buffer.addHighlight({hlGroup: currentHlGroup, line: conflict.start,
-                                                colStart: 0, colEnd: 10000, srcId: this.conflictSrcId})
-      for (let line = conflict.start-1; line < conflict.sep-1; line++) {
-        await doc.buffer.addHighlight({hlGroup: currentHlGroup, line, srcId:
-                                      this.conflictSrcId})
+      await doc.buffer.addHighlight({
+        hlGroup: currentHlGroup, line: conflict.start,
+        colStart: 0, colEnd: 10000, srcId: this.conflictSrcId
+      })
+      for (let line = conflict.start - 1; line < conflict.sep - 1; line++) {
+        await doc.buffer.addHighlight({
+          hlGroup: currentHlGroup, line, srcId:
+            this.conflictSrcId
+        })
       }
 
-      for (let line = conflict.end-1; line >= conflict.sep; line--) {
-        await doc.buffer.addHighlight({hlGroup: incomingHlGroup, line, srcId:
-                                      this.conflictSrcId})
+      for (let line = conflict.end - 1; line >= conflict.sep; line--) {
+        await doc.buffer.addHighlight({
+          hlGroup: incomingHlGroup, line, srcId:
+            this.conflictSrcId
+        })
       }
     }))
   }
@@ -866,7 +872,7 @@ export default class DocumentManager {
     if (!root || !relpath) return
     let res = await this.safeRun(['ls-files', '--', relpath], root)
     if (!res.length) {
-      workspace.showMessage(`"${relpath}" not indexed.`, 'warning')
+      window.showMessage(`"${relpath}" not indexed.`, 'warning')
       return
     }
     let line = await nvim.eval('line(".")') as number
@@ -876,7 +882,7 @@ export default class DocumentManager {
     if (!output.length) return
     let commit = output.match(/^\S+/)[0]
     if (/^0+$/.test(commit)) {
-      workspace.showMessage('not committed yet!', 'warning')
+      window.showMessage('not committed yet!', 'warning')
       return
     }
     let useFloating = this.config.get<boolean>('showCommitInFloating', false)
@@ -914,19 +920,19 @@ export default class DocumentManager {
     let doc = workspace.getDocument(bufnr)
     let root = await this.resolveGitRoot(bufnr)
     if (!root) {
-      workspace.showMessage(`not a git repository.`, 'warning')
+      window.showMessage(`not a git repository.`, 'warning')
       return
     }
     // get remote list
     let output = await this.safeRun(['remote'], root)
     if (!output.trim()) {
-      workspace.showMessage(`No remote found`, 'warning')
+      window.showMessage(`No remote found`, 'warning')
       return
     }
     let head = await this.safeRun(['symbolic-ref', '--short', '-q', 'HEAD'], root)
     head = head.trim()
     if (!head.length) {
-      workspace.showMessage(`Failed on git symbolic-ref`, 'warning')
+      window.showMessage(`Failed on git symbolic-ref`, 'warning')
       return
     }
     let lines: any = range && range.length == 2 ? [
@@ -956,16 +962,16 @@ export default class DocumentManager {
         nvim.call('coc#util#open_url', [urls[0]], true)
       } else {
         nvim.command(`let @+ = '${urls[0]}'`, true)
-        workspace.showMessage('Copied url to clipboard')
+        window.showMessage('Copied url to clipboard')
       }
     } else if (urls.length > 1) {
-      let idx = await workspace.showQuickpick(urls, 'Select url:')
+      let idx = await window.showQuickpick(urls, 'Select url:')
       if (idx >= 0) {
         if (action == 'open') {
           nvim.call('coc#util#open_url', [urls[idx]], true)
         } else {
           nvim.command(`let @+ = '${urls[idx]}'`, true)
-          workspace.showMessage('Copied url to clipboard')
+          window.showMessage('Copied url to clipboard')
         }
       }
     }
@@ -976,12 +982,12 @@ export default class DocumentManager {
     let bufnr = await nvim.call('bufnr', '%')
     let root = await this.resolveGitRoot(bufnr)
     if (!root) {
-      workspace.showMessage(`not a git repository.`, 'warning')
+      window.showMessage(`not a git repository.`, 'warning')
       return
     }
     let res = await this.safeRun(['diff', '--cached'], root)
     if (!res.trim()) {
-      workspace.showMessage('Empty diff')
+      window.showMessage('Empty diff')
       return
     }
     nvim.pauseNotification()

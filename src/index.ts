@@ -1,13 +1,13 @@
-import { commands, ExtensionContext, languages, listManager, workspace } from 'coc.nvim'
-import { CompletionItem, CompletionItemKind, InsertTextFormat, Range, Position } from 'vscode-languageserver-types'
+import { commands, ExtensionContext, languages, listManager, window, workspace } from 'coc.nvim'
+import { CompletionItem, CompletionItemKind, InsertTextFormat, Position, Range } from 'vscode-languageserver-types'
 import { DEFAULT_TYPES } from './constants'
+import Git from './git'
 import Bcommits from './lists/bcommits'
 import Branches from './lists/branches'
 import Commits from './lists/commits'
 import Gfiles from './lists/gfiles'
 import GStatus from './lists/gstatus'
 import Manager from './manager'
-import Git from './git'
 import Resolver from './resolver'
 import addSource from './source'
 import { findGit, IGit } from './util'
@@ -21,13 +21,13 @@ export interface ExtensionApi {
 export async function activate(context: ExtensionContext): Promise<ExtensionApi | undefined> {
   const config = workspace.getConfiguration('git')
   const { subscriptions } = context
-  const outputChannel = workspace.createOutputChannel('git')
+  const outputChannel = window.createOutputChannel('git')
   let gitInfo: IGit
   try {
     let pathHint = config.get<string>('command')
     gitInfo = await findGit(pathHint, path => outputChannel.appendLine(`Looking for git in: ${path}`))
   } catch (e) {
-    workspace.showMessage('git command required for coc-git', 'error')
+    window.showMessage('git command required for coc-git', 'error')
     return
   }
   const { nvim } = workspace

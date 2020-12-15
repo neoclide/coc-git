@@ -1,9 +1,9 @@
-import { BasicList, ListAction, ListContext, ListItem, Neovim, Uri, workspace } from 'coc.nvim'
+import { BasicList, ListAction, ListContext, ListItem, Neovim, Uri, window } from 'coc.nvim'
 import colors from 'colors/safe'
 import fs from 'fs'
 import path from 'path'
 import Manager from '../manager'
-import { runCommand, wait, spawnCommand } from '../util'
+import { runCommand, spawnCommand, wait } from '../util'
 
 const STATUS_MAP = {
   ' ': ' ',
@@ -48,7 +48,7 @@ export default class GStatus extends BasicList {
       try {
         await nvim.command(`Gcommit -v ${filesArg}`)
       } catch (e) {
-        workspace.showMessage(`Gcommit command failed, make sure fugitive installed.`, 'error')
+        window.showMessage(`Gcommit command failed, make sure fugitive installed.`, 'error')
       }
     })
 
@@ -68,7 +68,7 @@ export default class GStatus extends BasicList {
       } else if (staged) {
         await this.reset(root, relative)
       } else {
-        let confirmed = await workspace.showPrompt(`remove ${relative}?`)
+        let confirmed = await window.showPrompt(`remove ${relative}?`)
         if (!confirmed) return
         let hasRmtrash = await nvim.call('executable', ['rmtrash'])
         let fullpath = path.join(root, relative)

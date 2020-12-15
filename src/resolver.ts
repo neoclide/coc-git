@@ -1,8 +1,8 @@
 import { Document, OutputChannel, Uri, workspace } from 'coc.nvim'
-import { promisify } from 'util'
-import path from 'path'
-import Git from './git'
 import fs from 'fs'
+import path from 'path'
+import { promisify } from 'util'
+import Git from './git'
 
 async function getRealPath(fullpath: string): Promise<string> {
   let resolved: string
@@ -11,7 +11,7 @@ async function getRealPath(fullpath: string): Promise<string> {
   } catch (e) {
     if (e.message.includes('ENOENT')) {
       try {
-        resolved = await workspace.nvim.call('expand', [fullpath])
+        resolved = await workspace.nvim.call('expand', [fullpath]) as string
       } catch (e) {
         // noop
       }

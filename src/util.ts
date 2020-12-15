@@ -1,6 +1,6 @@
 import { exec, ExecOptions, spawn } from 'child_process'
+import { Event, window } from 'coc.nvim'
 import path from 'path'
-import { workspace, Event } from 'coc.nvim'
 import which from 'which'
 
 export interface IGit {
@@ -54,7 +54,7 @@ export function spawnCommand(cmd: string, args: string[], cwd: string): Promise<
       res += data.toString()
     })
     cp.stderr.on('data', data => {
-      workspace.showMessage(`"${cmd} ${args.join(' ')}" error: ${data.toString()}`, 'error')
+      window.showMessage(`"${cmd} ${args.join(' ')}" error: ${data.toString()}`, 'error')
     })
     cp.on('close', code => {
       if (code != 0) {

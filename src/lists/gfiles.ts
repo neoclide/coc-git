@@ -1,4 +1,4 @@
-import { Uri, BasicList, workspace, ListAction, ListContext, ListItem, Neovim } from 'coc.nvim'
+import { BasicList, ListAction, ListContext, ListItem, Neovim, Uri, workspace } from 'coc.nvim'
 import path from 'path'
 import Manager from '../manager'
 import { runCommand, shellescape } from '../util'
