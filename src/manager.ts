@@ -25,13 +25,20 @@ interface BlameInfo {
 
 enum ConflictParseState {
   Initial,
-  MatchedFirst,
+  MatchedStart,
   MatchedSep,
+}
+
+enum ConflictPart {
+  Current,
+  Incoming,
 }
 
 export default class DocumentManager {
   private repoMap: Map<string, Repo> = new Map()
   private cachedDiffs: Map<number, Diff[]> = new Map()
+  private cachedConflicts: Map<number, Conflict[]> = new Map()
+  private conflictSrcId: number = 0
   private cachedSigns: Map<number, SignInfo[]> = new Map()
   private cachedChangeTick: Map<number, number> = new Map()
   private currentSigns: Map<number, SignInfo[]> = new Map()
@@ -63,6 +70,7 @@ export default class DocumentManager {
     // tslint:disable-next-line: no-floating-promises
     this.init()
     this.virtualTextSrcId = workspace.createNameSpace('coc-git-virtual')
+    this.conflictSrcId = workspace.createNameSpace('coc-git-conflicts')
     let initialized = false
     Promise.all(workspace.documents.map(doc => {
       return resolver.resolveGitRoot(doc)
@@ -74,13 +82,16 @@ export default class DocumentManager {
       let doc = workspace.getDocument(e.uri)
       if (!doc) return
       await resolver.resolveGitRoot(doc)
-      await Promise.all([this.refreshStatus(), this.diffDocument(doc, true), this.loadBlames(doc)])
+      await Promise.all([this.refreshStatus(), this.diffDocument(doc, true),
+                        this.parseConflicts(doc), this.loadBlames(doc)])
     }, null, this.disposables)
     workspace.onDidChangeTextDocument(async e => {
       let doc = workspace.getDocument(e.textDocument.uri)
       if (!doc) return
       // tslint:disable-next-line: no-floating-promises
       this.diffDocument(doc)
+      // tslint:disable-next-line: no-floating-promises
+      this.parseConflicts(doc)
       // tslint:disable-next-line: no-floating-promises
       this.loadBlames(doc)
     }, null, this.disposables)
@@ -105,6 +116,7 @@ export default class DocumentManager {
         this.nvim.call('coc#util#unplace_signs', [bufnr, signs.map(o => o.signId)], true)
       }
       this.cachedDiffs.delete(bufnr)
+      this.cachedConflicts.delete(bufnr)
       this.cachedSigns.delete(bufnr)
       this.cachedChangeTick.delete(bufnr)
       this.currentSigns.delete(bufnr)
@@ -452,28 +464,81 @@ export default class DocumentManager {
 
   public async nextConflict(): Promise<void> {
     const { nvim } = this
-    const bufnr = await nvim.call('bufnr', '%')
-    const doc = workspace.getDocument(bufnr)
-    const line = await nvim.call('line', '.')
-    const wrapscan = await nvim.getOption('wrapscan') ? true : false
-    const conflict = await this.findConflict(doc, line, true, wrapscan)
+    let bufnr = await nvim.call('bufnr', '%')
+    let conflicts = this.cachedConflicts.get(bufnr)
 
-    if(conflict !== null) {
-      await workspace.moveTo({ line: Math.max(conflict.start, 0), character: 0 })
+    if (!conflicts || conflicts.length == 0) {
+      workspace.showMessage('No conflicts detected')
+      return
+    }
+
+    let line = await nvim.call('line', '.')
+    for (let conflict of conflicts) {
+      if (conflict.start > line) {
+        await workspace.moveTo({ line: Math.max(conflict.start - 1, 0), character: 0 })
+        return
+      }
+    }
+    if (await nvim.getOption('wrapscan')) {
+      await workspace.moveTo({ line: Math.max(conflicts[0].start - 1, 0), character: 0 })
     }
   }
 
   public async prevConflict(): Promise<void> {
     const { nvim } = this
-    const bufnr = await nvim.call('bufnr', '%')
-    const doc = workspace.getDocument(bufnr)
-    const line = await nvim.call('line', '.')
-    const wrapscan = await nvim.getOption('wrapscan') ? true : false
-    const conflict = await this.findConflict(doc, line, false, wrapscan)
+    let bufnr = await nvim.call('bufnr', '%')
+    let conflicts = this.cachedConflicts.get(bufnr)
 
-    if(conflict !== null) {
-      await workspace.moveTo({ line: Math.max(conflict.start, 0), character: 0 })
+    if (!conflicts || conflicts.length == 0) {
+      workspace.showMessage('No conflicts detected')
+      return
     }
+
+    let line = await nvim.call('line', '.')
+    for (let conflict of conflicts.slice().reverse()) {
+      if (conflict.end < line) {
+        await workspace.moveTo({ line: Math.max(conflict.start - 1, 0), character: 0 })
+        return
+      }
+    }
+    if (await nvim.getOption('wrapscan')) {
+      await workspace.moveTo({ line: Math.max(conflicts[conflicts.length - 1].start - 1, 0), character: 0 })
+    }
+  }
+
+  public async keepCurrent(): Promise<void> {
+    return this.conflictKeepPart(ConflictPart.Current)
+  }
+
+  public async keepIncoming(): Promise<void> {
+    return this.conflictKeepPart(ConflictPart.Incoming)
+  }
+
+  public async conflictKeepPart(part: ConflictPart) {
+    const { nvim } = this
+    let bufnr = await nvim.call('bufnr', '%')
+    let conflicts = this.cachedConflicts.get(bufnr)
+
+    if (!conflicts || conflicts.length == 0) {
+      workspace.showMessage('No conflicts detected')
+      return
+    }
+
+    let line = await nvim.call('line', '.')
+    for (let conflict of conflicts) {
+      if (conflict.start <= line && conflict.end >= line) {
+        if(part == ConflictPart.Current) {
+          await nvim.command(`${conflict.start}d`)
+          return nvim.command(`${conflict.sep-1},${conflict.end-1}d`)
+        }
+        else {
+          await nvim.command(`${conflict.start},${conflict.sep}d`)
+          return nvim.command(`${conflict.end - (conflict.sep - conflict.start + 1)}d`)
+        }
+      }
+    }
+
+    workspace.showMessage('Not positioned on a conflict')
   }
 
   public async diffDocument(doc: Document, init = false): Promise<void> {
@@ -556,107 +621,108 @@ export default class DocumentManager {
     }
   }
 
-  public async findConflict(doc: Document, start: number, forward: boolean, wrapscan: boolean): Promise<Conflict | null> {
-    let lines: String[]
+  public async parseConflicts(doc: Document): Promise<void> {
+    const { bufnr, content } = doc
 
-    if (forward) {
-        lines = doc.getLines(start, doc.lineCount)
-    }
-    else {
-        lines = doc.getLines(0, start+1).reverse()
-    }
-
+    const lines = content.trim().split(/\r?\n/)
     const revPattern = '([0-9A-Za-z_.:/]+)'
     const startPattern = new RegExp(`^<{7} (${revPattern})(:? .+)?$`)
     const sepPattern = new RegExp(`^={7}$`)
     const endPattern = new RegExp(`^>{7} (${revPattern})(:? .+)?$`)
 
+    let conflicts: Conflict[] = []
     let conflict: Conflict = null
     let state = ConflictParseState.Initial
 
-    let index = start
-    for (const line of lines) {
+    let mkStartConflict = (index: number, current: string) => ({
+        start: index + 1,
+        sep: 0,
+        end: 0,
+        current,
+        incoming: '',
+    });
+
+
+    lines.forEach((line, index) => {
       switch(state) {
         case ConflictParseState.Initial: {
-          const match = forward ? line.match(startPattern) :
-              line.match(endPattern)
-
+          const match = line.match(startPattern)
           if(match) {
-            if (forward) {
-              conflict = {
-                start: index,
-                sep: 0,
-                end: 0,
-                our_rev: match[1],
-                their_rev: '',
-              }
-            }
-            else {
-              conflict = {
-                start: 0,
-                sep: 0,
-                end: index,
-                our_rev: '',
-                their_rev: match[1],
-              }
-            }
-
-            state = ConflictParseState.MatchedFirst
+            conflict = mkStartConflict(index, match[1])
+            state = ConflictParseState.MatchedStart
           }
 
           break
         }
-        case ConflictParseState.MatchedFirst: {
+        case ConflictParseState.MatchedStart: {
           const match = line.match(sepPattern)
           if(match) {
-            conflict.sep = index
+            conflict.sep = index + 1
             state = ConflictParseState.MatchedSep
           }
-          else if(line.match(startPattern) || line.match(endPattern)) {
-            conflict = null
-            state = ConflictParseState.Initial
+          else {
+            const startMatch = line.match(startPattern);
+            if(startMatch) {
+              conflict = mkStartConflict(index, startMatch[1])
+              state = ConflictParseState.MatchedStart
+            }
+            else if(line.match(endPattern)) {
+                conflict = null
+                state = ConflictParseState.Initial
+            }
           }
 
           break
         }
         case ConflictParseState.MatchedSep: {
-          const match = forward ? line.match(endPattern) :
-              line.match(startPattern)
-
+          const match = line.match(endPattern)
           if(match) {
-            if (forward) {
-              conflict.end = index
-              conflict.their_rev = match[1]
-            }
-            else {
-              conflict.start = index
-              conflict.our_rev = match[1]
-            }
-
-            return conflict
-          }
-          else if((forward && line.match(startPattern))
-            || (!forward && line.match(endPattern))
-            || line.match(sepPattern)) {
+            conflict.end = index + 1
+            conflict.incoming = match[1]
+            conflicts.push(conflict)
             conflict = null
             state = ConflictParseState.Initial
+          }
+          else {
+            const startMatch = line.match(startPattern);
+            if(startMatch) {
+              conflict = mkStartConflict(index, startMatch[1])
+              state = ConflictParseState.MatchedStart
+            }
+            else if(line.match(sepPattern)) {
+                conflict = null
+                state = ConflictParseState.Initial
+            }
           }
 
           break
         }
       }
+    })
 
-      index = forward ? index+1 : index-1
-    }
+    this.cachedConflicts.set(bufnr, conflicts)
+    this.highlightConflicts(doc, conflicts)
+  }
 
-    if (forward && wrapscan && start > 0) {
-        return this.findConflict(doc, 0, forward, false)
-    }
-    if (!forward && wrapscan && start < doc.lineCount-1) {
-        return this.findConflict(doc, doc.lineCount-1, forward, false)
-    }
+  public async highlightConflicts(doc: Document, conflicts: Conflict[]): Promise<void> {
+    doc.buffer.clearHighlight({srcId: this.conflictSrcId});
 
-    return null
+    let currentHlGroup = this.config.get<string>(`conflict.current.hlGroup`, '')
+    let incomingHlGroup = this.config.get<string>(`conflict.incoming.hlGroup`, '')
+
+    await Promise.all(conflicts.map(async conflict => {
+      await doc.buffer.addHighlight({hlGroup: currentHlGroup, line: conflict.start,
+                                                colStart: 0, colEnd: 10000, srcId: this.conflictSrcId})
+      for (let line = conflict.start-1; line < conflict.sep-1; line++) {
+        await doc.buffer.addHighlight({hlGroup: currentHlGroup, line, srcId:
+                                      this.conflictSrcId})
+      }
+
+      for (let line = conflict.end-1; line >= conflict.sep; line--) {
+        await doc.buffer.addHighlight({hlGroup: incomingHlGroup, line, srcId:
+                                      this.conflictSrcId})
+      }
+    }))
   }
 
   // load blame texts of document
@@ -979,6 +1045,7 @@ export default class DocumentManager {
     this.refreshStatus(bufnr).catch(emptyFn)
     for (let doc of workspace.documents) {
       this.diffDocument(doc, true).catch(emptyFn)
+      this.parseConflicts(doc).catch(emptyFn)
       if (!this.config.get<boolean>('addGBlameToVirtualText', false)) {
         doc.buffer.clearNamespace(this.virtualTextSrcId)
       }
