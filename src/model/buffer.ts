@@ -1,4 +1,4 @@
-import { BufferSyncItem, Document, Documentation, FloatFactory, OutputChannel, window, workspace } from 'coc.nvim'
+import { Disposable, Document, Mutex, Documentation, FloatFactory, OutputChannel, window, workspace } from 'coc.nvim'
 import { format } from 'timeago.js'
 import { BlameInfo, ChangeType, Conflict, ConflictParseState, ConflictPart, Diff, FoldSettings, GitConfiguration, SignInfo } from '../types'
 import { equals, getUrl, toUnixSlash } from '../util'
@@ -6,7 +6,7 @@ import debounce from 'debounce'
 import Git from './git'
 import Repo from './repo'
 
-export default class GitBuffer implements BufferSyncItem {
+export default class GitBuffer implements Disposable {
   private blameInfo: BlameInfo[] = []
   private diffs: Diff[] = []
   private conflicts: Conflict[] = []
@@ -16,6 +16,7 @@ export default class GitBuffer implements BufferSyncItem {
   private hasConflicts = false
   private foldEnabled = false
   private foldSettings: FoldSettings
+  private mutex: Mutex
   private _disposed = false
   public refresh: Function & { clear(): void }
   constructor(
@@ -27,6 +28,7 @@ export default class GitBuffer implements BufferSyncItem {
     private channel: OutputChannel,
     private floatFactory: FloatFactory
   ) {
+    this.mutex = new Mutex()
     this.refresh = debounce(() => {
       this._refresh().catch(e => {
         channel.append(`[Error] ${e.message}`)
@@ -44,11 +46,17 @@ export default class GitBuffer implements BufferSyncItem {
 
   private async _refresh(): Promise<void> {
     if (this._disposed) return
-    await Promise.all([
-      this.diffDocument(),
-      this.loadBlames(),
-      this.parseConflicts()
-    ])
+    let release = await this.mutex.acquire()
+    try {
+      await Promise.all([
+        this.diffDocument(),
+        this.loadBlames(),
+        this.parseConflicts()
+      ])
+    } catch (e) {
+      this.channel.append(`[Error] refresh error ${e.message}`)
+    }
+    release()
   }
 
   public getChunk(line: number): Diff | undefined {
@@ -115,8 +123,7 @@ export default class GitBuffer implements BufferSyncItem {
       await this.git.exec(this.repo.root, ['apply', '--cached', '--unidiff-zero', '-'], { input: lines.join('\n') })
       this.refresh()
     } catch (e) {
-      // tslint:disable-next-line: no-console
-      console.error(e.message)
+      this.channel.appendLine(`[Error] ${e.message}`)
     }
   }
 
@@ -196,6 +203,7 @@ export default class GitBuffer implements BufferSyncItem {
     let { nvim } = workspace
     let revision = this.config.diffRevision
     const diffs = await this.repo.getDiff(this.relpath, this.doc.content, revision)
+    if (diffs == null) return
     const { bufnr } = this.doc
     if (equals(diffs, this.diffs)) {
       return
@@ -273,7 +281,7 @@ export default class GitBuffer implements BufferSyncItem {
     let signs = this.currentSigns
     const cached = this.cachedSigns
     if (cached) nvim.call('coc#util#unplace_signs', [bufnr, cached.map(o => o.signId)], true)
-    this.cachedSigns = signs.slice()
+    this.cachedSigns = signs
     for (let sign of signs) {
       let name = this.getSignName(sign.changeType)
       let cmd = `sign place ${sign.signId} line=${sign.lnum} name=${name} buffer=${bufnr}`
@@ -568,6 +576,7 @@ export default class GitBuffer implements BufferSyncItem {
       }
       nvim.pauseNotification()
       win.setOption('foldmethod', 'manual', true)
+      nvim.command('silent! normal! zE', true)
       win.setOption('foldenable', true, true)
       win.setOption('foldlevel', 0, true)
       await nvim.resumeNotification()

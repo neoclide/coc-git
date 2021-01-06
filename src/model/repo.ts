@@ -105,9 +105,9 @@ export default class Repo {
     // check if indexed
     let staged: string
     try {
-      let res = await this.exec(['ls-files', '--', relFilepath])
-      if (!res.stdout.trim().length) return
-      res = await this.exec(['--no-pager', 'show', `${revision}:${toUnixSlash(relFilepath)}`])
+      let indexed = await this.isIndexed(relFilepath)
+      if (!indexed) return
+      let res = await this.exec(['--no-pager', 'show', `${revision}:${toUnixSlash(relFilepath)}`])
       if (!res.stdout) return
       staged = res.stdout.replace(/\r?\n$/, '').split(/\r?\n/).join('\n')
     } catch (e) {

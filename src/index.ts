@@ -24,7 +24,7 @@ export async function activate(context: ExtensionContext): Promise<ExtensionApi 
   let gitInfo: IGit
   try {
     let pathHint = config.get<string>('command')
-    gitInfo = await findGit(pathHint, path => context.logger.log(`Looking for git in: ${path}`))
+    gitInfo = await findGit(pathHint, path => context.logger.info(`Looking for git in: ${path}`))
   } catch (e) {
     window.showMessage('git command required for coc-git', 'error')
     return
@@ -149,14 +149,14 @@ export async function activate(context: ExtensionContext): Promise<ExtensionApi 
     }
   }))
 
-  subscriptions.push(workspace.registerKeymap(['o', 'x'] as any, 'git-chunk-inner', async () => {
+  subscriptions.push(workspace.registerKeymap(['o', 'x'], 'git-chunk-inner', async () => {
     let diff = await manager.getCurrentChunk()
     if (!diff) return
     // diff.start
     await nvim.command(`normal! ${diff.start}GV${diff.end}G`)
   }, { sync: true, silent: true }))
 
-  subscriptions.push(workspace.registerKeymap(['o', 'x'] as any, 'git-chunk-outer', async () => {
+  subscriptions.push(workspace.registerKeymap(['o', 'x'], 'git-chunk-outer', async () => {
     let diff = await manager.getCurrentChunk()
     if (!diff) return
     let total = await nvim.call('line', ['$']) as number

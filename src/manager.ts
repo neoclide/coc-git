@@ -43,7 +43,7 @@ export default class DocumentManager {
     workspace.onDidOpenTextDocument(async e => {
       let doc = workspace.getDocument(e.bufnr)
       let buf = await service.createBuffer(doc, this.config)
-      if (!buf || !workspace.getDocument(e.bufnr)) return
+      if (!buf || !workspace.getDocument(e.uri)) return
       this.buffers.set(e.bufnr, buf)
     }, null, this.disposables)
     workspace.onDidChangeTextDocument(async e => {
