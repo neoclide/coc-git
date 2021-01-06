@@ -11,7 +11,7 @@ export interface IGit {
 export function wait(ms: number): Promise<any> {
   return new Promise(resolve => {
     setTimeout(() => {
-      resolve()
+      resolve(undefined)
     }, ms)
   })
 }
@@ -100,7 +100,7 @@ export function getStdout(cmd: string, opts: ExecOptions = {}, timeout?: number)
         resolve(stdout)
         return
       }
-      resolve()
+      resolve(undefined)
     })
   })
 }

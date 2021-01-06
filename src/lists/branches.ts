@@ -71,7 +71,8 @@ export default class Branches implements IList {
       throw new Error(`Can't resolve git root.`)
       return
     }
-    let output = await this.manager.safeRun(['branch', '--no-color', ...context.args], root)
+    let result = await this.manager.git.exec(root, ['branch', '--no-color', ...context.args])
+    let output = result.stdout.trim()
     if (output == null) return
     output = output.replace(/\s+$/, '')
     for (let line of output.split(/\r?\n/)) {

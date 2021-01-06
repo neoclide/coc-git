@@ -1,8 +1,68 @@
 
+export interface GitConfiguration {
+  remoteName: string
+  diffRevision: string
+  issueFormat: string
+  virtualTextPrefix: string
+  addGBlameToVirtualText: boolean
+  addGBlameToBufferVar: boolean
+  blameUseRealTime: boolean
+  enableGutters: boolean
+  realtimeGutters: boolean
+  signOffset: number
+  pushArguments: string[]
+  splitWindowCommand: string
+  showCommitInFloating: boolean
+  changedSign: {
+    text: string
+    hlGroup: string
+  }
+  addedSign: {
+    text: string
+    hlGroup: string
+  }
+  removedSign: {
+    text: string
+    hlGroup: string
+  }
+  topRemovedSign: {
+    text: string
+    hlGroup: string
+  }
+  changeRemovedSign: {
+    text: string
+    hlGroup: string
+  }
+  conflict: {
+    currentHlGroup: string
+    incomingHlGroup: string
+  }
+  virtualTextSrcId: number
+  conflictSrcId: number
+}
+
+export interface BlameInfo {
+  sha: string
+  index: string
+  startLnum: number
+  endLnum: number
+  author?: string
+  time?: string
+  summary?: string
+}
+
+
 export enum ChangeType {
   Add = 'add',
   Change = 'changed',
   Delete = 'delete'
+}
+
+export interface Decorator {
+  changedDecorator: string
+  conflictedDecorator: string
+  stagedDecorator: string
+  untrackedDecorator: string
 }
 
 export interface Diff {
@@ -34,3 +94,21 @@ export interface SignInfo {
   changeType: ChangeType | 'topdelete' | 'changedelete'
   signId: number
 }
+
+export interface FoldSettings {
+  foldmethod: string
+  foldlevel: number
+  foldenable: boolean
+}
+
+export enum ConflictParseState {
+  Initial,
+  MatchedStart,
+  MatchedSep,
+}
+
+export enum ConflictPart {
+  Current,
+  Incoming,
+}
+

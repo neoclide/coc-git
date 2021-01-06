@@ -1,5 +1,5 @@
 import { ChildProcess, spawn } from 'child_process'
-import { ansiparse, BasicList, events, ListAction, ListContext, ListTask, Neovim, runCommand, workspace } from 'coc.nvim'
+import { ansiparse, BasicList, events, ListAction, ListContext, ListTask, Neovim, runCommand } from 'coc.nvim'
 import { EventEmitter } from 'events'
 import readline from 'readline'
 import Manager from '../manager'
@@ -142,20 +142,19 @@ export default class Bcommits extends BasicList {
   }
 
   public async loadItems(context: ListContext): Promise<ListTask> {
-    let doc = workspace.getDocument((context as any).buffer.id)
-    if (!doc) return
-    let root = await this.manager.resolveGitRoot(doc.bufnr)
-    if (!root) {
+    let buf = await this.manager.getBuffer(context.buffer.id)
+    if (!buf) {
       throw new Error(`Can't resolve git root.`)
       return
     }
-    let relpath = this.manager.getRelativePath(doc.uri)
-    const output = await this.manager.safeRun(['ls-files', ...context.args, '--', relpath], root)
+    let { relpath } = buf
+    const output = await buf.repo.safeRun(['ls-files', ...context.args, '--', relpath])
     if (!output || output.trim().length == 0) {
       throw new Error(`${relpath} not indexed`)
       return
     }
-    this.bufnr = doc.bufnr
+    this.bufnr = context.buffer.id
+    let root = buf.repo.root
     const args = ['--no-pager', 'log', '--pretty', '--color',
       `--format=%Cred%h%Creset -%C(yellow)%d%Creset %s %Cgreen(%cr) %C(bold blue)<%an>%Creset`,
       '--abbrev-commit', '--date=iso', '--', relpath]

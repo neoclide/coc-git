@@ -1,6 +1,6 @@
 import { CompleteResult, Document, ExtensionContext, fetch, IList, ListContext, ListItem, listManager, SourceConfig, sources, window, workspace } from 'coc.nvim'
 import colors from 'colors/safe'
-import Resolver from './resolver'
+import Resolver from './model/resolver'
 import { safeRun } from './util'
 
 interface Issue {

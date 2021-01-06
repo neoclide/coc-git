@@ -4,26 +4,20 @@ import os from 'os'
 import path from 'path'
 import util from 'util'
 import Git, { IExecutionResult, SpawnOptions } from './git'
-import { ChangeType, Diff } from './types'
-import { getStdout, shellescape, toUnixSlash } from './util'
+import { ChangeType, Decorator, Diff } from '../types'
+import { getStdout, shellescape, toUnixSlash } from '../util'
 import uuid = require('uuid/v4')
 
-interface Decorator {
-  changedDecorator: string
-  conflictedDecorator: string
-  stagedDecorator: string
-  untrackedDecorator: string
-}
-
 export default class Repo {
+  private userName: string
   constructor(
     private git: Git,
     private channel: OutputChannel,
-    public root: string
+    public readonly root: string
   ) {
   }
 
-  public async getHEAD(): Promise<string> {
+  private async getHEAD(): Promise<string> {
     try {
       const result = await this.exec(['symbolic-ref', '--short', 'HEAD'])
       if (!result.stdout) {
@@ -39,14 +33,14 @@ export default class Repo {
     }
   }
 
-  public async hasChanged(): Promise<boolean> {
+  private async hasChanged(): Promise<boolean> {
     let result = await this.exec(['diff', '--name-status'])
     if (!result.stdout) return false
     let lines = result.stdout.split(/\r?\n/)
     return lines.some(l => l.startsWith('M'))
   }
 
-  public async getStaged(): Promise<[number, number]> {
+  private async getStaged(): Promise<[number, number]> {
     let result = await this.exec(['diff', '--staged', '--name-status'])
     if (!result.stdout) return [0, 0]
     let lines = result.stdout.trim().split(/\r?\n/)
@@ -63,7 +57,7 @@ export default class Repo {
     return [conflicted, staged]
   }
 
-  public async hasUntracked(): Promise<boolean> {
+  private async hasUntracked(): Promise<boolean> {
     let cp = this.git.stream(this.root, ['ls-files', '--others', '--exclude-standard'])
     return new Promise(resolve => {
       let hasData = false
@@ -132,8 +126,41 @@ export default class Repo {
     return parseDiff(output)
   }
 
+  public async isIgnored(relativePath: string): Promise<boolean> {
+    let res = await this.safeRun(['check-ignore', '--', relativePath])
+    return res.trim() == relativePath
+  }
+
+  public async hasConflicts(relativePath: string): Promise<boolean> {
+    let indexed = await this.isIndexed(relativePath)
+    if (!indexed) return false
+    let res = await this.exec(['diff', '--staged', '--name-status', '--', relativePath])
+    return res.stdout.trim().startsWith('U')
+  }
+
+  public async isIndexed(relpath: string): Promise<boolean> {
+    let res = await this.exec(['ls-files', '--', relpath])
+    return res.stdout && res.stdout.trim().length > 0
+  }
+
+  public async getUsername(): Promise<string> {
+    if (this.userName) return this.userName
+    let res = await this.exec(['config', 'user.name'])
+    this.userName = res.stdout.trim()
+    return this.userName
+  }
+
   public async exec(args: string[], options: SpawnOptions = {}): Promise<IExecutionResult<string>> {
     return await this.git.exec(this.root, args, options)
+  }
+
+  public async safeRun(args: string[], options: SpawnOptions = {}): Promise<string> {
+    try {
+      let res = await this.exec(args, options)
+      return res ? res.stdout.replace(/\s*$/, '') : ''
+    } catch (e) {
+      return ''
+    }
   }
 }
 

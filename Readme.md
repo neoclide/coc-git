@@ -245,10 +245,6 @@ Q: Virtual text not working.
 
 A: Make sure your neovim support virtual text by command `:echo exists('*nvim_buf_set_virtual_text')`.
 
-Q: Git status not refreshed as expected.
-
-A: Try add `autocmd CursorHold * :CocCommand git.refresh` to your vimrc.
-
 ## License
 
 MIT

@@ -1,8 +1,14 @@
-import { Document, OutputChannel, Uri, workspace } from 'coc.nvim'
+import { OutputChannel, Uri, workspace } from 'coc.nvim'
 import fs from 'fs'
 import path from 'path'
 import { promisify } from 'util'
 import Git from './git'
+
+export interface GitDocument {
+  uri: string
+  buftype: string
+  schema: string
+}
 
 async function getRealPath(fullpath: string): Promise<string> {
   let resolved: string
@@ -36,15 +42,11 @@ export default class Resolver {
     this.relativePaths.clear()
   }
 
-  public getGitRoot(uri: string): string | undefined {
-    return this.resolvedRoots.get(uri)
-  }
-
   public getRelativePath(uri: string): string | undefined {
     return this.relativePaths.get(uri)
   }
 
-  public async resolveGitRoot(doc?: Document): Promise<string | null> {
+  public async resolveGitRoot(doc?: GitDocument): Promise<string | null> {
     if (!doc) return null
 
     let root: string
@@ -103,5 +105,10 @@ export default class Resolver {
       // Noop
     }
     return null
+  }
+
+  public dispose(): void {
+    this.resolvedRoots.clear()
+    this.relativePaths.clear()
   }
 }

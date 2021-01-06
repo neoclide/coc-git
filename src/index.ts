@@ -1,14 +1,14 @@
-import { commands, ExtensionContext, languages, listManager, window, workspace } from 'coc.nvim'
-import { CompletionItem, CompletionItemKind, InsertTextFormat, Position, Range } from 'vscode-languageserver-types'
+import { commands, CompletionItem, CompletionItemKind, ExtensionContext, InsertTextFormat, languages, listManager, Position, Range, window, workspace } from 'coc.nvim'
 import { DEFAULT_TYPES } from './constants'
-import Git from './git'
 import Bcommits from './lists/bcommits'
 import Branches from './lists/branches'
 import Commits from './lists/commits'
 import Gfiles from './lists/gfiles'
 import GStatus from './lists/gstatus'
 import Manager from './manager'
-import Resolver from './resolver'
+import Git from './model/git'
+import Resolver from './model/resolver'
+import GitService from './model/service'
 import addSource from './source'
 import { findGit, IGit } from './util'
 
@@ -21,24 +21,24 @@ export interface ExtensionApi {
 export async function activate(context: ExtensionContext): Promise<ExtensionApi | undefined> {
   const config = workspace.getConfiguration('git')
   const { subscriptions } = context
-  const outputChannel = window.createOutputChannel('git')
   let gitInfo: IGit
   try {
     let pathHint = config.get<string>('command')
-    gitInfo = await findGit(pathHint, path => outputChannel.appendLine(`Looking for git in: ${path}`))
+    gitInfo = await findGit(pathHint, path => context.logger.log(`Looking for git in: ${path}`))
   } catch (e) {
     window.showMessage('git command required for coc-git', 'error')
     return
   }
+  const virtualTextSrcId = await workspace.nvim.createNamespace('coc-git-virtual')
+  const conflictSrcId = await workspace.nvim.createNamespace('coc-git-conflicts')
   const { nvim } = workspace
-  const git = new Git(gitInfo, outputChannel)
-  const resolver = new Resolver(git, outputChannel)
-  const manager = new Manager(nvim, resolver, git, outputChannel)
-  addSource(context, resolver)
+  const service = new GitService(gitInfo)
+  const manager = new Manager(nvim, service, virtualTextSrcId, conflictSrcId)
   subscriptions.push(manager)
+  addSource(context, service.resolver)
 
   subscriptions.push(commands.registerCommand('git.refresh', () => {
-    manager.updateAll()
+    manager.refresh()
   }))
 
   subscriptions.push(workspace.registerKeymap(['n'], 'git-nextchunk', async () => {
@@ -166,8 +166,8 @@ export async function activate(context: ExtensionContext): Promise<ExtensionApi 
   }, { sync: true, silent: true }))
 
   return {
-    git,
-    resolver,
+    git: service.git,
+    resolver: service.resolver,
     manager
   }
 }

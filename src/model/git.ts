@@ -1,8 +1,8 @@
 import * as cp from 'child_process'
-import { disposeAll, OutputChannel, CancellationToken, Disposable } from 'coc.nvim'
+import { CancellationToken, Disposable, disposeAll, OutputChannel } from 'coc.nvim'
 import iconv from 'iconv-lite'
 import path from 'path'
-import { cpErrorHandler, IGit, onceEvent } from './util'
+import { cpErrorHandler, IGit, onceEvent } from '../util'
 
 export interface SpawnOptions extends cp.SpawnOptions {
   input?: string
@@ -29,30 +29,9 @@ export default class Git {
     return path.normalize(result.stdout.trim())
   }
 
-  public async getUsername(repositoryPath: string): Promise<string> {
-    const result = await this.exec(repositoryPath, ['config', 'user.name'])
-    return result.stdout.trim()
-  }
-
-  public async getRepositoryDotGit(repositoryPath: string): Promise<string> {
-    const result = await this.exec(repositoryPath, ['rev-parse', '--git-dir'])
-    let dotGitPath = result.stdout.trim()
-
-    if (!path.isAbsolute(dotGitPath)) {
-      dotGitPath = path.join(repositoryPath, dotGitPath)
-    }
-
-    return path.normalize(dotGitPath)
-  }
-
   public async exec(cwd: string, args: string[], options: SpawnOptions = {}): Promise<IExecutionResult<string>> {
     options = Object.assign({ cwd }, options || {})
     return await this._exec(args, options)
-  }
-
-  public async isIndexed(relpath: string, root: string): Promise<boolean> {
-    let res = await this.exec(root, ['ls-files', relpath])
-    return res.stdout && res.stdout.trim().length > 0
   }
 
   public stream(cwd: string, args: string[], options: SpawnOptions = {}): cp.ChildProcess {
