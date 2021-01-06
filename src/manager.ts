@@ -128,7 +128,7 @@ export default class DocumentManager {
     }, null, this.disposables)
     events.on('BufEnter', bufnr => {
       if (initialized && workspace.getDocument(bufnr) != null) {
-        this.updateAll(bufnr)
+        this.updateCurrentDoc(bufnr)
       }
     }, null, this.disposables)
   }
@@ -1045,6 +1045,22 @@ export default class DocumentManager {
       this.channel.appendLine(e.stack)
     }
     return res
+  }
+
+  public updateCurrentDoc (bufnr?: number): void {
+    this.refreshStatus(bufnr).catch(emptyFn)
+    const doc = workspace.getDocument(bufnr)
+    if (doc) {
+      this.diffDocument(doc, true).catch(emptyFn)
+      this.parseConflicts(doc).catch(emptyFn)
+      if (!this.config.get<boolean>('addGBlameToVirtualText', false)) {
+        doc.buffer.clearNamespace(this.virtualTextSrcId)
+      }
+      this.loadBlames(doc).then(async () => {
+        let [bufnr, lnum] = await this.nvim.eval('[bufnr("%"),line(".")]') as [number, number]
+        await this.showBlameInfo(bufnr, lnum)
+      }, emptyFn)
+    }
   }
 
   public updateAll(bufnr?: number): void {
