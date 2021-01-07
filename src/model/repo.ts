@@ -121,7 +121,7 @@ export default class Repo {
     let output = await getStdout(`git --no-pager diff -p -U0 --no-color ${shellescape(stagedFile)} ${shellescape(currentFile)}`)
     await util.promisify(fs.unlink)(stagedFile)
     await util.promisify(fs.unlink)(currentFile)
-    if (!output) return
+    if (!output) return []
     this.channel.appendLine(`> git diff ${relFilepath}`)
     return parseDiff(output)
   }

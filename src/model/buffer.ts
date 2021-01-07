@@ -6,11 +6,12 @@ import debounce from 'debounce'
 import Git from './git'
 import Repo from './repo'
 
+const signGroup = 'CocGit'
+
 export default class GitBuffer implements Disposable {
   private blameInfo: BlameInfo[] = []
   private diffs: Diff[] = []
   private conflicts: Conflict[] = []
-  private cachedSigns: SignInfo[] = []
   private currentSigns: SignInfo[] = []
   private gitStatus: string = ''
   private hasConflicts = false
@@ -202,19 +203,23 @@ export default class GitBuffer implements Disposable {
   private async diffDocument(force = false): Promise<void> {
     let { nvim } = workspace
     let revision = this.config.diffRevision
-    const diffs = await this.repo.getDiff(this.relpath, this.doc.content, revision)
-    if (diffs == null) return
     const { bufnr } = this.doc
+    const diffs = await this.repo.getDiff(this.relpath, this.doc.content, revision)
+    if (diffs == null) {
+      if (this.currentSigns?.length > 0) {
+        this.currentSigns = []
+        nvim.call('sign_unplace', [signGroup, { buffer: bufnr }], true)
+      }
+      return
+    }
     if (equals(diffs, this.diffs)) {
       return
     }
     this.diffs = diffs
-    const cached = this.cachedSigns
     if (!diffs || diffs.length == 0) {
       this.setBufferStatus('')
-      if (cached && cached.length && this.config.enableGutters) {
-        nvim.call('coc#util#unplace_signs', [bufnr, cached.map(o => o.signId)], true)
-        this.cachedSigns = []
+      if (this.config.enableGutters) {
+        nvim.call('sign_unplace', [signGroup, { buffer: bufnr }], true)
       }
       this.currentSigns = []
     } else {
@@ -277,15 +282,12 @@ export default class GitBuffer implements Disposable {
     if (!this.config.enableGutters) return
     let { nvim } = workspace
     let { bufnr } = this.doc
-    nvim.pauseNotification()
     let signs = this.currentSigns
-    const cached = this.cachedSigns
-    if (cached) nvim.call('coc#util#unplace_signs', [bufnr, cached.map(o => o.signId)], true)
-    this.cachedSigns = signs
+    nvim.pauseNotification()
+    nvim.call('sign_unplace', [signGroup, { buffer: bufnr }], true)
     for (let sign of signs) {
       let name = this.getSignName(sign.changeType)
-      let cmd = `sign place ${sign.signId} line=${sign.lnum} name=${name} buffer=${bufnr}`
-      nvim.command(cmd, true)
+      nvim.call('sign_place', [0, signGroup, name, bufnr, { lnum: sign.lnum, priority: 10 }], true)
     }
     nvim.resumeNotification(false, true)
   }
@@ -529,7 +531,7 @@ export default class GitBuffer implements Disposable {
     let bufnr = buf.id
     let doc = workspace.getDocument(bufnr)
     if (!doc) return
-    let infos = this.cachedSigns
+    let infos = this.currentSigns
     if (!infos || infos.length == 0) {
       window.showMessage('No changes', 'warning')
       return
@@ -592,8 +594,7 @@ export default class GitBuffer implements Disposable {
     this.config.enableGutters = enabled
     let { nvim } = workspace
     if (!enabled) {
-      nvim.call('coc#util#unplace_signs', [this.doc.bufnr, this.cachedSigns.map(o => o.signId)], true)
-      this.cachedSigns = []
+      nvim.call('sign_unplace', [signGroup, { buffer: this.doc.bufnr }], true)
     } else {
       this.diffs = []
       await this.diffDocument(true)
@@ -751,7 +752,6 @@ export default class GitBuffer implements Disposable {
     this.blameInfo = undefined
     this.diffs = undefined
     this.conflicts = undefined
-    this.cachedSigns = undefined
     this.currentSigns = undefined
   }
 }
