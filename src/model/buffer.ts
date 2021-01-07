@@ -227,7 +227,6 @@ export default class GitBuffer implements Disposable {
       let changed = 0
       let removed = 0
       let signs: SignInfo[] = []
-      let signId = this.config.signOffset
       for (let diff of diffs) {
         if (diff.changeType == ChangeType.Add) {
           added += diff.added.count
@@ -245,22 +244,18 @@ export default class GitBuffer implements Disposable {
           let topdelete = diff.changeType == ChangeType.Delete && i == 0
           let changedelete = diff.changeType == ChangeType.Change && diff.removed.count > diff.added.count && i == end
           signs.push({
-            signId,
             changeType: topdelete ? 'topdelete' : changedelete ? 'changedelete' : diff.changeType,
             lnum: topdelete ? 1 : i
           })
-          signId = signId + 1
         }
         if (diff.changeType == ChangeType.Change) {
           let [add, remove] = [diff.added.count, diff.removed.count]
           if (add > remove) {
             for (let i = 0; i < add - remove; i++) {
               signs.push({
-                signId,
                 changeType: ChangeType.Add,
                 lnum: diff.end + 1 + i
               })
-              signId = signId + 1
             }
           }
         }
@@ -282,12 +277,13 @@ export default class GitBuffer implements Disposable {
     if (!this.config.enableGutters) return
     let { nvim } = workspace
     let { bufnr } = this.doc
+    let { signPriority } = this.config
     let signs = this.currentSigns
     nvim.pauseNotification()
     nvim.call('sign_unplace', [signGroup, { buffer: bufnr }], true)
     for (let sign of signs) {
       let name = this.getSignName(sign.changeType)
-      nvim.call('sign_place', [0, signGroup, name, bufnr, { lnum: sign.lnum, priority: 10 }], true)
+      nvim.call('sign_place', [0, signGroup, name, bufnr, { lnum: sign.lnum, priority: signPriority }], true)
     }
     nvim.resumeNotification(false, true)
   }

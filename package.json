@@ -149,10 +149,10 @@
           "default": true,
           "description": "Update gutters in realtime, default: true."
         },
-        "git.signOffset": {
+        "git.signPriority": {
           "type": "number",
-          "default": 99,
-          "description": "Start offset of sign gutter, change to higher value to prevent overwrite by other plugin."
+          "default": 10,
+          "description": "Priority of sign gutters, default to 10."
         },
         "git.pushArguments": {
           "type": [

@@ -81,7 +81,7 @@ In your vim/neovim, run command:
 
 - `git.realtimeGutters`: Update gutters in realtime, default: true., default: `true`
 
-- `git.signOffset`: Start offset of sign gutter, change to higher value to prevent overwrite by other plugin., default: `99`
+- `git.signPriority`: Priority of sign gutters, default to `10`.
 
 - `git.changedSign.text`: Text of changed sign., default: `"~"`
 

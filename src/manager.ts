@@ -90,7 +90,7 @@ export default class DocumentManager {
       enableGutters: config.get<boolean>('enableGutters', true),
       realtimeGutters: config.get<boolean>('realtimeGutters', true),
       showCommitInFloating: config.get<boolean>('showCommitInFloating', false),
-      signOffset: config.get<number>('signOffset', 99),
+      signPriority: config.get<number>('signPriority', 10),
       pushArguments: config.get<string[]>('pushArguments', []),
       splitWindowCommand: config.get<string>('splitWindowCommand', 'above sp'),
       changedSign: {

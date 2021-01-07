@@ -9,7 +9,7 @@ export interface GitConfiguration {
   blameUseRealTime: boolean
   enableGutters: boolean
   realtimeGutters: boolean
-  signOffset: number
+  signPriority: number
   pushArguments: string[]
   splitWindowCommand: string
   showCommitInFloating: boolean
@@ -92,7 +92,6 @@ export interface Conflict {
 export interface SignInfo {
   lnum: number
   changeType: ChangeType | 'topdelete' | 'changedelete'
-  signId: number
 }
 
 export interface FoldSettings {
