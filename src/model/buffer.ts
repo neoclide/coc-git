@@ -743,6 +743,19 @@ export default class GitBuffer implements Disposable {
   }
 
   public dispose(): void {
+    let { nvim } = workspace
+    let { bufnr } = this.doc
+    let buffer = nvim.createBuffer(bufnr)
+    buffer.setVar('coc_git_status', '', true)
+    buffer.clearNamespace(this.config.conflictSrcId, 0, -1)
+    nvim.call('sign_unplace', [signGroup, { buffer: bufnr }], true)
+    if (this.config.addGBlameToBufferVar) {
+      buffer.setVar('coc_git_blame', '', true)
+    }
+    if (this.config.addGBlameToVirtualText) {
+      buffer.notify('nvim_buf_clear_namespace', [this.config.virtualTextSrcId, 0, -1])
+    }
+    nvim.resumeNotification(false, true)
     this._disposed = true
     this.foldEnabled = false
     this.blameInfo = undefined
