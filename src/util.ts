@@ -66,7 +66,7 @@ export function spawnCommand(cmd: string, args: string[], cwd: string): Promise<
 }
 
 export function runCommand(cmd: string, opts: ExecOptions = {}, timeout?: number): Promise<string> {
-  opts.maxBuffer = 500 * 1024
+  opts.maxBuffer = 5 * 1024 * 1024
   return new Promise<string>((resolve, reject) => {
     let timer: NodeJS.Timer
     if (timeout) {
@@ -93,7 +93,7 @@ export function getStdout(cmd: string, opts: ExecOptions = {}, timeout?: number)
         reject(new Error(`timeout after ${timeout}s`))
       }, timeout * 1000)
     }
-    opts.maxBuffer = 500 * 1024
+    opts.maxBuffer = 5 * 1024 * 1024
     exec(cmd, opts, (_err, stdout) => {
       if (timer) clearTimeout(timer)
       if (stdout) {
