@@ -408,13 +408,17 @@ export default class GitBuffer implements Disposable {
     let line = await nvim.call('line', '.')
     for (let conflict of conflicts) {
       if (conflict.start <= line && conflict.end >= line) {
-        if (part == ConflictPart.Current) {
-          await nvim.command(`${conflict.start}d`)
-          return nvim.command(`${conflict.sep - 1},${conflict.end - 1}d`)
-        }
-        else {
-          await nvim.command(`${conflict.start},${conflict.sep}d`)
-          return nvim.command(`${conflict.end - (conflict.sep - conflict.start + 1)}d`)
+        switch(part) {
+          case ConflictPart.Current:
+            await nvim.command(`${conflict.sep},${conflict.end}d`)
+            return nvim.command(`${conflict.start}d`)
+          case ConflictPart.Incoming:
+            await nvim.command(`${conflict.end}d`)
+            return nvim.command(`${conflict.start},${conflict.sep}d`)
+          case ConflictPart.Both:
+            await nvim.command(`${conflict.end}d`)
+            await nvim.command(`${conflict.sep}d`)
+            return nvim.command(`${conflict.start}d`)
         }
       }
     }
