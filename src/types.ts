@@ -109,5 +109,6 @@ export enum ConflictParseState {
 export enum ConflictPart {
   Current,
   Incoming,
+  Both,
 }
 
