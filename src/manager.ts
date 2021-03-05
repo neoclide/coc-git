@@ -199,6 +199,10 @@ export default class DocumentManager {
     return this.conflictKeepPart(ConflictPart.Incoming)
   }
 
+  public async keepBoth(): Promise<void> {
+    return this.conflictKeepPart(ConflictPart.Both)
+  }
+
   private async conflictKeepPart(part: ConflictPart) {
     let buf = await this.buffer
     if (buf) await buf.conflictKeepPart(part)

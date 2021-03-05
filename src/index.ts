@@ -65,6 +65,10 @@ export async function activate(context: ExtensionContext): Promise<ExtensionApi 
     await manager.keepIncoming()
   }, { sync: false }))
 
+  subscriptions.push(workspace.registerKeymap(['n'], 'git-keepboth', async () => {
+    await manager.keepBoth()
+  }, { sync: false }))
+
   subscriptions.push(workspace.registerKeymap(['n'], 'git-chunkinfo', async () => {
     await manager.chunkInfo()
   }, { sync: false }))

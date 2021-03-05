@@ -37,7 +37,7 @@ In your vim/neovim, run command:
 - Git related lists, including `issues`, `gfiles`, `gstatus`, `commits`, `branches` & `bcommits`
 - Keymaps for git chunks, including `<Plug>(coc-git-chunkinfo)` `<Plug>(coc-git-nextchunk)` & `<Plug>(coc-git-prevchunk)` ,
 - Commands for chunks, including `git.chunkInfo` `git.chunkStage` `git.chunkUndo` and more.
-- Keymaps for git conflicts, including `<Plug>(coc-git-nextconflict)`, `<Plug>(coc-git-prevconflict)`, `<Plug>(coc-git-keepcurrent)` & `<Plug>(coc-git-keepincoming)`.
+- Keymaps for git conflicts, including `<Plug>(coc-git-nextconflict)`, `<Plug>(coc-git-prevconflict)`, `<Plug>(coc-git-keepcurrent)`, `<Plug>(coc-git-keepincoming)` & `<Plug>(coc-git-keepboth)`.
 - Completion support for semantic commit.
 - Completion support for GitHub/GitLab issues.
 
