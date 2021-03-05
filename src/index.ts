@@ -77,6 +77,18 @@ export async function activate(context: ExtensionContext): Promise<ExtensionApi 
     await manager.showCommit()
   }, { sync: false }))
 
+  subscriptions.push(commands.registerCommand('git.keepCurrent', async () => {
+    await manager.keepCurrent()
+  }))
+
+  subscriptions.push(commands.registerCommand('git.keepIncoming', async () => {
+    await manager.keepIncoming()
+  }))
+
+  subscriptions.push(commands.registerCommand('git.keepBoth', async () => {
+    await manager.keepBoth()
+  }))
+
   subscriptions.push(commands.registerCommand('git.chunkInfo', async () => {
     await manager.chunkInfo()
   }))
