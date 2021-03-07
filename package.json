@@ -81,6 +81,16 @@
           "default": "origin",
           "description": "Remote name for fetch github issues."
         },
+        "git.browserRemoteName": {
+          "type": "string",
+          "default": "",
+          "description": "Remote name for browserOpen and copyUrl."
+        },
+        "git.browserBranchName": {
+          "type": "string",
+          "default": "",
+          "description": "Branch name for browserOpen and copyUrl."
+        },
         "git.diffRevision": {
           "type": "string",
           "default": "",

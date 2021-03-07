@@ -426,19 +426,21 @@ export default class GitBuffer implements Disposable {
   }
 
   public async browser(action = 'open', range?: [number, number]): Promise<void> {
-    // get remote list
-    let output = await this.repo.safeRun(['remote'])
     let { nvim } = workspace
-    if (!output.trim()) {
-      window.showMessage(`No remote found`, 'warning')
-      return
+    let config = workspace.getConfiguration('git')
+
+    let branch = config.get<string>('browserBranchName', '').trim()
+    if (!branch.length) {
+      let head = (await this.repo.safeRun(['symbolic-ref', '--short', '-q', 'HEAD'])).trim()
+
+      if (!head.length) {
+        window.showMessage(`Failed on git symbolic-ref`, 'warning')
+        return
+      }
+
+      branch = head
     }
-    let head = await this.repo.safeRun(['symbolic-ref', '--short', '-q', 'HEAD'])
-    head = head.trim()
-    if (!head.length) {
-      window.showMessage(`Failed on git symbolic-ref`, 'warning')
-      return
-    }
+
     let lines: any = range && range.length == 2 ? [
       range[0],
       range[1]
@@ -450,13 +452,31 @@ export default class GitBuffer implements Disposable {
         lines = words.map(s => s.toLowerCase()).join('-')
       }
     }
+
+    // get remote list
+    let output = await this.repo.safeRun(['remote'])
+    if (!output.trim()) {
+      window.showMessage(`No remote found`, 'warning')
+      return
+    }
     let names = output.trim().split(/\r?\n/)
+
+    let browserRemoteName = config.get<string>('browserRemoteName', '').trim()
+    if (browserRemoteName.length > 0) {
+      if (names.includes(browserRemoteName)) {
+        names = [ browserRemoteName ]
+      } else {
+        window.showMessage('Configured git.browserRemoteName missing from remote list', 'warning')
+        return
+      }
+    } 
+
     let urls: string[] = []
     for (let name of names) {
       let uri = await this.repo.safeRun(['remote', 'get-url', name])
       uri = uri.replace(/\s+$/, '')
       if (!uri.length) continue
-      let url = getUrl(uri, head, this.relpath.replace(/\\\\/g, '/'), lines)
+      let url = getUrl(uri, branch, this.relpath.replace(/\\\\/g, '/'), lines)
       if (url) urls.push(url)
     }
     if (urls.length == 1) {
