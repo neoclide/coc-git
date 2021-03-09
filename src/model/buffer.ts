@@ -172,6 +172,7 @@ export default class GitBuffer implements Disposable {
   public async showBlameInfo(lnum: number): Promise<void> {
     let { nvim } = workspace
     let { virtualTextSrcId } = this.config
+    let hide_blame = nvim.getVar( "coc_git_hide_blame_virtual_text" )
     if (!this.showBlame) return
     let infos = this.blameInfo
     if (!infos) return
@@ -187,16 +188,21 @@ export default class GitBuffer implements Disposable {
       }
     }
     let buffer = nvim.createBuffer(this.doc.bufnr)
-    if (this.config.addGBlameToBufferVar) {
-      nvim.pauseNotification()
-      buffer.setVar('coc_git_blame', blameText, true)
-      nvim.call('coc#util#do_autocmd', ['CocGitStatusChange'], true)
-      nvim.resumeNotification(false, true)
-    }
-    if (this.config.addGBlameToVirtualText) {
+    if (hide_blame) {
       const prefix = this.config.virtualTextPrefix
       await buffer.request('nvim_buf_clear_namespace', [virtualTextSrcId, 0, -1])
-      await buffer.setVirtualText(virtualTextSrcId, lnum - 1, [[prefix + blameText, 'CocCodeLens']])
+    } else {
+      if (this.config.addGBlameToBufferVar) {
+        nvim.pauseNotification()
+        buffer.setVar('coc_git_blame', blameText, true)
+        nvim.call('coc#util#do_autocmd', ['CocGitStatusChange'], true)
+        nvim.resumeNotification(false, true)
+      }
+      if (this.config.addGBlameToVirtualText) {
+        const prefix = this.config.virtualTextPrefix
+        await buffer.request('nvim_buf_clear_namespace', [virtualTextSrcId, 0, -1])
+        await buffer.setVirtualText(virtualTextSrcId, lnum - 1, [[prefix + blameText, 'CocCodeLens']])
+      }
     }
   }
 
