@@ -21,17 +21,9 @@ export default class DocumentManager {
     workspace.onDidChangeConfiguration(this.loadConfiguration, this, this.disposables)
     this.gitStatus = new GitStatus(service)
     if (this.enableGutters) {
-      const config = workspace.getConfiguration('git')
-      let items = ['Changed', 'Added', 'Removed', 'TopRemoved', 'ChangeRemoved']
-      nvim.pauseNotification()
-      for (let item of items) {
-        let section = item[0].toLowerCase() + item.slice(1) + 'Sign'
-        let text = config.get<string>(`${section}.text`, '')
-        let hlGroup = config.get<string>(`${section}.hlGroup`, '')
-        nvim.command(`sign define CocGit${item} text=${text} texthl=CocGit${item}Sign`, true)
-        nvim.command(`hi default link CocGit${item}Sign ${hlGroup}`, true)
-      }
-      nvim.resumeNotification(false, true)
+      this.defineSigns().catch(_e => {
+        // ignore
+      })
     }
     for (let doc of workspace.documents) {
       let { uri } = doc
@@ -74,6 +66,23 @@ export default class DocumentManager {
       let buf = this.buffers.get(bufnr)
       if (buf) buf.refresh()
     }, null, this.disposables)
+  }
+
+  private async defineSigns(): Promise<void> {
+    let { nvim } = this
+    let signcolumn = await nvim.eval('&signcolumn')
+    const config = workspace.getConfiguration('git')
+    let items = ['Changed', 'Added', 'Removed', 'TopRemoved', 'ChangeRemoved']
+    nvim.pauseNotification()
+    for (let item of items) {
+      let section = item[0].toLowerCase() + item.slice(1) + 'Sign'
+      let text = config.get<string>(`${section}.text`, '')
+      let hlGroup = config.get<string>(`${section}.hlGroup`, '')
+      let extra = signcolumn === 'number' ? `numhl=CocGit${item}Sign` : `texthl=CocGit${item}Sign`
+      nvim.command(`sign define CocGit${item} text=${text} ${extra}`, true)
+      nvim.command(`hi default link CocGit${item}Sign ${hlGroup}`, true)
+    }
+    nvim.resumeNotification(false, true)
   }
 
   private loadConfiguration(e?: ConfigurationChangeEvent): void {
