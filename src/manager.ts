@@ -1,4 +1,5 @@
 import { ConfigurationChangeEvent, Disposable, disposeAll, events, Neovim, window, workspace } from 'coc.nvim'
+import semver from 'semver'
 import debounce from 'debounce'
 import GitBuffer from './model/buffer'
 import Git from './model/git'
@@ -21,8 +22,8 @@ export default class DocumentManager {
     workspace.onDidChangeConfiguration(this.loadConfiguration, this, this.disposables)
     this.gitStatus = new GitStatus(service)
     if (this.enableGutters) {
-      this.defineSigns().catch(_e => {
-        // ignore
+      this.defineSigns().catch(e => {
+        console.error(e.message)
       })
     }
     for (let doc of workspace.documents) {
@@ -71,6 +72,7 @@ export default class DocumentManager {
   private async defineSigns(): Promise<void> {
     let { nvim } = this
     let signcolumn = await nvim.eval('&signcolumn')
+    let numhl = signcolumn == 'number' && workspace.isNvim && semver.gte(workspace.env.version, 'v0.3.2')
     const config = workspace.getConfiguration('git')
     let items = ['Changed', 'Added', 'Removed', 'TopRemoved', 'ChangeRemoved']
     nvim.pauseNotification()
@@ -78,11 +80,11 @@ export default class DocumentManager {
       let section = item[0].toLowerCase() + item.slice(1) + 'Sign'
       let text = config.get<string>(`${section}.text`, '')
       let hlGroup = config.get<string>(`${section}.hlGroup`, '')
-      let extra = signcolumn === 'number' ? `numhl=CocGit${item}Sign` : `texthl=CocGit${item}Sign`
+      let extra = numhl ? `numhl=CocGit${item}Sign` : `texthl=CocGit${item}Sign`
       nvim.command(`sign define CocGit${item} text=${text} ${extra}`, true)
       nvim.command(`hi default link CocGit${item}Sign ${hlGroup}`, true)
     }
-    nvim.resumeNotification(false, true)
+    await nvim.resumeNotification()
   }
 
   private loadConfiguration(e?: ConfigurationChangeEvent): void {
