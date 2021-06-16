@@ -117,6 +117,12 @@ In your vim/neovim, run command:
 
 - `git.gitlab.hosts`: Custom GitLab hosts, default: `["gitlab.com"]`
 
+- `git.conflict.enabled`: Enable highlight conflict lines, default: `true`
+
+- `git.conflict.current.hlGroup`: Highlight group for the current version of a merge conflict, default: `"DiffChange"`
+
+- `git.conflict.incoming.hlGroup`: Highlight group for the incoming version of a merge conflict., default: `"DiffAdd"`
+
 more information, see [package.json](https://github.com/neoclide/coc-git/blob/master/package.json)
 
 **Note** for user from [vim-gitgutter](https://github.com/airblade/vim-gitgutter),

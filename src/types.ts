@@ -34,6 +34,7 @@ export interface GitConfiguration {
     hlGroup: string
   }
   conflict: {
+    enabled: boolean
     currentHlGroup: string
     incomingHlGroup: string
   }
