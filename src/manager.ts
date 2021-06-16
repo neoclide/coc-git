@@ -125,6 +125,7 @@ export default class DocumentManager {
         hlGroup: config.get<string>('changeRemovedSign.hlGroup', 'DiffChange')
       },
       conflict: {
+        enabled: config.get<boolean>('conflict.enabled', true),
         currentHlGroup: config.get<string>('conflict.current.hlGroup', 'DiffChange'),
         incomingHlGroup: config.get<string>('conflict.incoming.hlGroup', 'DiffAdd')
       },

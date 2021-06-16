@@ -408,7 +408,7 @@ export default class GitBuffer implements Disposable {
     let line = await nvim.call('line', '.')
     for (let conflict of conflicts) {
       if (conflict.start <= line && conflict.end >= line) {
-        switch(part) {
+        switch (part) {
           case ConflictPart.Current:
             await nvim.command(`${conflict.sep},${conflict.end}d`)
             return nvim.command(`${conflict.start}d`)
@@ -470,12 +470,12 @@ export default class GitBuffer implements Disposable {
     let browserRemoteName = config.get<string>('browserRemoteName', '').trim()
     if (browserRemoteName.length > 0) {
       if (names.includes(browserRemoteName)) {
-        names = [ browserRemoteName ]
+        names = [browserRemoteName]
       } else {
         window.showMessage('Configured git.browserRemoteName missing from remote list', 'warning')
         return
       }
-    } 
+    }
 
     let urls: string[] = []
     for (let name of names) {
@@ -628,7 +628,7 @@ export default class GitBuffer implements Disposable {
   }
 
   private async parseConflicts(): Promise<void> {
-    if (!this.hasConflicts) return
+    if (!this.hasConflicts || !this.config.conflict.enabled) return
     const lines = this.doc.getLines()
     const revPattern = '([0-9A-Za-z_.:/]+)'
     const startPattern = new RegExp(`^<{7} (${revPattern})(:? .+)?$`)
