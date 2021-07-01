@@ -91,6 +91,14 @@
           "default": "",
           "description": "Branch name for browserOpen and copyUrl."
         },
+        "git.urlMode": {
+          "type": "string",
+          "default": "normal",
+          "enum": [
+            "normal",
+            "permalink"
+          ]
+        },
         "git.diffRevision": {
           "type": "string",
           "default": "",
