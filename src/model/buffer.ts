@@ -429,15 +429,21 @@ export default class GitBuffer implements Disposable {
     let { nvim } = workspace
     let config = workspace.getConfiguration('git')
 
+    let mode = config.get<string>('urlMode', 'normal').trim()
+    let head = (await this.repo.safeRun(['rev-parse', 'HEAD'])).trim()
     let branch = config.get<string>('browserBranchName', '').trim()
-    if (!branch.length) {
-      let head = (await this.repo.safeRun(['symbolic-ref', '--short', '-q', 'HEAD'])).trim()
-
+    if (mode == 'permalink') {
+      if (!head.length) {
+        window.showMessage(`Failed on git rev-parse`, 'warning')
+        return
+      }
+      branch = head
+    } else if (!branch.length) { // config browserBranchName empty
+      head = (await this.repo.safeRun(['symbolic-ref', '--short', '-q', 'HEAD'])).trim()
       if (!head.length) {
         window.showMessage(`Failed on git symbolic-ref`, 'warning')
         return
       }
-
       branch = head
     }
 

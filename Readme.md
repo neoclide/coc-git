@@ -61,6 +61,8 @@ In your vim/neovim, run command:
 
 - `git.browserBranchName`: Branch name for browserOpen and copyUrl., default: `""`
 
+- `git.urlMode`: URL mode for browserOpen and copyUrl, you can set it to `"permalink"`. default: `"normal"`
+
 - `git.issueFormat`: Formatting string for issue completion. Supported interpolation variables: %i - issue id. %r - repository name. %o - organization/owner name. %t - issue title. %b - issue body. %c - issue created at. %a - issue author. %u - issue url., default: `"#%i"`
 
 - `git.virtualTextPrefix`: Prefix of git blame infomation to virtual text, require virtual text feature of neovim., default: `" "`
