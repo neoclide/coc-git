@@ -163,21 +163,27 @@ export function equals(one: any, other: any): boolean {
   return true
 }
 
-export function getUrl(remote: string, branch: string, filepath: string, lines?: number[] | string): string {
-  let uri = remote.replace(/\.git$/, '')
-  if (uri.startsWith('git@')) {
-    let str = uri.slice(4)
+export function getRepoUrl(remote: string): string {
+  let url = remote.replace(/\s+$/, '').replace(/\.git$/, '')
+  if (url.startsWith('git@')) {
+    let str = url.slice(4)
     let parts = str.split(':', 2)
-    uri = `https://${parts[0]}/${parts[1]}`
+    url = `https://${parts[0]}/${parts[1]}`
   }
-  // let { hostname } = parse(uri)
+  return url
+}
+
+export function getUrl(fix: string, repoURL: string, name: string, filepath: string, lines?: number[] | string): string {
   let anchor = ''
   if (lines && Array.isArray(lines)) {
     anchor = lines ? lines.map(l => `L${l}`).join('-') : ''
   } else if (typeof lines == 'string') {
     anchor = lines
   }
-  return uri + '/blob/' + branch + '/' + filepath + (anchor ? '#' + anchor : '')
+  let url = repoURL + '/blob/' + name + '/' + filepath + (anchor ? '#' + anchor : '')
+  let parts = fix.split('|')
+  let match = RegExp(parts[0]), result = parts[1]
+  return url.replace(match, result)
 }
 
 function parseVersion(raw: string): string {

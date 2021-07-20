@@ -1,10 +1,11 @@
 import { Disposable, Document, Mutex, Documentation, FloatFactory, OutputChannel, window, workspace } from 'coc.nvim'
 import { format } from 'timeago.js'
 import { BlameInfo, ChangeType, Conflict, ConflictParseState, ConflictPart, Diff, FoldSettings, GitConfiguration, SignInfo } from '../types'
-import { equals, getUrl, toUnixSlash } from '../util'
+import {equals, getRepoUrl, getUrl, toUnixSlash} from '../util'
 import debounce from 'debounce'
 import Git from './git'
 import Repo from './repo'
+import {URL} from 'url'
 
 const signGroup = 'CocGit'
 
@@ -432,19 +433,8 @@ export default class GitBuffer implements Disposable {
     let mode = config.get<string>('urlMode', 'normal').trim()
     let head = (await this.repo.safeRun(['rev-parse', 'HEAD'])).trim()
     let branch = config.get<string>('browserBranchName', '').trim()
-    if (mode == 'permalink') {
-      if (!head.length) {
-        window.showMessage(`Failed on git rev-parse`, 'warning')
-        return
-      }
-      branch = head
-    } else if (!branch.length) { // config browserBranchName empty
-      head = (await this.repo.safeRun(['symbolic-ref', '--short', '-q', 'HEAD'])).trim()
-      if (!head.length) {
-        window.showMessage(`Failed on git symbolic-ref`, 'warning')
-        return
-      }
-      branch = head
+    if (!branch.length) {
+      branch = (await this.repo.safeRun(['symbolic-ref', '--short', '-q', 'HEAD'])).trim()
     }
 
     let lines: any = range && range.length == 2 ? [
@@ -480,9 +470,15 @@ export default class GitBuffer implements Disposable {
     let urls: string[] = []
     for (let name of names) {
       let uri = await this.repo.safeRun(['remote', 'get-url', name])
-      uri = uri.replace(/\s+$/, '')
       if (!uri.length) continue
-      let url = getUrl(uri, branch, this.relpath.replace(/\\\\/g, '/'), lines)
+      let repoURL = getRepoUrl(uri)
+      let tmp = new URL(repoURL)
+      let hostname = tmp.hostname
+      let fix = "|"
+      try {
+        fix = config.get<object>("urlFix")[hostname][mode == 'permalink' ? 1 : 0]
+      } catch (e) {}
+      let url = getUrl(fix, repoURL, mode == 'permalink' ? head : branch, this.relpath.replace(/\\\\/g, '/'), lines)
       if (url) urls.push(url)
     }
     if (urls.length == 1) {

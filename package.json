@@ -99,6 +99,28 @@
             "permalink"
           ]
         },
+        "git.urlFix": {
+          "type": "object",
+          "default": {},
+          "examples": [
+            {
+              "gitlab.org": [
+                "blob|-/blob",
+                "blob|-/blob"
+              ],
+              "gitea.com": [
+                "blob|src/branch",
+                "blob|src/commit"
+              ],
+              "gerrit.with.gitiles": [
+                "(.*)\/a\/(.*)\/blob\/(.*)#L(.*)|$1/plugins/gitiles/$2/+/refs/heads/$3#$4",
+                "(.*)\/a\/(.*)\/blob\/(.*)#L(.*)|$1/plugins/gitiles/$2/+/$3#$4"
+              ]
+            }
+          ],
+          "format": "{\"git-service-1's domain\":[\"fix-for-normal-url\",\"fix-for-permalink\"],\"git-service-2's domain\":...}",
+          "description": "A fix is a string, like \"pattern|replacement\" show in examples sessions, use to transform github style url to whatever you like. copyUrl will run url.replace(pattern,replacement) after generate a github style url. Example configuration make browserOpen and copyUrl work with gitlab, gitea and gerrit with gitiles."
+        },
         "git.diffRevision": {
           "type": "string",
           "default": "",
