@@ -14,6 +14,11 @@ interface Issue {
   shouldIncludeOrganizationNameAndRepoNameInAbbr?: boolean
 }
 
+function byteSlice(content: string, start: number, end?: number): string {
+  let buf = Buffer.from(content, 'utf8')
+  return buf.slice(start, end).toString('utf8')
+}
+
 const issuesMap: Map<number, Issue[]> = new Map()
 function issuesFiletypes(): string[] {
   return workspace.getConfiguration().get<string[]>('coc.source.issues.filetypes')
@@ -225,9 +230,10 @@ export default function addSource(context: ExtensionContext, resolver: Resolver)
   let source: SourceConfig = {
     name: 'issues',
     async doComplete(opt): Promise<CompleteResult> {
-      const config = workspace.getConfiguration('git')
-      const issueFormat = config.get<string>('issueFormat', '#%i')
-      if (opt.triggerCharacter && opt.triggerCharacter == '#') {
+      let pre = byteSlice(opt.line, 0, opt.colnr - 1)
+      if (pre && pre.endsWith('#')) {
+        const config = workspace.getConfiguration('git')
+        const issueFormat = config.get<string>('issueFormat', '#%i')
         let issues = issuesMap.get(opt.bufnr)
         if (!issues || issues.length == 0) return null
         return {
