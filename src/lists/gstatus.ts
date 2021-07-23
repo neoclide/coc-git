@@ -84,8 +84,8 @@ export default class GStatus extends BasicList {
 
     // preview the diff
     this.addAction('preview', async (item, context) => {
-      let { tree_symbol, root, relative } = item.data
-      if (tree_symbol != 'M') {
+      let { tree_symbol, index_symbol, root, relative } = item.data
+      if (tree_symbol != 'M' && index_symbol != 'M') {
         await this.previewLocation({
           uri: Uri.file(path.join(root, relative)).toString(),
           range: {
@@ -96,6 +96,9 @@ export default class GStatus extends BasicList {
         return
       }
       let args = ['--no-pager', 'diff']
+      if (index_symbol == 'M' && tree_symbol != 'M') {
+        args.push('--cached')
+      }
       let cmd = `git ${args.join(' ')} ${relative}`
       let content = await runCommand(cmd, { cwd: root })
       let lines = content.trim().split('\n')
