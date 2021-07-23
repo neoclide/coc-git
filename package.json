@@ -1,6 +1,6 @@
 {
   "name": "coc-git",
-  "version": "2.4.2",
+  "version": "2.4.3",
   "description": "Git extension for coc.nvim",
   "main": "lib/index.js",
   "publisher": "chemzqm",
@@ -113,8 +113,8 @@
                 "blob|src/commit"
               ],
               "gerrit.with.gitiles": [
-                "(.*)\/a\/(.*)\/blob\/(.*)#L(.*)|$1/plugins/gitiles/$2/+/refs/heads/$3#$4",
-                "(.*)\/a\/(.*)\/blob\/(.*)#L(.*)|$1/plugins/gitiles/$2/+/$3#$4"
+                "(.*)/a/(.*)/blob/(.*)#L(.*)|$1/plugins/gitiles/$2/+/refs/heads/$3#$4",
+                "(.*)/a/(.*)/blob/(.*)#L(.*)|$1/plugins/gitiles/$2/+/$3#$4"
               ]
             }
           ],
