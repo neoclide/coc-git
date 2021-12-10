@@ -46,9 +46,9 @@ export default class GStatus extends BasicList {
       await nvim.command(`exe "lcd ".fnameescape('${root}')`)
       let filesArg = await nvim.eval(`join(map([${items.map(s => "'" + s.data.relative + "'").join(',')}],'fnameescape(v:val)'),' ')`)
       try {
-        await nvim.command(`Gcommit -v ${filesArg}`)
+        await nvim.command(`G commit -v ${filesArg}`)
       } catch (e) {
-        window.showMessage(`Gcommit command failed, make sure fugitive installed.`, 'error')
+        window.showMessage(`G commit command failed, make sure fugitive installed.`, 'error')
       }
     })
 

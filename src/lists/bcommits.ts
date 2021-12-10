@@ -77,7 +77,7 @@ export default class Bcommits extends BasicList {
       if (!commit) return
       let hasFugitive = await nvim.getVar('loaded_fugitive')
       if (hasFugitive) {
-        await nvim.command(`Gedit ${commit}`)
+        await nvim.command(`G edit ${commit}`)
       } else {
         let content = await runCommand(`git --no-pager show ${commit}`, { cwd: root })
         let lines = content.trim().split('\n')
