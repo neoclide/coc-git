@@ -81,7 +81,7 @@ export default class Commits extends BasicList {
       if (!commit) return
       let hasFugitive = await nvim.getVar('loaded_fugitive')
       if (hasFugitive) {
-        await nvim.command(`G edit ${commit}`)
+        await nvim.command(`Gedit ${commit}`)
       } else {
         let lines = this.cachedCommits.get(commit)
         if (!lines) {

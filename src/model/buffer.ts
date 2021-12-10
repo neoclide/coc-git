@@ -530,7 +530,7 @@ export default class GitBuffer implements Disposable {
 
     let hasFugitive = await nvim.getVar('loaded_fugitive')
     if (hasFugitive) {
-      await nvim.command(`G edit ${commit}`)
+      await nvim.command(`Gedit ${commit}`)
     } else {
       let content = await this.repo.safeRun(['--no-pager', 'show', commit])
       if (content == null) return
