@@ -9,7 +9,7 @@ import { getStdout, shellescape, toUnixSlash } from '../util'
 import uuid = require('uuid/v4')
 
 export default class Repo {
-  private userName: string
+  private userName: string | undefined
   constructor(
     private git: Git,
     private channel: OutputChannel,
@@ -144,10 +144,15 @@ export default class Repo {
   }
 
   public async getUsername(): Promise<string> {
-    if (this.userName) return this.userName
-    let res = await this.exec(['config', 'user.name'])
-    this.userName = res.stdout.trim()
-    return this.userName
+    if (typeof this.userName === 'string') return this.userName
+    try {
+      let res = await this.exec(['config', 'user.name'])
+      this.userName = res.stdout.trim()
+      return this.userName
+    } catch (e) {
+      this.userName = ''
+      return ''
+    }
   }
 
   public async exec(args: string[], options: SpawnOptions = {}): Promise<IExecutionResult<string>> {
