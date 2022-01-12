@@ -1,11 +1,11 @@
 import { Disposable, Document, Mutex, Documentation, FloatFactory, OutputChannel, window, workspace } from 'coc.nvim'
 import { format } from 'timeago.js'
 import { BlameInfo, ChangeType, Conflict, ConflictParseState, ConflictPart, Diff, FoldSettings, GitConfiguration, SignInfo } from '../types'
-import {equals, getRepoUrl, getUrl, toUnixSlash} from '../util'
+import { equals, getRepoUrl, getUrl, toUnixSlash } from '../util'
 import debounce from 'debounce'
 import Git from './git'
 import Repo from './repo'
-import {URL} from 'url'
+import { URL } from 'url'
 
 const signGroup = 'CocGit'
 
@@ -172,7 +172,7 @@ export default class GitBuffer implements Disposable {
 
   public async showBlameInfo(lnum: number): Promise<void> {
     let { nvim } = workspace
-    let { virtualTextSrcId } = this.config
+    let { virtualTextSrcId, addGBlameToBufferVar, addGBlameToVirtualText } = this.config
     if (!this.showBlame) return
     let infos = this.blameInfo
     if (!infos) return
@@ -188,21 +188,26 @@ export default class GitBuffer implements Disposable {
       }
     }
     let buffer = nvim.createBuffer(this.doc.bufnr)
-    let hide_blame = await nvim.getVar( "coc_git_hide_blame_virtual_text" )
+    let hide_blame = await nvim.getVar("coc_git_hide_blame_virtual_text")
     if (hide_blame) {
-      const prefix = this.config.virtualTextPrefix
       await buffer.request('nvim_buf_clear_namespace', [virtualTextSrcId, 0, -1])
     } else {
-      if (this.config.addGBlameToBufferVar) {
+      if (addGBlameToBufferVar) {
         nvim.pauseNotification()
         buffer.setVar('coc_git_blame', blameText, true)
         nvim.call('coc#util#do_autocmd', ['CocGitStatusChange'], true)
         nvim.resumeNotification(false, true)
       }
-      if (this.config.addGBlameToVirtualText) {
+      if (addGBlameToVirtualText) {
         const prefix = this.config.virtualTextPrefix
-        await buffer.request('nvim_buf_clear_namespace', [virtualTextSrcId, 0, -1])
-        await buffer.setVirtualText(virtualTextSrcId, lnum - 1, [[prefix + blameText, 'CocCodeLens']])
+        await buffer.clearNamespace(virtualTextSrcId)
+        if (workspace.has('nvim-0.6.0')) {
+          await buffer.setExtMark(virtualTextSrcId, lnum - 1, 0, {
+            virt_text: [[prefix + blameText, 'CocCodeLens']]
+          })
+        } else {
+          await buffer.setVirtualText(virtualTextSrcId, lnum - 1, [[prefix + blameText, 'CocCodeLens']])
+        }
       }
     }
   }
