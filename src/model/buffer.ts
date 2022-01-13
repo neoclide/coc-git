@@ -203,6 +203,7 @@ export default class GitBuffer implements Disposable {
         await buffer.clearNamespace(virtualTextSrcId)
         if (workspace.has('nvim-0.6.0')) {
           await buffer.setExtMark(virtualTextSrcId, lnum - 1, 0, {
+            hl_mode: 'combine',
             virt_text: [[prefix + blameText, 'CocCodeLens']]
           })
         } else {
