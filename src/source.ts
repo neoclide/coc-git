@@ -141,7 +141,6 @@ export default function addSource(context: ExtensionContext, resolver: Resolver)
       page_idx++
       try {
         let info = await fetch(page_uri, { headers })
-        console.log(JSON.stringify(info, null, 2))
         if (info.length == 0) {
           break
         }

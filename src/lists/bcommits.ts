@@ -1,5 +1,5 @@
 import { ChildProcess, spawn } from 'child_process'
-import { ansiparse, BasicList, events, ListAction, ListContext, ListTask, Neovim, runCommand } from 'coc.nvim'
+import { ansiparse, BasicList, events, ListContext, ListTask, Neovim, runCommand } from 'coc.nvim'
 import { EventEmitter } from 'events'
 import readline from 'readline'
 import Manager from '../manager'
@@ -53,7 +53,6 @@ export default class Bcommits extends BasicList {
   public readonly name = 'bcommits'
   public readonly description = 'Commits of current file.'
   public readonly defaultAction = 'show'
-  public actions: ListAction[] = []
   private bufnr: number
 
   constructor(nvim: Neovim, private manager: Manager) {
@@ -72,17 +71,19 @@ export default class Bcommits extends BasicList {
         bufname: commit ? `[commit ${commit}]` : ''
       }, context)
     })
-    this.addAction('show', async item => {
+    this.addAction('show', async (item, ctx) => {
       let { commit, root } = item.data
       if (!commit) return
       let hasFugitive = await nvim.getVar('loaded_fugitive')
       if (hasFugitive) {
-        await nvim.command(`Gedit ${commit}`)
+        let cmd = ctx.options.position === 'tab' ? 'Gtabedit' : 'Gedit'
+        await nvim.command(`${cmd} ${commit}`)
       } else {
+        let cmd = ctx.options.position === 'tab' ? 'tabe' : 'edit'
         let content = await runCommand(`git --no-pager show ${commit}`, { cwd: root })
         let lines = content.trim().split('\n')
         nvim.pauseNotification()
-        nvim.command(`edit +setl\\ buftype=nofile [commit ${commit}]`, true)
+        nvim.command(`${cmd} +setl\\ buftype=nofile [commit ${commit}]`, true)
         nvim.command('setl foldmethod=syntax nobuflisted bufhidden=wipe', true)
         nvim.command('setf git', true)
         nvim.call('append', [0, lines], true)
@@ -90,7 +91,7 @@ export default class Bcommits extends BasicList {
         nvim.command(`exe 1`, true)
         await nvim.resumeNotification()
       }
-    })
+    }, { tabPersist: true })
     this.addAction('view', async (item, context) => {
       let { commit, root, file } = item.data
       let { window, listWindow } = context

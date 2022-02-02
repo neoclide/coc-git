@@ -16,11 +16,12 @@ export default class Gfiles extends BasicList {
     let jumpCommand = preferences.get<string>('jumpCommand', 'edit')
 
     for (let name of ['edit', 'tabe', 'vsplit', 'split']) {
-      this.addAction(name, async item => {
+      this.addAction(name, async (item, ctx) => {
         let { root, sha, filepath, branch } = item.data
         if (!sha) return
         if (branch == 'HEAD') {
           let cmd = name == 'edit' ? jumpCommand : name
+          if (ctx.options.position === 'tab') cmd = 'tabe'
           let fullpath = path.join(root, filepath)
           await workspace.jumpTo(Uri.file(fullpath).toString(), null, cmd)
           return
@@ -36,7 +37,7 @@ export default class Gfiles extends BasicList {
         nvim.command('setl buftype=nofile nomodifiable bufhidden=wipe nobuflisted', true)
         nvim.command('filetype detect', true)
         await nvim.resumeNotification()
-      })
+      }, { tabPersist: name === 'edit' })
     }
 
     this.addAction('preview', async (item, context) => {

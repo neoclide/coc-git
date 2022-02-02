@@ -1,4 +1,4 @@
-import { BasicList, ListAction, ListContext, ListItem, Neovim, Uri, window } from 'coc.nvim'
+import { BasicList, ListContext, ListItem, Neovim, Uri, window } from 'coc.nvim'
 import colors from 'colors/safe'
 import fs from 'fs'
 import path from 'path'
@@ -20,7 +20,6 @@ export default class GStatus extends BasicList {
   public readonly name = 'gstatus'
   public readonly description = 'Git status of current project'
   public readonly defaultAction = 'open'
-  public actions: ListAction[] = []
 
   constructor(nvim: Neovim, private manager: Manager) {
     super(nvim)

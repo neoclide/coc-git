@@ -47,10 +47,10 @@ brace-expansion@^1.1.7:
     balanced-match "^1.0.0"
     concat-map "0.0.1"
 
-coc.nvim@^0.0.81-next.9:
-  version "0.0.81-next.9"
-  resolved "https://registry.yarnpkg.com/coc.nvim/-/coc.nvim-0.0.81-next.9.tgz#c8abc18f9220018f01393ec40f65f682936ac646"
-  integrity sha512-VHmmt8HHLdyszcQcy3sR9c/wOPZ4b8wqABSEo6Wl8lBPKs2FLy4ZE3KXQQjR0NCXiyh9F++LKDfDPRPthc+ttQ==
+coc.nvim@^0.0.81-next.13:
+  version "0.0.81-next.13"
+  resolved "https://registry.yarnpkg.com/coc.nvim/-/coc.nvim-0.0.81-next.13.tgz#32880d85ce65c753124c30c4e4d26cadabf87d43"
+  integrity sha512-QopP+O7vfTwWnaJUlSEYS0nQimp8adg153TIEujuFX1xEtLfYs+yseNRuaMY1Hhj2LMM1IvQdR9qK6hXa3KOpQ==
 
 colors@*:
   version "1.3.3"

@@ -1,5 +1,5 @@
 import { ChildProcess, spawn } from 'child_process'
-import { ansiparse, BasicList, ListAction, ListContext, ListTask, Neovim } from 'coc.nvim'
+import { ansiparse, BasicList, ListContext, ListTask, Neovim } from 'coc.nvim'
 import { EventEmitter } from 'events'
 import readline from 'readline'
 import Manager from '../manager'
@@ -52,7 +52,6 @@ export default class Commits extends BasicList {
   public readonly name = 'commits'
   public readonly description = 'Commits of current project.'
   public readonly defaultAction = 'show'
-  public actions: ListAction[] = []
   private cachedCommits: Map<string, string[]> = new Map()
 
   constructor(nvim: Neovim, private manager: Manager) {
@@ -76,12 +75,13 @@ export default class Commits extends BasicList {
         bufname: commit ? `[commit ${commit}]` : ''
       }, context)
     })
-    this.addAction('show', async item => {
+    this.addAction('show', async (item, ctx) => {
       let { commit, root } = item.data
       if (!commit) return
       let hasFugitive = await nvim.getVar('loaded_fugitive')
       if (hasFugitive) {
-        await nvim.command(`Gedit ${commit}`)
+        let cmd = ctx.options.position === 'tab' ? 'Gtabedit' : 'Gedit'
+        await nvim.command(`${cmd} ${commit}`)
       } else {
         let lines = this.cachedCommits.get(commit)
         if (!lines) {
@@ -90,8 +90,9 @@ export default class Commits extends BasicList {
           lines = content.replace(/\n$/, '').split(/\r?\n/)
           this.cachedCommits.set(commit, lines)
         }
+        let cmd = ctx.options.position === 'tab' ? 'tabe' : 'edit'
         nvim.pauseNotification()
-        nvim.command(`edit +setl\\ buftype=nofile [commit ${commit}]`, true)
+        nvim.command(`${cmd} +setl\\ buftype=nofile [commit ${commit}]`, true)
         nvim.command('setl foldmethod=syntax nobuflisted bufhidden=wipe', true)
         nvim.command('setf git', true)
         nvim.call('append', [0, lines], true)
@@ -99,7 +100,7 @@ export default class Commits extends BasicList {
         nvim.command(`exe 1`, true)
         await nvim.resumeNotification()
       }
-    })
+    }, { tabPersist: true })
     this.addAction('reset', async item => {
       let { root, commit } = item.data
       if (!commit) return
@@ -169,7 +170,7 @@ export default class Commits extends BasicList {
       let content = await runCommand(`git --no-pager diff ${arg}`, { cwd: list[0].data.root })
       let lines = content.replace(/\n$/, '').split('\n')
       let winid = context.listWindow.id
-      let mod = context.options.position == 'top' ? 'below' : 'above'
+      let mod = context.options.position == 'tab' ? 'below' : 'above'
       nvim.pauseNotification()
       nvim.command('pclose', true)
       nvim.command(`${mod} ${this.previewHeight}sp +setl\\ previewwindow [diff ${arg}]`, true)
