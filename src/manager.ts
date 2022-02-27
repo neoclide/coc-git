@@ -1,5 +1,4 @@
-import { ConfigurationChangeEvent, Disposable, disposeAll, events, Neovim, window, workspace } from 'coc.nvim'
-import semver from 'semver'
+import { ConfigurationChangeEvent, Disposable, disposeAll, Document, events, Neovim, window, workspace } from 'coc.nvim'
 import debounce from 'debounce'
 import GitBuffer from './model/buffer'
 import Git from './model/git'
@@ -12,6 +11,7 @@ export default class DocumentManager {
   private gitStatus: GitStatus
   private config: GitConfiguration
   private disposables: Disposable[] = []
+  private defined = false
   constructor(
     private nvim: Neovim,
     private service: Service,
@@ -21,23 +21,21 @@ export default class DocumentManager {
     this.loadConfiguration()
     workspace.onDidChangeConfiguration(this.loadConfiguration, this, this.disposables)
     this.gitStatus = new GitStatus(service)
-    if (this.enableGutters) {
-      this.defineSigns().catch(e => {
-        console.error(e.message)
-      })
-    }
-    for (let doc of workspace.documents) {
+    const createBuffer = (doc: Document) => {
       let { uri } = doc
       service.createBuffer(doc, this.config).then(buf => {
         if (!buf || workspace.getDocument(uri) == null) return
+        this.defineSigns().catch(e => {
+          console.error(e.message)
+        })
         this.buffers.set(doc.bufnr, buf)
       })
     }
+    for (let doc of workspace.documents) {
+      createBuffer(doc)
+    }
     workspace.onDidOpenTextDocument(async e => {
-      let doc = workspace.getDocument(e.bufnr)
-      let buf = await service.createBuffer(doc, this.config)
-      if (!buf || !workspace.getDocument(e.uri)) return
-      this.buffers.set(e.bufnr, buf)
+      createBuffer(workspace.getDocument(e.bufnr))
     }, null, this.disposables)
     workspace.onDidChangeTextDocument(async e => {
       let buf = this.buffers.get(e.bufnr)
@@ -70,6 +68,8 @@ export default class DocumentManager {
   }
 
   private async defineSigns(): Promise<void> {
+    if (!this.enableGutters || this.defined) return
+    this.defined = true
     let { nvim } = this
     const config = workspace.getConfiguration('git')
     let items = ['Changed', 'Added', 'Removed', 'TopRemoved', 'ChangeRemoved']
@@ -79,7 +79,7 @@ export default class DocumentManager {
       let text = config.get<string>(`${section}.text`, '')
       let hlGroup = config.get<string>(`${section}.hlGroup`, '')
       nvim.command(`sign define CocGit${item} text=${text} texthl=CocGit${item}Sign`, true)
-      nvim.command(`hi default link CocGit${item}Sign ${hlGroup}`, true)
+      nvim.command(`highlight default link CocGit${item}Sign ${hlGroup}`, true)
     }
     await nvim.resumeNotification()
   }
