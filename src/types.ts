@@ -66,6 +66,22 @@ export interface Decorator {
   untrackedDecorator: string
 }
 
+export interface StageChunk {
+  remove: {
+    lnum: number
+    count: number
+  }
+  add: {
+    lnum: number
+    count: number
+  }
+  lines: string[]
+}
+
+export interface DiffChunks {
+  [relpath: string]: StageChunk[]
+}
+
 export interface Diff {
   changeType: ChangeType
   start: number

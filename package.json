@@ -36,6 +36,10 @@
         "command": "git.chunkStage"
       },
       {
+        "title": "Unstage chunk that contains current line",
+        "command": "git.chunkUnstage"
+      },
+      {
         "title": "Undo current chunk.",
         "command": "git.chunkUndo"
       },

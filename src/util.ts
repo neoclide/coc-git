@@ -1,11 +1,34 @@
 import { exec, ExecOptions, spawn } from 'child_process'
 import { Event, window } from 'coc.nvim'
+import { StageChunk } from './types'
 import path from 'path'
 import which from 'which'
 
 export interface IGit {
   path: string
   version: string
+}
+
+function reverseLine(line: string): string {
+  if (line.startsWith('-')) return '+' + line.slice(1)
+  if (line.startsWith('+')) return '-' + line.slice(1)
+  return line
+}
+
+export function createUnstagePatch(relpath: string, chunk: StageChunk): string {
+  if (chunk.remove.count == 0 && chunk.add.count == 0) return ''
+  let head = `@@ -${chunk.add.lnum},${chunk.add.count} +${chunk.add.lnum + 1 - chunk.add.count},${chunk.remove.count} @@`
+  if (!head) return ''
+  const lines = [
+    `diff --git a/${relpath} b/${relpath}`,
+    `index 000000..000000 100644`,
+    `--- a/${relpath}`,
+    `+++ b/${relpath}`,
+    head
+  ]
+  lines.push(...chunk.lines.map(s => reverseLine(s)))
+  lines.push('')
+  return lines.join('\n')
 }
 
 export function wait(ms: number): Promise<any> {

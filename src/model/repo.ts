@@ -4,7 +4,7 @@ import os from 'os'
 import path from 'path'
 import util from 'util'
 import Git, { IExecutionResult, SpawnOptions } from './git'
-import { ChangeType, Decorator, Diff } from '../types'
+import { ChangeType, Decorator, Diff, DiffChunks, StageChunk } from '../types'
 import { getStdout, shellescape, toUnixSlash } from '../util'
 import uuid = require('uuid/v4')
 
@@ -15,6 +15,51 @@ export default class Repo {
     private channel: OutputChannel,
     public readonly root: string
   ) {
+  }
+
+  /**
+   * Get staged info
+   */
+  public async getStagedChunks(relpath?: string): Promise<DiffChunks> {
+    let args = ['--no-pager', 'diff', '-p', '-U0', '--no-color', '--staged']
+    if (relpath) args.push(toUnixSlash(relpath))
+    const result = await this.exec(args)
+    if (!result.stdout) {
+      throw new Error(`No staged result.`)
+    }
+    let res: DiffChunks = {}
+    let idx = 0
+    let lines = result.stdout.split(/\r?\n/)
+    let curr: StageChunk | undefined
+    let fsPath: string
+    while (idx < lines.length) {
+      let line = lines[idx]
+      if (fsPath && line.startsWith('@@')) {
+        curr = undefined
+        let ms = line.match(/^@@\s+-(\d+),?(\d*)\s+\+(\d+),?(\d*)\s+@@/)
+        if (ms) {
+          curr = {
+            remove: { lnum: Number(ms[1]), count: ms[2] ? Number(ms[2]) : 1 },
+            add: { lnum: Number(ms[3]), count: ms[4] ? Number(ms[4]) : 1 },
+            lines: []
+          }
+          res[fsPath] = res[fsPath] || []
+          res[fsPath].push(curr)
+        }
+      } else if (curr && /^[+\-]/.test(line)) {
+        curr.lines.push(line)
+      } else if (line.startsWith('diff --git')) {
+        let ms = line.match(/diff\s--git\sa\/(.*)\sb\//)
+        if (ms) {
+          fsPath = ms[1]
+          curr = undefined
+          idx += 4
+          continue
+        }
+      }
+      idx++
+    }
+    return res
   }
 
   private async getHEAD(): Promise<string> {

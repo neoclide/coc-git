@@ -223,6 +223,12 @@ export default class DocumentManager {
     await buf.chunkStage()
   }
 
+  public async chunkUnstage(): Promise<void> {
+    let buf = await this.buffer
+    if (!buf) return
+    await buf.chunkUnstage()
+  }
+
   public async chunkUndo(): Promise<void> {
     let buf = await this.buffer
     if (buf) await buf.chunkUndo()

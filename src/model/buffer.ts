@@ -1,7 +1,7 @@
 import { Disposable, Document, Mutex, Documentation, FloatFactory, OutputChannel, window, workspace } from 'coc.nvim'
 import { format } from 'timeago.js'
-import { BlameInfo, ChangeType, Conflict, ConflictParseState, ConflictPart, Diff, FoldSettings, GitConfiguration, SignInfo } from '../types'
-import { equals, getRepoUrl, getUrl, toUnixSlash } from '../util'
+import { BlameInfo, ChangeType, Conflict, ConflictParseState, ConflictPart, Diff, FoldSettings, GitConfiguration, SignInfo, StageChunk } from '../types'
+import { createUnstagePatch, equals, getRepoUrl, getUrl, toUnixSlash } from '../util'
 import debounce from 'debounce'
 import Git from './git'
 import Repo from './repo'
@@ -125,6 +125,49 @@ export default class GitBuffer implements Disposable {
       await this.git.exec(this.repo.root, ['apply', '--cached', '--unidiff-zero', '-'], { input: lines.join('\n') })
       this.refresh()
     } catch (e) {
+      this.channel.appendLine(`[Error] ${e.message}`)
+    }
+  }
+
+  public async chunkUnstage(): Promise<void> {
+    let { nvim } = workspace
+    const { diffs } = this
+    // find out staged line first.
+    let line = await nvim.call('line', '.')
+    let adjust = 0
+    let invalid = false
+    for (let diff of diffs) {
+      if (diff.end >= line) {
+        if (diff.start <= line && diff.changeType != ChangeType.Delete) {
+          window.showErrorMessage(`Current line contains unstaged change.`)
+          invalid = true
+        }
+        break
+      }
+      adjust -= diff.added.count
+      adjust += diff.removed.count
+    }
+    if (invalid) return
+    line = line + adjust
+    let stagedDiff = await this.repo.getStagedChunks(this.relpath)
+    let chunks: StageChunk[] = Object.values(stagedDiff)[0]
+    if (!chunks.length) {
+      window.showErrorMessage(`Staged chunk not found`)
+      return
+    }
+    let chunk = chunks.find(o => o.add.lnum <= line && o.add.lnum + o.add.count >= line)
+    if (!chunk) {
+      window.showErrorMessage(`Unable to find staged chunk on current line`)
+      return
+    }
+    this.channel.appendLine(`[Info] resolved chunk ${JSON.stringify(chunk, null, 2)}`)
+    let patch = createUnstagePatch(this.relpath, chunk)
+    if (!patch) return
+    try {
+      await this.git.exec(this.repo.root, ['apply', '--cached', '--unidiff-zero', '-'], { input: patch })
+      this.refresh()
+    } catch (e) {
+      window.showErrorMessage(`Unable to apply patch: ${e.message}`)
       this.channel.appendLine(`[Error] ${e.message}`)
     }
   }

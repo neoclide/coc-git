@@ -222,6 +222,7 @@ related commands.
 - `:CocCommand git.chunkInfo` Show chunk info under cursor.
 - `:CocCommand git.chunkUndo` Undo current chunk.
 - `:CocCommand git.chunkStage` Stage current chunk.
+- `:CocCommand git.chunkUnstage` Unstage chunk that contains current line.
 - `:CocCommand git.diffCached` Show cached diff in preview window.
 - `:CocCommand git.showCommit` Show commit of current chunk.
 - `:CocCommand git.browserOpen` Open current line in browser

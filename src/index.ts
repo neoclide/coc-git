@@ -97,6 +97,10 @@ export async function activate(context: ExtensionContext): Promise<ExtensionApi 
     await manager.chunkStage()
   }))
 
+  subscriptions.push(commands.registerCommand('git.chunkUnstage', async () => {
+    await manager.chunkUnstage()
+  }))
+
   subscriptions.push(commands.registerCommand('git.chunkUndo', async () => {
     await manager.chunkUndo()
   }))
