@@ -117,6 +117,10 @@ export async function activate(context: ExtensionContext): Promise<ExtensionApi 
     await manager.browser('copy', args as [number, number])
   }))
 
+  subscriptions.push(commands.registerCommand('git.copyPermalink', async (...args) => {
+    await manager.browser('copy', args as [number, number], true)
+  }))
+
   subscriptions.push(commands.registerCommand('git.push', async (...args) => {
     await manager.push(args)
   }))

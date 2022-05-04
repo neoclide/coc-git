@@ -240,9 +240,9 @@ export default class DocumentManager {
     if (buf) await buf.showCommit()
   }
 
-  public async browser(action = 'open', range?: [number, number]): Promise<void> {
+  public async browser(action = 'open', range?: [number, number], permalink = false): Promise<void> {
     let buf = await this.buffer
-    if (buf) await buf.browser(action, range)
+    if (buf) await buf.browser(action, range, permalink)
   }
 
   public async diffCached(): Promise<void> {

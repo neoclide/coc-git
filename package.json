@@ -56,6 +56,10 @@
         "command": "git.copyUrl"
       },
       {
+        "title": "Copy permalink of current line to clipboard, github url supported.",
+        "command": "git.copyPermalink"
+      },
+      {
         "title": "Show cached diff in preview window.",
         "command": "git.diffCached"
       },
@@ -94,14 +98,6 @@
           "type": "string",
           "default": "",
           "description": "Branch name for browserOpen and copyUrl."
-        },
-        "git.urlMode": {
-          "type": "string",
-          "default": "normal",
-          "enum": [
-            "normal",
-            "permalink"
-          ]
         },
         "git.urlFix": {
           "type": "object",

@@ -61,8 +61,6 @@ In your vim/neovim, run command:
 
 - `git.browserBranchName`: Branch name for browserOpen and copyUrl., default: `""`
 
-- `git.urlMode`: URL mode for browserOpen and copyUrl, you can set it to `"permalink"`. default: `"normal"`
-
 - `git.urlFix`: a object to configure the url style of copyUrl and browserOpen, make this two command support other git services like gitlab and gitea. default: `{}`
 
 - `git.issueFormat`: Formatting string for issue completion. Supported interpolation variables: %i - issue id. %r - repository name. %o - organization/owner name. %t - issue title. %b - issue body. %c - issue created at. %a - issue author. %u - issue url., default: `"#%i"`

@@ -481,11 +481,9 @@ export default class GitBuffer implements Disposable {
     window.showMessage('Not positioned on a conflict')
   }
 
-  public async browser(action = 'open', range?: [number, number]): Promise<void> {
+  public async browser(action = 'open', range?: [number, number], permalink = false): Promise<void> {
     let { nvim } = workspace
     let config = workspace.getConfiguration('git')
-
-    let mode = config.get<string>('urlMode', 'normal').trim()
     let head = (await this.repo.safeRun(['rev-parse', 'HEAD'])).trim()
     let branch = config.get<string>('browserBranchName', '').trim()
     if (!branch.length) {
@@ -531,9 +529,9 @@ export default class GitBuffer implements Disposable {
       let hostname = tmp.hostname
       let fix = "|"
       try {
-        fix = config.get<object>("urlFix")[hostname][mode == 'permalink' ? 1 : 0]
+        fix = config.get<object>("urlFix")[hostname][permalink ? 1 : 0]
       } catch (e) {}
-      let url = getUrl(fix, repoURL, mode == 'permalink' ? head : branch, this.relpath.replace(/\\\\/g, '/'), lines)
+      let url = getUrl(fix, repoURL, permalink ? head : branch, this.relpath.replace(/\\\\/g, '/'), lines)
       if (url) urls.push(url)
     }
     if (urls.length == 1) {
