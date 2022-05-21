@@ -536,7 +536,7 @@ export default class GitBuffer implements Disposable {
     }
     if (urls.length == 1) {
       if (action == 'open') {
-        nvim.call('coc#util#open_url', [urls[0]], true)
+        await workspace.openResource(urls[0])
       } else {
         nvim.command(`let @+ = '${urls[0]}'`, true)
         window.showMessage('Copied url to clipboard')
@@ -545,7 +545,7 @@ export default class GitBuffer implements Disposable {
       let idx = await window.showQuickpick(urls, 'Select url:')
       if (idx >= 0) {
         if (action == 'open') {
-          nvim.call('coc#util#open_url', [urls[idx]], true)
+          await workspace.openResource(urls[idx])
         } else {
           nvim.command(`let @+ = '${urls[idx]}'`, true)
           window.showMessage('Copied url to clipboard')
