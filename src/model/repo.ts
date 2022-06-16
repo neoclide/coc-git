@@ -21,7 +21,7 @@ export default class Repo {
    * Get staged info
    */
   public async getStagedChunks(relpath?: string): Promise<DiffChunks> {
-    let args = ['--no-pager', 'diff', '-p', '-U0', '--no-color', '--staged']
+    let args = ['--no-pager', 'diff', '--no-ext-diff', '-p', '-U0', '--no-color', '--staged']
     if (relpath) args.push(toUnixSlash(relpath))
     const result = await this.exec(args)
     if (!result.stdout) {
@@ -163,7 +163,7 @@ export default class Repo {
     const currentFile = path.join(os.tmpdir(), `coc-${uuid()}`)
     await util.promisify(fs.writeFile)(stagedFile, staged + '\n', 'utf8')
     await util.promisify(fs.writeFile)(currentFile, content, 'utf8')
-    let output = await getStdout(`git --no-pager diff -p -U0 --no-color ${shellescape(stagedFile)} ${shellescape(currentFile)}`)
+    let output = await getStdout(`git --no-pager diff --no-ext-diff -p -U0 --no-color ${shellescape(stagedFile)} ${shellescape(currentFile)}`)
     await util.promisify(fs.unlink)(stagedFile)
     await util.promisify(fs.unlink)(currentFile)
     if (!output) return []

@@ -43,7 +43,7 @@ export default class Gfiles extends BasicList {
     this.addAction('preview', async (item, context) => {
       let { root, sha, filepath, branch } = item.data
       if (!sha) return
-      let content = await runCommand(`git --no-pager diff ${branch} -- ${shellescape(filepath)}`, { cwd: root })
+      let content = await runCommand(`git --no-pager diff --no-ext-diff ${branch} -- ${shellescape(filepath)}`, { cwd: root })
       let lines = content.replace(/\n$/, '').split('\n')
       await this.preview({
         lines,
