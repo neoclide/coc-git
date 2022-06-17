@@ -94,7 +94,7 @@ export default class GStatus extends BasicList {
         }, context)
         return
       }
-      let args = ['--no-pager', 'diff']
+      let args = ['--no-pager', 'diff', '--no-ext-diff']
       if (index_symbol == 'M' && tree_symbol != 'M') {
         args.push('--cached')
       }
