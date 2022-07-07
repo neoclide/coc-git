@@ -77,6 +77,10 @@ export async function activate(context: ExtensionContext): Promise<ExtensionApi 
     await manager.showCommit()
   }, { sync: false }))
 
+  subscriptions.push(workspace.registerKeymap(['n'], 'git-showblamedoc', async () => {
+    await manager.showBlameDoc()
+  }, { sync: false }))
+
   subscriptions.push(commands.registerCommand('git.keepCurrent', async () => {
     await manager.keepCurrent()
   }))
@@ -135,6 +139,10 @@ export async function activate(context: ExtensionContext): Promise<ExtensionApi 
 
   subscriptions.push(commands.registerCommand('git.foldUnchanged', async () => {
     await manager.toggleFold()
+  }))
+
+  subscriptions.push(commands.registerCommand('git.showBlameDoc', async () => {
+    await manager.showBlameDoc()
   }))
 
   subscriptions.push(listManager.registerList(new GStatus(nvim, manager)))

@@ -74,6 +74,10 @@
       {
         "title": "Push code of current branch to remote",
         "command": "git.push"
+      },
+      {
+        "title": "Show git blame info in float or popup window",
+        "command": "git.showBlameDoc"
       }
     ],
     "configuration": {
