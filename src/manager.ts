@@ -240,6 +240,13 @@ export default class DocumentManager {
     if (buf) await buf.showCommit()
   }
 
+  public async showBlameDoc(): Promise<void> {
+    const { nvim } = this
+    let buf = await this.buffer
+    let line = await this.nvim.call('line', '.')
+    if (buf) await buf.showBlameDoc(line)
+  }
+
   public async browser(action = 'open', range?: [number, number], permalink = false): Promise<void> {
     let buf = await this.buffer
     if (buf) await buf.browser(action, range, permalink)

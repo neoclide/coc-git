@@ -256,6 +256,25 @@ export default class GitBuffer implements Disposable {
     }
   }
 
+  public async showBlameDoc(lnum: number): Promise<void> {
+    let infos = this.blameInfo
+    if (!infos) return
+    if (infos.length == 0) {
+      window.showMessage('File not indexed')
+    } else {
+      let info = infos.find(o => lnum >= o.startLnum && lnum <= o.endLnum)
+      if (info && info.author && info.author != 'Not Committed Yet') {
+        let blameText:string[] = []
+        blameText.push(`${info.author}, ${info.time}`)
+        blameText.push(`${info.summary}`)
+        blameText.push(`${info.sha.substring(0, 7)}`)
+        await this.showDoc(blameText.join('\n\n'), 'text')
+      } else {
+        window.showMessage('Not committed yet')
+      }
+    }
+  }
+
   private async diffDocument(force = false): Promise<void> {
     let { nvim } = workspace
     let revision = this.config.diffRevision
