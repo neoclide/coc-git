@@ -126,6 +126,9 @@ export default class DocumentManager {
         currentHlGroup: config.get<string>('conflict.current.hlGroup', 'DiffChange'),
         incomingHlGroup: config.get<string>('conflict.incoming.hlGroup', 'DiffAdd')
       },
+      gstatus: {
+        saveBeforeOpen: config.get<boolean>('gstatus.saveBeforeOpen', false)
+      },
       virtualTextSrcId: this.virtualTextSrcId,
       conflictSrcId: this.conflictSrcId
     }
@@ -134,6 +137,10 @@ export default class DocumentManager {
 
   private get enableGutters(): boolean {
     return this.config.enableGutters
+  }
+
+  public get gstatusSaveBeforeOpen(): boolean {
+    return this.config.gstatus.saveBeforeOpen
   }
 
   public get git(): Git {

@@ -312,6 +312,11 @@
           "default": "DiffAdd",
           "description": "Highlight group for the incoming version of a merge conflict."
         },
+        "git.gstatus.saveBeforeOpen": {
+          "type": "boolean",
+          "default": "false",
+          "description": "Auto save opened files before open list."
+        },
         "coc.source.issues.enable": {
           "type": "boolean",
           "default": true
