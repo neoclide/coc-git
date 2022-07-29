@@ -257,14 +257,14 @@ export default class GitBuffer implements Disposable {
   }
 
   public async showBlameDoc(lnum: number): Promise<void> {
-    let infos = this.blameInfo
-    if (!infos) return
-    if (infos.length == 0) {
+    let indexed = await this.repo.isIndexed(this.relpath)
+    if (!indexed) {
       window.showMessage('File not indexed')
     } else {
+      let infos = await this.getBlameInfo()
       let info = infos.find(o => lnum >= o.startLnum && lnum <= o.endLnum)
       if (info && info.author && info.author != 'Not Committed Yet') {
-        let blameText:string[] = []
+        let blameText: string[] = []
         blameText.push(`${info.author}, ${info.time}`)
         blameText.push(`${info.summary}`)
         blameText.push(`${info.sha.substring(0, 7)}`)

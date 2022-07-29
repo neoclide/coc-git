@@ -241,7 +241,6 @@ export default class DocumentManager {
   }
 
   public async showBlameDoc(): Promise<void> {
-    const { nvim } = this
     let buf = await this.buffer
     let line = await this.nvim.call('line', '.')
     if (buf) await buf.showBlameDoc(line)
