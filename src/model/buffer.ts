@@ -210,6 +210,31 @@ export default class GitBuffer implements Disposable {
     if (diff) {
       let content = diff.head + '\n' + diff.lines.join('\n')
       await this.showDoc(content, 'diff')
+    } else {
+      let chunks: StageChunk[]
+      try {
+        let stagedDiff = await this.repo.getStagedChunks(this.relpath)
+        chunks = Object.values(stagedDiff)[0]
+      } catch (e) {
+        return
+      }
+      if (!chunks.length) {
+        return
+      }
+      let adjust = 0
+      for (let diff of this.diffs) {
+        if (diff.end >= line) {
+          break
+        }
+        adjust -= diff.added.count
+        adjust += diff.removed.count
+      }
+      line = line + adjust
+      let chunk = chunks.find(o => o.add.lnum <= line && o.add.lnum + o.add.count >= line)
+      if (chunk) {
+        let content = 'Staged chagnes' + '\n' + chunk.lines.join('\n')
+        await this.showDoc(content, 'diff')
+      }
     }
   }
 

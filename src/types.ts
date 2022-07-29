@@ -40,6 +40,9 @@ export interface GitConfiguration {
   }
   virtualTextSrcId: number
   conflictSrcId: number
+  gstatus: {
+    saveBeforeOpen: boolean
+  }
 }
 
 export interface BlameInfo {

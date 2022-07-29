@@ -5,6 +5,7 @@ import Branches from './lists/branches'
 import Commits from './lists/commits'
 import Gfiles from './lists/gfiles'
 import GStatus from './lists/gstatus'
+import GChunks from './lists/gchunks'
 import Manager from './manager'
 import Git from './model/git'
 import Resolver from './model/resolver'
@@ -150,6 +151,7 @@ export async function activate(context: ExtensionContext): Promise<ExtensionApi 
   subscriptions.push(listManager.registerList(new Commits(nvim, manager)))
   subscriptions.push(listManager.registerList(new Bcommits(nvim, manager)))
   subscriptions.push(listManager.registerList(new Gfiles(nvim, manager)))
+  subscriptions.push(listManager.registerList(new GChunks(nvim, manager)))
   subscriptions.push(languages.registerCompletionItemProvider('semantic-commit', 'Commit', config.get<string[]>('semanticCommit.filetypes'), {
     provideCompletionItems: async (document, position): Promise<CompletionItem[]> => {
       if (position.line !== 0) {
