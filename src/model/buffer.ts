@@ -826,7 +826,11 @@ export default class GitBuffer implements Disposable {
   public async showDoc(content: string, filetype = 'diff'): Promise<void> {
     if (workspace.floatSupported) {
       let docs: Documentation[] = [{ content, filetype }]
-      await this.floatFactory.show(docs)
+      let floatConfig = {}
+      if(workspace.getConfiguration('hover').get('floatConfig', {})['border']) {
+        floatConfig = { border: [1,1,1,1] }
+      }
+      await this.floatFactory.show(docs, floatConfig)
     } else {
       const lines = content.split('\n')
       workspace.nvim.call('coc#util#preview_info', [lines, 'diff'], true)
