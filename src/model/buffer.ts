@@ -10,7 +10,6 @@ import { URL } from 'url'
 const signGroup = 'CocGit'
 
 export default class GitBuffer implements Disposable {
-
   private blameInfo: BlameInfo[] = []
   private diffs: Diff[] = []
   private conflicts: Conflict[] = []
