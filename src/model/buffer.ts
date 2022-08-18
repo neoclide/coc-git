@@ -1,4 +1,4 @@
-import { Disposable, Document, Mutex, Documentation, FloatFactory, OutputChannel, window, workspace } from 'coc.nvim'
+import { Disposable, Document, Mutex, Documentation, FloatFactory, FloatWinConfig, OutputChannel, window, workspace } from 'coc.nvim'
 import { format } from 'timeago.js'
 import { BlameInfo, ChangeType, Conflict, ConflictParseState, ConflictPart, Diff, FoldSettings, GitConfiguration, SignInfo, StageChunk } from '../types'
 import { createUnstagePatch, equals, getRepoUrl, getUrl, toUnixSlash } from '../util'
@@ -10,6 +10,7 @@ import { URL } from 'url'
 const signGroup = 'CocGit'
 
 export default class GitBuffer implements Disposable {
+
   private blameInfo: BlameInfo[] = []
   private diffs: Diff[] = []
   private conflicts: Conflict[] = []
@@ -826,11 +827,19 @@ export default class GitBuffer implements Disposable {
   public async showDoc(content: string, filetype = 'diff'): Promise<void> {
     if (workspace.floatSupported) {
       let docs: Documentation[] = [{ content, filetype }]
-      let floatConfig = {}
-      if(workspace.getConfiguration('hover').get('floatConfig', {})['border']) {
-        floatConfig = { border: [1,1,1,1] }
+      let floatWinConfig: FloatWinConfig = {}
+      let floatConfig = workspace.getConfiguration('hover').get('floatConfig', {})
+      for (let key of Object.keys(floatConfig)) {
+          console.log(key)
+          if (key == 'border' ) {
+            if (floatConfig.border) {
+              floatWinConfig.border = [1, 1, 1, 1]
+            }
+            continue
+          }
+          floatWinConfig[key] = floatConfig[key]
       }
-      await this.floatFactory.show(docs, floatConfig)
+      await this.floatFactory.show(docs, floatWinConfig)
     } else {
       const lines = content.split('\n')
       workspace.nvim.call('coc#util#preview_info', [lines, 'diff'], true)
