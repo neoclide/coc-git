@@ -290,6 +290,61 @@
           "default": false,
           "description": "Show commit in floating or popup window"
         },
+        "git.floatConfig.border": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable border in floating or popup window"
+        },
+        "git.floatConfig.rounded": {
+          "type": "boolean",
+          "default": true,
+          "description": "Use rounded borders in floating or popup window"
+        },
+        "git.floatConfig.highlight": {
+          "type": "string",
+          "default": "CocFloating",
+          "description": "Background highlight group of float window"
+        },
+        "git.floatConfig.title": {
+          "type": "string",
+          "default": "",
+          "description": "Title text used by float window"
+        },
+        "git.floatConfig.borderhighlight": {
+          "type": "string",
+          "default": "CocFloating",
+          "description": "Border highlight group of float window"
+        },
+        "git.floatConfig.close": {
+          "type": "boolean",
+          "default": false,
+          "description": "Draw close icon in floating or popup window"
+        },
+        "git.floatConfig.maxHeight": {
+          "type": "number",
+          "default": 100,
+          "description": "Maximum heigh of float window including border"
+        },
+        "git.floatConfig.maxWidth": {
+          "type": "number",
+          "default": 100,
+          "description": "Maximum width of float window including border"
+        },
+        "git.floatConfig.winblend": {
+          "type": "number",
+          "default": 0,
+          "description": "Set 'winblend' option of window, neovim only"
+        },
+        "git.floatConfig.focusable": {
+          "type": "boolean",
+          "default": false,
+          "description": "Set to false to make window not focusable, neovim only"
+        },
+        "git.floatConfig.shadow": {
+          "type": "boolean",
+          "default": false,
+          "description": "Set to true to enable shadow, neovim only"
+        },
         "git.gitlab.hosts": {
           "type": "array",
           "default": [
