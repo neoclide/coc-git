@@ -1,4 +1,4 @@
-import { Disposable, Document, Mutex, Documentation, FloatFactory, FloatWinConfig, OutputChannel, window, workspace } from 'coc.nvim'
+import { Disposable, Document, Mutex, Documentation, FloatFactory, OutputChannel, window, workspace } from 'coc.nvim'
 import { format } from 'timeago.js'
 import { BlameInfo, ChangeType, Conflict, ConflictParseState, ConflictPart, Diff, FoldSettings, GitConfiguration, SignInfo, StageChunk } from '../types'
 import { createUnstagePatch, equals, getRepoUrl, getUrl, toUnixSlash } from '../util'
