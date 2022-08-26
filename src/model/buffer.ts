@@ -40,6 +40,9 @@ export default class GitBuffer implements Disposable {
       this.hasConflicts = hasConflicts
       this.refresh()
     })
+    this.floatFactory = window.createFloatFactory(
+      Object.assign({modes: ['n']}, this.config.floatConfig)
+    )
   }
 
   public get cachedDiffs(): Diff[] {
@@ -826,19 +829,7 @@ export default class GitBuffer implements Disposable {
   public async showDoc(content: string, filetype = 'diff'): Promise<void> {
     if (workspace.floatSupported) {
       let docs: Documentation[] = [{ content, filetype }]
-      let floatWinConfig: FloatWinConfig = {}
-      let floatConfig = workspace.getConfiguration('hover').get('floatConfig', {})
-      for (let key of Object.keys(floatConfig)) {
-          console.log(key)
-          if (key == 'border' ) {
-            if (floatConfig.border) {
-              floatWinConfig.border = [1, 1, 1, 1]
-            }
-            continue
-          }
-          floatWinConfig[key] = floatConfig[key]
-      }
-      await this.floatFactory.show(docs, floatWinConfig)
+      await this.floatFactory.show(docs)
     } else {
       const lines = content.split('\n')
       workspace.nvim.call('coc#util#preview_info', [lines, 'diff'], true)
