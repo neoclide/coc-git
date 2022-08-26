@@ -126,19 +126,7 @@ export default class DocumentManager {
         currentHlGroup: config.get<string>('conflict.current.hlGroup', 'DiffChange'),
         incomingHlGroup: config.get<string>('conflict.incoming.hlGroup', 'DiffAdd')
       },
-      floatConfig: {
-        border: config.get<boolean>('floatConfig.border', true),
-        rounded: config.get<boolean>('floatConfig.rounded', true),
-        highlight: config.get<string>('floatConfig.highlight', "CocFloating"),
-        title: config.get<string>('floatConfig.title', ""),
-        borderhighlight: config.get<string>('floatConfig.borderhighlight', "CocFloating"),
-        close: config.get<boolean>('floatConfig.close', false),
-        maxHeight: config.get<number>('floatConfig.maxHeight', 100),
-        maxWidth: config.get<number>('floatConfig.maxWidth', 100),
-        winblend: config.get<number>('floatConfig.winblend', 0),
-        focusable: config.get<boolean>('floatConfig.focusable', false),
-        shadow: config.get<boolean>('floatConfig.shadow', false),
-      },
+      floatConfig: config.get<any>('floatConfig', {}),
       gstatus: {
         saveBeforeOpen: config.get<boolean>('gstatus.saveBeforeOpen', false)
       },

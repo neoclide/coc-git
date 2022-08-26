@@ -290,60 +290,68 @@
           "default": false,
           "description": "Show commit in floating or popup window"
         },
-        "git.floatConfig.border": {
-          "type": "boolean",
-          "default": true,
-          "description": "Enable border in floating or popup window"
-        },
-        "git.floatConfig.rounded": {
-          "type": "boolean",
-          "default": true,
-          "description": "Use rounded borders in floating or popup window"
-        },
-        "git.floatConfig.highlight": {
-          "type": "string",
-          "default": "CocFloating",
-          "description": "Background highlight group of float window"
-        },
-        "git.floatConfig.title": {
-          "type": "string",
-          "default": "",
-          "description": "Title text used by float window"
-        },
-        "git.floatConfig.borderhighlight": {
-          "type": "string",
-          "default": "CocFloating",
-          "description": "Border highlight group of float window"
-        },
-        "git.floatConfig.close": {
-          "type": "boolean",
-          "default": false,
-          "description": "Draw close icon in floating or popup window"
-        },
-        "git.floatConfig.maxHeight": {
-          "type": "number",
-          "default": 100,
-          "description": "Maximum heigh of float window including border"
-        },
-        "git.floatConfig.maxWidth": {
-          "type": "number",
-          "default": 100,
-          "description": "Maximum width of float window including border"
-        },
-        "git.floatConfig.winblend": {
-          "type": "number",
-          "default": 0,
-          "description": "Set 'winblend' option of window, neovim only"
-        },
-        "git.floatConfig.focusable": {
-          "type": "boolean",
-          "default": false,
-          "description": "Set to false to make window not focusable, neovim only"
-        },
-        "git.floatConfig.shadow": {
-          "type": "boolean",
-          "default": false,
-          "description": "Set to true to enable shadow, neovim only"
+        "git.floatConfig": {
+          "type": "object",
+          "description": "Configure style of float window/popup, extends from floatFactory.floatConfig",
+          "additionalProperties": false,
+          "properties": {
+            "border": {
+              "type": "boolean",
+              "default": false,
+              "description": "Set to true to use borders."
+            },
+            "rounded": {
+              "type": "boolean",
+              "default": false,
+              "description": "Use rounded borders when border is true."
+            },
+            "highlight": {
+              "type": "string",
+              "default": "CocFloating",
+              "description": "Background highlight group of float window."
+            },
+            "title": {
+              "type": "string",
+              "default": "",
+              "description": "Title used by float window."
+            },
+            "borderhighlight": {
+              "type": "string",
+              "default": "CocFloating",
+              "description": "Border highlight group of float window."
+            },
+            "close": {
+              "type": "boolean",
+              "default": false,
+              "description": "Set to true to draw close icon"
+            },
+            "maxWidth": {
+              "type": "integer",
+              "description": "Maximum width of float window, include border."
+            },
+            "maxHeight": {
+              "type": "integer",
+              "minimum": 2,
+              "description": "Maximum height of float window, include border."
+            },
+            "focusable": {
+              "type": "boolean",
+              "default": true,
+              "description": "Enable focus by user actions (wincmds, mouse events), neovim only."
+            },
+            "shadow": {
+              "type": "boolean",
+              "default": false,
+              "description": "Drop shadow effect by blending with the background, neovim only."
+            },
+            "winblend": {
+              "type": "integer",
+              "default": 0,
+              "minimum": 0,
+              "maximum": 100,
+              "description": "Enables pseudo-transparency by set 'winblend' option of window, neovim only."
+            }
+          }
         },
         "git.gitlab.hosts": {
           "type": "array",

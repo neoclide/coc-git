@@ -1,11 +1,11 @@
-import { Disposable, Document, Mutex, Documentation, FloatFactory, OutputChannel, window, workspace } from 'coc.nvim'
+import { Disposable, Document, Documentation, FloatFactory, Mutex, OutputChannel, window, workspace } from 'coc.nvim'
+import debounce from 'debounce'
 import { format } from 'timeago.js'
+import { URL } from 'url'
 import { BlameInfo, ChangeType, Conflict, ConflictParseState, ConflictPart, Diff, FoldSettings, GitConfiguration, SignInfo, StageChunk } from '../types'
 import { createUnstagePatch, equals, getRepoUrl, getUrl, toUnixSlash } from '../util'
-import debounce from 'debounce'
 import Git from './git'
 import Repo from './repo'
-import { URL } from 'url'
 
 const signGroup = 'CocGit'
 
@@ -28,7 +28,7 @@ export default class GitBuffer implements Disposable {
     public readonly repo: Repo,
     private git: Git,
     private channel: OutputChannel,
-    private floatFactory: FloatFactory
+    private floatFactory: FloatFactory | undefined
   ) {
     this.mutex = new Mutex()
     this.refresh = debounce(() => {
@@ -40,9 +40,6 @@ export default class GitBuffer implements Disposable {
       this.hasConflicts = hasConflicts
       this.refresh()
     })
-    this.floatFactory = window.createFloatFactory(
-      Object.assign({modes: ['n']}, this.config.floatConfig)
-    )
   }
 
   public get cachedDiffs(): Diff[] {
@@ -827,9 +824,9 @@ export default class GitBuffer implements Disposable {
   }
 
   public async showDoc(content: string, filetype = 'diff'): Promise<void> {
-    if (workspace.floatSupported) {
+    if (this.floatFactory) {
       let docs: Documentation[] = [{ content, filetype }]
-      await this.floatFactory.show(docs)
+      await this.floatFactory.show(docs, this.config.floatConfig)
     } else {
       const lines = content.split('\n')
       workspace.nvim.call('coc#util#preview_info', [lines, 'diff'], true)
