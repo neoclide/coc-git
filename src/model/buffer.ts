@@ -829,7 +829,7 @@ export default class GitBuffer implements Disposable {
       await this.floatFactory.show(docs, this.config.floatConfig)
     } else {
       const lines = content.split('\n')
-      workspace.nvim.call('coc#util#preview_info', [lines, 'diff'], true)
+      workspace.nvim.call('coc#ui#preview_info', [lines, 'diff'], true)
     }
   }
 
