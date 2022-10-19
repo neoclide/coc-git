@@ -117,6 +117,8 @@ In your vim/neovim, run command:
 
 - `git.showCommitInFloating`: Show commit in floating or popup window, default: `false`
 
+- `git.floatConfig`: Configure style of float window/popup, extends from floatFactory.floatConfig
+
 - `git.gitlab.hosts`: Custom GitLab hosts, default: `["gitlab.com"]`
 
 - `git.conflict.enabled`: Enable highlight conflict lines, default: `true`
