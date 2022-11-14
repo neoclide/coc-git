@@ -143,7 +143,7 @@ export default class Repo {
     }
   }
 
-  public async getDiff(relFilepath: string, content: string, revision = ''): Promise<Diff[]> {
+  public async getDiff(relFilepath: string, content: string, revision = '', encoding = 'utf8'): Promise<Diff[]> {
     if (relFilepath.startsWith(`.git${path.sep}`)) return
     let fullpath = path.join(this.root, relFilepath)
     if (!fs.existsSync(fullpath)) return
@@ -152,7 +152,7 @@ export default class Repo {
     try {
       let indexed = await this.isIndexed(relFilepath)
       if (!indexed) return
-      let res = await this.exec(['--no-pager', 'show', `${revision}:${toUnixSlash(relFilepath)}`])
+      let res = await this.exec(['--no-pager', 'show', `${revision}:${toUnixSlash(relFilepath)}`], { encoding })
       if (!res.stdout) return
       staged = res.stdout.replace(/\r?\n$/, '').split(/\r?\n/).join('\n')
     } catch (e) {
