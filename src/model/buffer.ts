@@ -18,6 +18,7 @@ export default class GitBuffer implements Disposable {
   private hasConflicts = false
   private foldEnabled = false
   private foldSettings: FoldSettings
+  private encoding: string | undefined
   private mutex: Mutex
   private _disposed = false
   public refresh: Function & { clear(): void }
@@ -39,6 +40,9 @@ export default class GitBuffer implements Disposable {
     this.repo.hasConflicts(relpath).then(hasConflicts => {
       this.hasConflicts = hasConflicts
       this.refresh()
+    })
+    this.doc.buffer.getOption('fileencoding').then(encoding => {
+      this.encoding = encoding as string
     })
   }
 
@@ -306,7 +310,7 @@ export default class GitBuffer implements Disposable {
     const { bufnr } = this.doc
     let content = this.doc.content
     let eol = this.doc.textDocument['eol']
-    const diffs = await this.repo.getDiff(this.relpath, eol ? content : content + '\n', revision)
+    const diffs = await this.repo.getDiff(this.relpath, eol ? content : content + '\n', revision, this.encoding || 'utf8')
     if (diffs == null) {
       if (this.currentSigns?.length > 0) {
         this.currentSigns = []
