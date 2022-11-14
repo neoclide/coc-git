@@ -304,7 +304,9 @@ export default class GitBuffer implements Disposable {
     let { nvim } = workspace
     let revision = this.config.diffRevision
     const { bufnr } = this.doc
-    const diffs = await this.repo.getDiff(this.relpath, this.doc.content, revision)
+    let content = this.doc.content
+    let eol = this.doc.textDocument['eol']
+    const diffs = await this.repo.getDiff(this.relpath, eol ? content : content + '\n', revision)
     if (diffs == null) {
       if (this.currentSigns?.length > 0) {
         this.currentSigns = []
