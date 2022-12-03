@@ -9,7 +9,7 @@
     "git"
   ],
   "engines": {
-    "coc": "^0.0.80"
+    "coc": "^0.0.82"
   },
   "repository": {
     "type": "git",
@@ -138,12 +138,12 @@
         "git.virtualTextPrefix": {
           "type": "string",
           "default": "     ",
-          "description": "Prefix of git blame infomation to virtual text, require virtual text feature of neovim."
+          "description": "Prefix of git blame information to virtual text, require virtual text feature of vim/neovim."
         },
         "git.addGBlameToVirtualText": {
           "type": "boolean",
           "default": false,
-          "description": "Add git blame information to virtual text, require virtual text feature of neovim."
+          "description": "Add git blame information to virtual text, require virtual text feature of vim/neovim."
         },
         "git.addGBlameToBufferVar": {
           "type": "boolean",
@@ -427,7 +427,7 @@
     "@types/node": "^12.12.0",
     "@types/uuid": "^7.0.1",
     "@types/which": "^1.3.2",
-    "coc.nvim": "^0.0.83-next.2",
+    "coc.nvim": "^0.0.83-next.14",
     "colors": "^1.4.0",
     "debounce": "^1.2.0",
     "esbuild": "^0.8.29",

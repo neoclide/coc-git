@@ -236,7 +236,7 @@ export default class GitBuffer implements Disposable {
       line = line + adjust
       let chunk = chunks.find(o => o.add.lnum <= line && o.add.lnum + o.add.count >= line)
       if (chunk) {
-        let content = 'Staged chagnes' + '\n' + chunk.lines.join('\n')
+        let content = 'Staged changes' + '\n' + chunk.lines.join('\n')
         await this.showDoc(content, 'diff')
       }
     }
@@ -262,7 +262,7 @@ export default class GitBuffer implements Disposable {
     let buffer = nvim.createBuffer(this.doc.bufnr)
     let hide_blame = await nvim.getVar("coc_git_hide_blame_virtual_text")
     if (hide_blame) {
-      await buffer.request('nvim_buf_clear_namespace', [virtualTextSrcId, 0, -1])
+      await buffer.clearNamespace(virtualTextSrcId)
     } else {
       if (addGBlameToBufferVar) {
         nvim.pauseNotification()
@@ -272,15 +272,10 @@ export default class GitBuffer implements Disposable {
       }
       if (addGBlameToVirtualText) {
         const prefix = this.config.virtualTextPrefix
-        await buffer.clearNamespace(virtualTextSrcId)
-        if (workspace.has('nvim-0.6.0')) {
-          await buffer.setExtMark(virtualTextSrcId, lnum - 1, 0, {
-            hl_mode: 'combine',
-            virt_text: [[prefix + blameText, 'CocCodeLens']]
-          })
-        } else {
-          await buffer.setVirtualText(virtualTextSrcId, lnum - 1, [[prefix + blameText, 'CocCodeLens']])
-        }
+        nvim.pauseNotification()
+        buffer.clearNamespace(virtualTextSrcId)
+        buffer.setVirtualText(virtualTextSrcId, lnum - 1, [[prefix + blameText, 'CocCodeLens']])
+        nvim.resumeNotification(true, true)
       }
     }
   }
@@ -882,7 +877,7 @@ export default class GitBuffer implements Disposable {
       buffer.setVar('coc_git_blame', '', true)
     }
     if (this.config.addGBlameToVirtualText) {
-      buffer.notify('nvim_buf_clear_namespace', [this.config.virtualTextSrcId, 0, -1])
+      buffer.clearNamespace(this.config.virtualTextSrcId)
     }
     nvim.resumeNotification(false, true)
     this._disposed = true

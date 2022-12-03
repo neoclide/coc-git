@@ -92,7 +92,7 @@ export default class DocumentManager {
       diffRevision: config.get<string>('diffRevision', ''),
       issueFormat: config.get<string>('issueFormat', '#%i'),
       virtualTextPrefix: config.get<string>('virtualTextPrefix', '     '),
-      addGBlameToVirtualText: workspace.nvim.hasFunction('nvim_buf_set_virtual_text') && config.get<boolean>('addGBlameToVirtualText', false),
+      addGBlameToVirtualText: config.get<boolean>('addGBlameToVirtualText', false),
       addGBlameToBufferVar: config.get<boolean>('addGBlameToBufferVar', false),
       blameUseRealTime: config.get<boolean>('blameUseRealTime', false),
       enableGutters: config.get<boolean>('enableGutters', true),

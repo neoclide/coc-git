@@ -6,7 +6,7 @@ import util from 'util'
 import Git, { IExecutionResult, SpawnOptions } from './git'
 import { ChangeType, Decorator, Diff, DiffChunks, StageChunk } from '../types'
 import { getStdout, shellescape, toUnixSlash } from '../util'
-import uuid = require('uuid/v4')
+import { v4 as uuid } from 'uuid'
 
 export default class Repo {
   private userName: string | undefined

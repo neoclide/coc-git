@@ -6,13 +6,6 @@ Git integration of [coc.nvim](https://github.com/neoclide/coc.nvim).
 use plugin like [vim-fugitive](https://github.com/tpope/vim-fugitive) at the
 same time.
 
-## Supporting
-
-If you like my extension, consider supporting me on Patreon or PayPal:
-
-<a href="https://www.patreon.com/chemzqm"><img src="https://c5.patreon.com/external/logo/become_a_patron_button.png" alt="Patreon donate button" /> </a>
-<a href="https://www.paypal.com/paypalme/chezqm"><img src="https://werwolv.net/assets/paypal_banner.png" alt="PayPal donate button" /> </a>
-
 ## Install
 
 In your vim/neovim, run command:
@@ -265,7 +258,14 @@ Multiple repositories can be specified using comma separation, like this: `githu
 
 Q: Virtual text not working.
 
-A: Make sure your neovim support virtual text by command `:echo exists('*nvim_buf_set_virtual_text')`.
+A: Make sure your neovim/vim support virtual text by command `:echo has('nvim-0.5.0') || has('patch-9.0.0067')`.
+
+## Supporting
+
+If you like my extension, consider supporting me on Patreon or PayPal:
+
+<a href="https://www.patreon.com/chemzqm"><img src="https://c5.patreon.com/external/logo/become_a_patron_button.png" alt="Patreon donate button" /> </a>
+<a href="https://www.paypal.com/paypalme/chezqm"><img src="https://werwolv.net/assets/paypal_banner.png" alt="PayPal donate button" /> </a>
 
 ## License
 
