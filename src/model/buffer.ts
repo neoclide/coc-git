@@ -262,7 +262,7 @@ export default class GitBuffer implements Disposable {
     let buffer = nvim.createBuffer(this.doc.bufnr)
     let hide_blame = await nvim.getVar("coc_git_hide_blame_virtual_text")
     if (hide_blame) {
-      await buffer.clearNamespace(virtualTextSrcId)
+      buffer.clearNamespace(virtualTextSrcId)
     } else {
       if (addGBlameToBufferVar) {
         nvim.pauseNotification()

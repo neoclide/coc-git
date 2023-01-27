@@ -86,26 +86,31 @@
         "git.command": {
           "type": "string",
           "default": "git",
+          "scope": "application",
           "description": "Command for git, could be absolute path of git executable."
         },
         "git.remoteName": {
           "type": "string",
           "default": "origin",
+          "scope": "window",
           "description": "Remote name for fetch github issues."
         },
         "git.browserRemoteName": {
           "type": "string",
           "default": "",
+          "scope": "window",
           "description": "Remote name for browserOpen and copyUrl."
         },
         "git.browserBranchName": {
           "type": "string",
           "default": "",
+          "scope": "window",
           "description": "Branch name for browserOpen and copyUrl."
         },
         "git.urlFix": {
           "type": "object",
           "default": {},
+          "scope": "application",
           "examples": [
             {
               "gitlab.org": [
@@ -128,76 +133,91 @@
         "git.diffRevision": {
           "type": "string",
           "default": "",
+          "scope": "window",
           "description": "Revision used for git diff used by gutters, default is current HEAD."
         },
         "git.issueFormat": {
           "type": "string",
+          "scope": "application",
           "default": "#%i",
           "description": "Formatting string for issue completion. Supported interpolation variables: %i - issue id. %r - repository name. %o - organization/owner name. %t - issue title. %b - issue body. %c - issue created at. %a - issue author. %u - issue url."
         },
         "git.virtualTextPrefix": {
           "type": "string",
           "default": "     ",
+          "scope": "application",
           "description": "Prefix of git blame information to virtual text, require virtual text feature of vim/neovim."
         },
         "git.addGBlameToVirtualText": {
           "type": "boolean",
           "default": false,
+          "scope": "window",
           "description": "Add git blame information to virtual text, require virtual text feature of vim/neovim."
         },
         "git.addGBlameToBufferVar": {
           "type": "boolean",
           "default": false,
+          "scope": "window",
           "description": "Add git blame information to b:coc_git_blame."
         },
         "git.blameUseRealTime": {
           "type": "boolean",
           "default": false,
+          "scope": "window",
           "description": "use real time in git blame info"
         },
         "git.branchCharacter": {
           "type": "string",
           "default": "",
+          "scope": "application",
           "description": "Branch character used with g:coc_git_status"
         },
         "git.changedDecorator": {
           "type": "string",
           "default": "*",
+          "scope": "application",
           "description": "Git changed decorator used with g:coc_git_status"
         },
         "git.conflictedDecorator": {
           "type": "string",
           "default": "x",
+          "scope": "application",
           "description": "Git conflicted decorator used with g:coc_git_status"
         },
         "git.stagedDecorator": {
           "type": "string",
           "default": "●",
+          "scope": "application",
           "description": "Git staged decorator used with g:coc_git_status"
         },
         "git.untrackedDecorator": {
           "type": "string",
           "default": "…",
+          "scope": "application",
           "description": "Git untracked decorator used with g:coc_git_status"
         },
         "git.enableGlobalStatus": {
           "type": "boolean",
           "default": true,
+          "scope": "window",
           "description": "Enable global g:coc_git_status."
         },
         "git.enableGutters": {
           "type": "boolean",
           "default": true,
+          "scope": "window",
           "description": "Enable gutters in sign column."
         },
         "git.realtimeGutters": {
           "type": "boolean",
           "default": true,
+          "scope": "window",
           "description": "Update gutters in realtime, default: true."
         },
         "git.signPriority": {
           "type": "number",
           "default": 10,
+          "scope": "application",
           "description": "Priority of sign gutters, default to 10."
         },
         "git.pushArguments": {
@@ -207,6 +227,7 @@
           ],
           "default": null,
           "description": "Default arguments used for git.pushCode command, ex: [\"--force-with-lease\"]",
+          "scope": "window",
           "items": {
             "type": "string"
           }
@@ -214,51 +235,61 @@
         "git.changedSign.text": {
           "type": "string",
           "default": "~",
+          "scope": "application",
           "description": "Text of changed sign."
         },
         "git.changedSign.hlGroup": {
           "type": "string",
           "default": "DiffChange",
+          "scope": "application",
           "description": "Highlight group for changed sign."
         },
         "git.addedSign.text": {
           "type": "string",
           "default": "+",
+          "scope": "application",
           "description": "Text of added sign."
         },
         "git.addedSign.hlGroup": {
           "type": "string",
           "default": "DiffAdd",
+          "scope": "application",
           "description": "Highlight group for added sign."
         },
         "git.removedSign.text": {
           "type": "string",
           "default": "_",
+          "scope": "application",
           "description": "Text of removed sign."
         },
         "git.removedSign.hlGroup": {
           "type": "string",
           "default": "DiffDelete",
+          "scope": "application",
           "description": "Highlight group for removed sign."
         },
         "git.topRemovedSign.text": {
           "type": "string",
           "default": "‾",
+          "scope": "application",
           "description": "Text of top removed sign."
         },
         "git.topRemovedSign.hlGroup": {
           "type": "string",
           "default": "DiffDelete",
+          "scope": "application",
           "description": "Highlight group for top removed sign."
         },
         "git.changeRemovedSign.text": {
           "type": "string",
           "default": "≃",
+          "scope": "application",
           "description": "Text of change removed sign."
         },
         "git.changeRemovedSign.hlGroup": {
           "type": "string",
           "default": "DiffChange",
+          "scope": "application",
           "description": "Highlight group for change removed sign."
         },
         "git.semanticCommit.filetypes": {
@@ -270,6 +301,7 @@
             "gitcommit",
             "gina-commit"
           ],
+          "scope": "application",
           "description": "Enabled filetypes",
           "items": {
             "type": "string"
@@ -278,22 +310,26 @@
         "git.semanticCommit.scope": {
           "type": "boolean",
           "default": true,
+          "scope": "application",
           "description": "Commit message with scope field"
         },
         "git.splitWindowCommand": {
           "type": "string",
           "default": "above sp",
+          "scope": "application",
           "description": "Command used when split new window for show commit."
         },
         "git.showCommitInFloating": {
           "type": "boolean",
           "default": false,
+          "scope": "application",
           "description": "Show commit in floating or popup window"
         },
         "git.floatConfig": {
           "type": "object",
           "description": "Configure style of float window/popup, extends from floatFactory.floatConfig",
           "additionalProperties": false,
+          "scope": "application",
           "properties": {
             "border": {
               "type": "boolean",
@@ -355,6 +391,7 @@
         },
         "git.gitlab.hosts": {
           "type": "array",
+          "scope": "window",
           "default": [
             "gitlab.com"
           ],
@@ -362,26 +399,31 @@
         },
         "git.conflict.enabled": {
           "type": "boolean",
+          "scope": "application",
           "default": true,
           "description": "Enable highlight conflict lines."
         },
         "git.conflict.current.hlGroup": {
           "type": "string",
           "default": "DiffChange",
+          "scope": "application",
           "description": "Highlight group for the current version of a merge conflict."
         },
         "git.conflict.incoming.hlGroup": {
           "type": "string",
           "default": "DiffAdd",
+          "scope": "application",
           "description": "Highlight group for the incoming version of a merge conflict."
         },
         "git.gstatus.saveBeforeOpen": {
           "type": "boolean",
           "default": "false",
+          "scope": "application",
           "description": "Auto save opened files before open list."
         },
         "coc.source.issues.enable": {
           "type": "boolean",
+          "scope": "application",
           "default": true
         },
         "coc.source.issues.triggerCharacters": {
@@ -389,16 +431,19 @@
           "default": [
             "#"
           ],
+          "scope": "application",
           "items": {
             "type": "string"
           }
         },
         "coc.source.issues.priority": {
           "type": "integer",
+          "scope": "application",
           "default": 99
         },
         "coc.source.issues.shortcut": {
           "type": "string",
+          "scope": "application",
           "default": "[I]"
         },
         "coc.source.issues.filetypes": {
@@ -411,6 +456,7 @@
             "gina-commit"
           ],
           "description": "Enabled filetypes",
+          "scope": "application",
           "items": {
             "type": "string"
           }
