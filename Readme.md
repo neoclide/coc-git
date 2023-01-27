@@ -133,6 +133,9 @@ if your have highlight groups defined for vim-gitgutter, you can use:
 "git.changeRemovedSign.hlGroup": "GitGutterChangeDelete",
 ```
 
+When you have `git.addGBlameToVirtualText` enabled, use command
+`let g:coc_git_hide_blame_virtual_text = !get(g:, 'coc_git_hide_blame_virtual_text', 0)` to dynamic toggle virtual text.
+
 ## Usage
 
 ### Statusline integration
