@@ -72,7 +72,7 @@ export default class Branches implements IList {
       return
     }
     let result = await this.manager.git.exec(root, ['branch', '--no-color', ...context.args])
-    let output = result.stdout.trim()
+    let output = result.stdout
     if (output == null) return
     output = output.replace(/\s+$/, '')
     for (let line of output.split(/\r?\n/)) {
