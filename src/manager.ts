@@ -4,7 +4,7 @@ import GitBuffer from './model/buffer'
 import Git from './model/git'
 import Service from './model/service'
 import GitStatus from './model/status'
-import { ConflictPart, Diff, GitConfiguration } from './types'
+import { ConflictPart, Diff, DiffCategory, GitConfiguration } from './types'
 
 export default class DocumentManager {
   private buffers: Map<number, GitBuffer> = new Map()
@@ -310,6 +310,17 @@ export default class DocumentManager {
 
   public getBuffer(bufnr: number): GitBuffer | undefined {
     return this.buffers.get(bufnr)
+  }
+
+  public async getDiffAll(category: DiffCategory): Promise<Map<string, Diff[]>> {
+    let bufnr = await workspace.nvim.call('bufnr', '%')
+    let root = await this.resolveGitRootFromBufferOrCwd(bufnr)
+    if (!root) {
+      window.showMessage(`not belongs to git repository.`, 'warning')
+      return null
+    }
+    let repo = this.service.getRepoFromRoot(root)
+    return repo.getDiffAll(category)
   }
 
   public dispose(): void {

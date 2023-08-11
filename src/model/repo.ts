@@ -4,7 +4,7 @@ import os from 'os'
 import path from 'path'
 import util from 'util'
 import Git, { IExecutionResult, SpawnOptions } from './git'
-import { ChangeType, Decorator, Diff, DiffChunks, StageChunk } from '../types'
+import { ChangeType, Decorator, Diff, DiffCategory, DiffChunks, StageChunk } from '../types'
 import { getStdout, shellescape, toUnixSlash } from '../util'
 import { v4 as uuid } from 'uuid'
 
@@ -168,7 +168,52 @@ export default class Repo {
     await util.promisify(fs.unlink)(currentFile)
     if (!output) return []
     this.channel.appendLine(`> git diff ${relFilepath}`)
-    return parseDiff(output)
+    // split output into lines and delete trailing empty line
+    const lines = output.trim().split('\n')
+    return parseDiff(lines)
+  }
+
+  public async getDiffAll(category: DiffCategory): Promise<Map<string, Diff[]>> {
+    let diffGroups: Map<string, Diff[]> = new Map()
+    let args: string = ''
+    if (category === DiffCategory.All) {
+      args = 'HEAD'
+    } else if (category === DiffCategory.Staged) {
+      args = '--cached'
+    } else {
+      args = ''
+    }
+    let output = await getStdout(`git --no-pager diff --no-ext-diff -p -U0 --no-color ${args}`)
+    if (!output) return diffGroups
+
+    /* Split diff output into lines and group by filename */ 
+    const lines = output.trim().split('\n')
+    let lineGroups: Map<string, string[]> = new Map()
+    let file: string = null
+    for (const line of lines) {
+      if (line.startsWith('diff --git')) {
+        let ms = line.match(/diff\s--git\sa\/(.*)\sb\//)
+        if (ms) {
+          file = ms[1]
+        } else {
+          file = null
+        }
+      }
+      if (file) {
+        if (!lineGroups.has(file)) {
+          lineGroups.set(file, [])
+        }
+        lineGroups.get(file).push(line)
+      }
+    }
+
+    for (const [file, lines] of lineGroups) {
+      let diffs = parseDiff(lines)
+      if (diffs) {
+        diffGroups.set(file, diffs)
+      }
+    }
+    return diffGroups
   }
 
   public async isIgnored(relativePath: string): Promise<boolean> {
@@ -214,9 +259,9 @@ export default class Repo {
   }
 }
 
-export function parseDiff(diffStr: string): Diff[] {
-  // split to lines and delete the first four lines and the last '\n'
-  const allLines = diffStr.split('\n').slice(4, -1)
+export function parseDiff(diffLines: string[]): Diff[] {
+  // delete the first four lines
+  const allLines = diffLines.slice(4)
   const diffs: Diff[] = []
 
   let diff: Diff = null
