@@ -166,7 +166,7 @@ export default function addSource(context: ExtensionContext, resolver: Resolver)
   }
 
   async function loadIssues(root: string): Promise<Issue[]> {
-    let config = workspace.getConfiguration('git')
+    let config = workspace.getConfiguration('git', root)
     const issueSources = (await safeRun(`git config --get coc-git.issuesources`, { cwd: root }) || '').trim()
     if (issueSources) {
       return Array.prototype.concat.apply([],
@@ -181,7 +181,7 @@ export default function addSource(context: ExtensionContext, resolver: Resolver)
     }
 
     let remoteName = config.get<string>('remoteName', 'origin')
-    let res = await safeRun(`git remote get-url ${remoteName}`, { cwd: root })
+    let res = await safeRun(`git config --get remote.${remoteName}.url`, { cwd: root })
     res = res.trim()
     if (res.indexOf('github.com') > 0) {
       const organizationNameAndRepoName = getOrganizationNameAndRepoNameFromGitHubRemoteUrl(res)

@@ -570,7 +570,7 @@ export default class GitBuffer implements Disposable {
 
     let urls: string[] = []
     for (let name of names) {
-      let uri = await this.repo.safeRun(['remote', 'get-url', name])
+      let uri = await this.repo.safeRun(['config', '--get', `remote.${name}.url`])
       if (!uri.length) continue
       let repoURL = getRepoUrl(uri)
       let tmp = new URL(repoURL)
