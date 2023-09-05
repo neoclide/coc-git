@@ -412,6 +412,9 @@ export default class GitBuffer implements Disposable {
       let info: BlameInfo
       for (let line of r.stdout.trim().split(/\r?\n/)) {
         line = line.trim()
+        if (line.startsWith('External file (--contents)')) {
+          line = 'Not committed yet.'
+        }
         let ms = line.match(/^([A-Za-z0-9]+)\s(\d+)\s(\d+)\s(\d+)/)
         if (ms) {
           let startLnum = parseInt(ms[3], 10)
