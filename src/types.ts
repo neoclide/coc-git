@@ -114,6 +114,12 @@ export interface Diff {
   lines: string[]
 }
 
+export enum DiffCategory {
+  All,
+  Staged,
+  Unstaged,
+}
+
 export interface Conflict {
   start: number
   sep: number
