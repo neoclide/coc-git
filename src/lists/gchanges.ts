@@ -1,5 +1,4 @@
-import { BasicList, ListContext, ListItem, Neovim, window, Location, Range } from 'coc.nvim'
-import { URI } from 'vscode-uri'
+import { BasicList, ListContext, Uri, ListItem, Neovim, Location, Range } from 'coc.nvim'
 import Manager from '../manager'
 import path from 'path'
 import colors from 'colors/safe'
@@ -11,7 +10,7 @@ export default class GChanges extends BasicList {
   public readonly defaultAction = 'open'
 
   constructor(nvim: Neovim, private manager: Manager) {
-    super(nvim)
+    super()
     this.addLocationActions()
   }
 
@@ -22,7 +21,7 @@ export default class GChanges extends BasicList {
       throw new Error(`Can't resolve git root.`);
       return;
     }
-    
+
     let args = context.args;
     let category = DiffCategory.All;
     if (args.indexOf('--cached') !== -1) {
@@ -33,10 +32,10 @@ export default class GChanges extends BasicList {
       category = DiffCategory.All;
     }
     let res: ListItem[] = [];
-    let diffGropus = await this.manager.getDiffAll(category);
-    for (let [file, diffs] of diffGropus) {
+    let diffGroups = await this.manager.getDiffAll(category);
+    for (let [file, diffs] of diffGroups) {
       for (let diff of diffs) {
-        let uri = URI.file(path.join(root, file)).toString();
+        let uri = Uri.file(path.join(root, file)).toString();
         let location = Location.create(
           uri,
           Range.create(diff.start - 1, 0, diff.end - 1, 0)
