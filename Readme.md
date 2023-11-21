@@ -214,7 +214,9 @@ xmap ag <Plug>(coc-git-chunk-outer)
 Use command `:CocCommand` to open commands and type `git.` to get all git
 related commands.
 
-- `:CocCommand git.copyUrl` Copy url of current line to clipboard
+- `:CocCommand git.copyUrl` Copy url of current line to clipboard.
+- `:CocCommand git.nextChunk` Navigate to the next chunk.
+- `:CocCommand git.prevChunk` Navigate to the previous chunk.
 - `:CocCommand git.chunkInfo` Show chunk info under cursor.
 - `:CocCommand git.chunkUndo` Undo current chunk.
 - `:CocCommand git.chunkStage` Stage current chunk.

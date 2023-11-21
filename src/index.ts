@@ -83,6 +83,14 @@ export async function activate(context: ExtensionContext): Promise<ExtensionApi 
     await manager.showBlameDoc()
   }, { sync: false }))
 
+  subscriptions.push(commands.registerCommand("git.nextChunk", async () => {
+    await manager.nextChunk();
+  }));
+
+  subscriptions.push(commands.registerCommand("git.prevChunk", async () => {
+    await manager.prevChunk();
+  }));
+
   subscriptions.push(commands.registerCommand('git.keepCurrent', async () => {
     await manager.keepCurrent()
   }))
