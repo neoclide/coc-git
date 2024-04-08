@@ -283,7 +283,9 @@ export default class GitBuffer implements Disposable {
   public async showBlameDoc(lnum: number): Promise<void> {
     let indexed = await this.repo.isIndexed(this.relpath)
     if (!indexed) {
-      window.showMessage('File not indexed')
+      window.showWarningMessage('File not indexed')
+    } else if (await this.repo.isShallow()) { 
+      window.showWarningMessage('Shallow repository, blame not available')
     } else {
       let infos = await this.getBlameInfo()
       let info = infos.find(o => lnum >= o.startLnum && lnum <= o.endLnum)
@@ -294,7 +296,7 @@ export default class GitBuffer implements Disposable {
         blameText.push(`${info.sha.substring(0, 7)}`)
         await this.showDoc(blameText.join('\n\n'), 'text')
       } else {
-        window.showMessage('Not committed yet')
+        window.showWarningMessage('Not committed yet')
       }
     }
   }
