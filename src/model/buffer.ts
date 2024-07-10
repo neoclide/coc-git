@@ -285,7 +285,7 @@ export default class GitBuffer implements Disposable {
     if (!indexed) {
       window.showMessage('File not indexed')
     } else {
-      let infos = await this.getBlameInfo()
+      let infos = await this.getBlameInfo([lnum, lnum])
       let info = infos.find(o => lnum >= o.startLnum && lnum <= o.endLnum)
       if (info && info.author && info.author != 'Not Committed Yet') {
         let blameText: string[] = []
@@ -397,14 +397,16 @@ export default class GitBuffer implements Disposable {
     this.blameInfo = result
   }
 
-  private async getBlameInfo(): Promise<BlameInfo[]> {
+  private async getBlameInfo(range?: [number, number]): Promise<BlameInfo[]> {
     let { relpath } = this
     let root = this.repo.root
     let res: BlameInfo[] = []
     const useRealTime = this.config.blameUseRealTime
     try {
       let currentAuthor = await this.repo.getUsername()
-      let r = await this.git.exec(root, ['--no-pager', 'blame', '-b', '-p', '--root', '--date', 'relative', '--contents', '-', relpath], {
+      const args: string[] = ['--no-pager', 'blame', '-b', '-p', '--root', '--date', 'relative', '--contents', '-', relpath]
+      if (range) args.push('-L', range.join(','))
+      let r = await this.git.exec(root, args, {
         log: false,
         input: this.doc.content
       })
