@@ -404,7 +404,7 @@ export default class GitBuffer implements Disposable {
     const useRealTime = this.config.blameUseRealTime
     try {
       let currentAuthor = await this.repo.getUsername()
-      const args: string[] = ['--no-pager', 'blame', '-b', '-p', '--root', '--date', 'relative', '--contents', '-', relpath]
+      const args: string[] = ['--no-pager', 'blame', '-b', '-p', '--incremental', '--root', '--date', 'relative', '--contents', '-', relpath]
       if (range) args.push('-L', range.join(','))
       let r = await this.git.exec(root, args, {
         log: false,
