@@ -84,6 +84,7 @@ export default class Git {
       LC_ALL: 'en_US.UTF-8',
       LANG: 'en_US.UTF-8'
     })
+    options.shell = options.env.SHELL ? options.env.SHELL : (process.platform === 'win32' || !!options.shell)
 
     if (options.log !== false) {
       this.log(`> git ${args.join(' ')}\n`)
