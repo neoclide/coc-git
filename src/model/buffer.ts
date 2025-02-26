@@ -107,7 +107,7 @@ export default class GitBuffer implements Disposable {
     let line = await workspace.nvim.call('line', '.')
     let diff = this.getChunk(line)
     if (!diff) {
-      window.showMessage('Not positioned in git chunk', 'error')
+      window.showErrorMessage('Not positioned in git chunk')
       return
     }
     let head: string
@@ -286,7 +286,7 @@ export default class GitBuffer implements Disposable {
     let indexed = await this.repo.isIndexed(this.relpath)
     if (!indexed) {
       window.showWarningMessage('File not indexed')
-    } else if (await this.repo.isShallow()) { 
+    } else if (await this.repo.isShallow()) {
       window.showWarningMessage('Shallow repository, blame not available')
     } else {
       let infos = await this.getBlameInfo([lnum, lnum])
@@ -458,7 +458,7 @@ export default class GitBuffer implements Disposable {
   public async diffCached(): Promise<void> {
     let res = await this.repo.safeRun(['diff', '--cached'])
     if (!res.trim()) {
-      window.showMessage('Empty diff')
+      window.showWarningMessage('Empty diff')
       return
     }
     let { nvim } = workspace
@@ -475,7 +475,7 @@ export default class GitBuffer implements Disposable {
   public async nextConflict(): Promise<void> {
     let { nvim } = workspace
     if (!this.conflicts.length) {
-      window.showMessage('No conflicts detected', 'warning')
+      window.showWarningMessage('No conflicts detected')
       return
     }
     let line = await nvim.call('line', '.')
@@ -493,7 +493,7 @@ export default class GitBuffer implements Disposable {
   public async prevConflict(): Promise<void> {
     let { nvim } = workspace
     if (!this.conflicts.length) {
-      window.showMessage('No conflicts detected', 'warning')
+      window.showWarningMessage('No conflicts detected', 'warning')
       return
     }
     let line = await nvim.call('line', '.')
@@ -512,7 +512,7 @@ export default class GitBuffer implements Disposable {
     const { nvim } = workspace
     let conflicts = this.conflicts
     if (!conflicts || conflicts.length == 0) {
-      window.showMessage('No conflicts detected')
+      window.showWarningMessage('No conflicts detected')
       return
     }
     let line = await nvim.call('line', '.')
@@ -532,7 +532,7 @@ export default class GitBuffer implements Disposable {
         }
       }
     }
-    window.showMessage('Not positioned on a conflict')
+    window.showWarningMessage('Not positioned on a conflict')
   }
 
   public async browser(action = 'open', range?: [number, number], permalink = false): Promise<void> {
@@ -559,7 +559,7 @@ export default class GitBuffer implements Disposable {
     // get remote list
     let output = await this.repo.safeRun(['remote'])
     if (!output.trim()) {
-      window.showMessage(`No remote found`, 'warning')
+      window.showWarningMessage(`No remote found`)
       return
     }
     let names = output.trim().split(/\r?\n/)
@@ -569,7 +569,7 @@ export default class GitBuffer implements Disposable {
       if (names.includes(browserRemoteName)) {
         names = [browserRemoteName]
       } else {
-        window.showMessage('Configured git.browserRemoteName missing from remote list', 'warning')
+        window.showWarningMessage('Configured git.browserRemoteName missing from remote list')
         return
       }
     }
@@ -594,16 +594,17 @@ export default class GitBuffer implements Disposable {
         await workspace.openResource(urls[0])
       } else {
         nvim.command(`let @+ = '${urls[0]}'`, true)
-        window.showMessage('Copied url to clipboard')
+        window.showInformationMessage('Copied url to clipboard')
       }
     } else if (urls.length > 1) {
-      let idx = await window.showQuickpick(urls, 'Select url:')
-      if (idx >= 0) {
+      let url = await window.showQuickPick(urls, { canPickMany: false, title: 'Pick remote url' })
+      if (url) {
         if (action == 'open') {
-          await workspace.openResource(urls[idx])
+          await workspace.openResource(url)
         } else {
-          nvim.command(`let @+ = '${urls[idx]}'`, true)
-          window.showMessage('Copied url to clipboard')
+          nvim.command(`let @+ = '${url}'`, true)
+          nvim.command(`let @* = '${url}'`, true)
+          window.showInformationMessage('Copied url to clipboard')
         }
       }
     }
@@ -734,7 +735,7 @@ export default class GitBuffer implements Disposable {
   private async parseConflicts(): Promise<void> {
     if (!this.hasConflicts || !this.config.conflict.enabled) return
     const lines = this.doc.getLines()
-    const revPattern = '([0-9A-Za-z_.:/]+)'
+    const revPattern = '([0-9A-Za-z_.:/-]+)'
     const startPattern = new RegExp(`^<{7} (${revPattern})(:? .+)?$`)
     const sepPattern = new RegExp(`^={7}$`)
     const endPattern = new RegExp(`^>{7} (${revPattern})(:? .+)?$`)
@@ -819,16 +820,17 @@ export default class GitBuffer implements Disposable {
     let { nvim } = workspace
     nvim.pauseNotification()
     buffer.clearNamespace(this.config.conflictSrcId, 0, -1)
+    const srcId = this.config.conflictSrcId
     conflicts.map(conflict => {
       buffer.addHighlight({
         hlGroup: currentHlGroup, line: conflict.start,
-        colStart: 0, colEnd: 10000, srcId: this.config.conflictSrcId
+        colStart: 0, colEnd: 10000, srcId
       })
       for (let line = conflict.start - 1; line < conflict.sep - 1; line++) {
-        buffer.addHighlight({ hlGroup: currentHlGroup, line, srcId: this.config.conflictSrcId })
+        buffer.addHighlight({ hlGroup: currentHlGroup, line, srcId })
       }
       for (let line = conflict.end - 1; line >= conflict.sep; line--) {
-        buffer.addHighlight({ hlGroup: incomingHlGroup, line, srcId: this.config.conflictSrcId })
+        buffer.addHighlight({ hlGroup: incomingHlGroup, line, srcId })
       }
     })
     nvim.resumeNotification(false, true)
