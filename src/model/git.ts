@@ -26,7 +26,11 @@ export default class Git {
 
   public async getRepositoryRoot(repositoryPath: string): Promise<string> {
     const result = await this.exec(repositoryPath, ['rev-parse', '--show-toplevel'])
-    return path.normalize(result.stdout.trim())
+    let repoRootPath = path.normalize(result.stdout.trim());
+    if (process.platform === 'win32' && repoRootPath .startsWith('\\') && !process.env.SHELL ) {
+        repoRootPath = repoRootPath.replace(/^\\([^\\]*)\\/, '$1:\\')
+    }
+    return repoRootPath;
   }
 
   public async exec(cwd: string, args: string[], options: SpawnOptions = {}): Promise<IExecutionResult<string>> {
