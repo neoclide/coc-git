@@ -245,6 +245,15 @@ export default class Repo {
     }
   }
 
+  public async isShallow(): Promise<boolean> {
+    try {
+      let res = await this.exec(['rev-parse', '--is-shallow-repository'])
+      return res.stdout.trim() === 'true'
+    } catch (e) {
+      return false
+    }
+  }
+
   public async exec(args: string[], options: SpawnOptions = {}): Promise<IExecutionResult<string>> {
     return await this.git.exec(this.root, args, options)
   }
