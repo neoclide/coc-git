@@ -43,6 +43,8 @@ export default class GitBuffer implements Disposable {
     })
     this.doc.buffer.getOption('fileencoding').then(encoding => {
       this.encoding = encoding as string
+    }).catch(_e => {
+      // ignore, the buffer may unloaded.
     })
   }
 
