@@ -404,7 +404,7 @@ export default class GitBuffer implements Disposable {
     const useRealTime = this.config.blameUseRealTime
     try {
       let currentAuthor = await this.repo.getUsername()
-      let r = await this.git.exec(root, ['--no-pager', 'blame', '-b', '-p', '--root', '--date', 'relative', '--contents', '-', relpath], {
+      let r = await this.git.exec(root, ['--no-pager', 'blame', '-w', '-b', '-p', '--root', '--date', 'relative', '--contents', '-', relpath], {
         log: false,
         input: this.doc.content
       })
@@ -611,7 +611,7 @@ export default class GitBuffer implements Disposable {
     }
     let nvim = workspace.nvim
     let line = await nvim.eval('line(".")') as number
-    let args = ['--no-pager', 'blame', '-l', '--root', '-t', `-L${line},${line}`, this.relpath]
+    let args = ['--no-pager', 'blame', '-w', '-l', '--root', '-t', `-L${line},${line}`, this.relpath]
     let res = await this.repo.exec(args)
     let output = res.stdout.trim()
     if (!output.length) return
