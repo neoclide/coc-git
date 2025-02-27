@@ -55,7 +55,7 @@ export default class Commits extends BasicList {
   private cachedCommits: Map<string, string[]> = new Map()
 
   constructor(nvim: Neovim, private manager: Manager) {
-    super(nvim)
+    super()
     this.addAction('preview', async (item, context) => {
       let { commit, root } = item.data
       let lines: string[] = []
@@ -143,7 +143,7 @@ export default class Commits extends BasicList {
       } else {
         arg = `${list[1].data.commit} ${list[0].data.commit}`
       }
-      let content = await runCommand(`git --no-pager diff --no-ext-diff ${arg}`, { cwd: list[0].data.root })
+      let content = await runCommand(`git --no-pager diff --no-ext-diff ${this.manager.diffOptions.join(' ')} ${arg}`, { cwd: list[0].data.root })
       let lines = content.replace(/\n$/, '').split('\n')
       nvim.pauseNotification()
       nvim.command(`tabe [diff ${arg}]`, true)
@@ -167,7 +167,7 @@ export default class Commits extends BasicList {
       } else {
         arg = `${list[1].data.commit} ${list[0].data.commit}`
       }
-      let content = await runCommand(`git --no-pager diff --no-ext-diff ${arg}`, { cwd: list[0].data.root })
+      let content = await runCommand(`git --no-pager diff ${this.manager.diffOptions.join(' ')} --no-ext-diff ${arg}`, { cwd: list[0].data.root })
       let lines = content.replace(/\n$/, '').split('\n')
       let winid = context.listWindow.id
       let mod = context.options.position == 'tab' ? 'below' : 'above'

@@ -22,7 +22,7 @@ export default class GStatus extends BasicList {
   public readonly defaultAction = 'open'
 
   constructor(nvim: Neovim, private manager: Manager) {
-    super(nvim)
+    super()
     this.addLocationActions()
     this.addMultipleAction('add', async items => {
       let { root } = items[0].data
@@ -47,7 +47,7 @@ export default class GStatus extends BasicList {
       try {
         await nvim.command(`G commit -v ${filesArg}`)
       } catch (e) {
-        window.showMessage(`G commit command failed, make sure fugitive installed.`, 'error')
+        window.showErrorMessage(`G commit command failed, make sure fugitive installed.`)
       }
     })
 
@@ -94,7 +94,7 @@ export default class GStatus extends BasicList {
         }, context)
         return
       }
-      let args = ['--no-pager', 'diff', '--no-ext-diff']
+      let args = ['--no-pager', 'diff', '--no-ext-diff', ...this.manager.diffOptions]
       if (index_symbol == 'M' && tree_symbol != 'M') {
         args.push('--cached')
       }
@@ -126,7 +126,7 @@ export default class GStatus extends BasicList {
       return
     }
     if (this.manager.gstatusSaveBeforeOpen) {
-     await this.nvim.command(`wa`)
+      await this.nvim.command(`wa`)
     }
     let output = await runCommand(`git status --porcelain -uall ${context.args.join(' ')}`, { cwd: root })
     output = output.replace(/\s+$/, '')

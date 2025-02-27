@@ -2,6 +2,7 @@
 export interface GitConfiguration {
   remoteName: string
   diffRevision: string
+  diffOptions: string[]
   issueFormat: string
   virtualTextPrefix: string
   addGBlameToVirtualText: boolean

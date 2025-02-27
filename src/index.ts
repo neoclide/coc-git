@@ -25,10 +25,10 @@ export async function activate(context: ExtensionContext): Promise<ExtensionApi 
   const { subscriptions } = context
   let gitInfo: IGit
   try {
-    let pathHint = config.get<string>('command')
+    let pathHint = config.get<string>('command', 'git')
     gitInfo = await findGit(pathHint, path => context.logger.info(`Looking for git in: ${path}`))
   } catch (e) {
-    window.showMessage('git command required for coc-git', 'error')
+    window.showErrorMessage('git command required for coc-git')
     return
   }
   const virtualTextSrcId = await workspace.nvim.createNamespace('coc-git-virtual')

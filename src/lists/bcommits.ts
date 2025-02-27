@@ -56,7 +56,7 @@ export default class Bcommits extends BasicList {
   private bufnr: number
 
   constructor(nvim: Neovim, private manager: Manager) {
-    super(nvim)
+    super()
     this.addAction('preview', async (item, context) => {
       let { commit, root } = item.data
       let lines: string[] = []

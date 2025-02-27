@@ -95,6 +95,15 @@
           "scope": "window",
           "description": "Remote name for fetch github issues."
         },
+        "git.diffOptions": {
+          "type": "array",
+          "default": [],
+          "description": "Options for git diff command, eg: [\"--ignore-all-space\"]",
+          "scope": "window",
+          "items": {
+            "type": "string"
+          }
+        },
         "git.browserRemoteName": {
           "type": "string",
           "default": "",

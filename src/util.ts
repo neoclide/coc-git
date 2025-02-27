@@ -77,7 +77,7 @@ export function spawnCommand(cmd: string, args: string[], cwd: string): Promise<
       res += data.toString()
     })
     cp.stderr.on('data', data => {
-      window.showMessage(`"${cmd} ${args.join(' ')}" error: ${data.toString()}`, 'error')
+      window.showErrorMessage(`"${cmd} ${args.join(' ')}" error: ${data.toString()}`)
     })
     cp.on('close', code => {
       if (code != 0) {
