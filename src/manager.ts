@@ -90,6 +90,7 @@ export default class DocumentManager {
     let obj: GitConfiguration = {
       remoteName: config.get<string>('remoteName', 'origin'),
       diffRevision: config.get<string>('diffRevision', ''),
+      foldContext: config.get<number>('foldContext', 0),
       diffOptions: config.get<string[]>('diffOptions', []),
       issueFormat: config.get<string>('issueFormat', '#%i'),
       virtualTextPrefix: config.get<string>('virtualTextPrefix', '     '),

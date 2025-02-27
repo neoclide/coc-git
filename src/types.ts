@@ -11,6 +11,7 @@ export interface GitConfiguration {
   enableGutters: boolean
   realtimeGutters: boolean
   signPriority: number
+  foldContext: number,
   pushArguments: string[]
   splitWindowCommand: string
   showCommitInFloating: boolean

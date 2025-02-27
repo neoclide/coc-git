@@ -614,7 +614,7 @@ export default class GitBuffer implements Disposable {
   public async showCommit(): Promise<void> {
     let indexed = await this.repo.isIndexed(this.relpath)
     if (!indexed) {
-      window.showMessage(`"${this.relpath}" not indexed.`, 'warning')
+      window.showWarningMessage(`"${this.relpath}" not indexed.`)
       return
     }
     let nvim = workspace.nvim
@@ -625,7 +625,7 @@ export default class GitBuffer implements Disposable {
     if (!output.length) return
     let commit = output.match(/^\S+/)[0]
     if (/^0+$/.test(commit)) {
-      window.showMessage('not committed yet!', 'warning')
+      window.showWarningMessage('not committed yet!')
       return
     }
     let useFloating = this.config.showCommitInFloating
@@ -664,12 +664,20 @@ export default class GitBuffer implements Disposable {
     if (!doc) return
     let infos = this.currentSigns
     if (!infos || infos.length == 0) {
-      window.showMessage('No changes', 'warning')
+      window.showWarningMessage('No changes')
       return
     }
     let lnums = infos.map(o => o.lnum)
+    let foldContext = this.config.foldContext
+    let max = this.doc.lineCount
     let ranges = []
     let start = null
+    const addRange = (from: number, to: number) => {
+      let s = plus(from, foldContext, max)
+      let e = minus(to, foldContext, 0)
+      if (e - s <= 0) return
+      ranges.push([s, e])
+    }
     for (let i = 1; i <= doc.lineCount; i++) {
       let fold = lnums.indexOf(i) == -1
       if (fold && start == null) {
@@ -677,13 +685,14 @@ export default class GitBuffer implements Disposable {
         continue
       }
       if (start != null && !fold) {
-        ranges.push([start, i - 1])
+        addRange(start, i - 1)
         start = null
       }
       if (start != null && fold && i == doc.lineCount) {
-        ranges.push([start, i])
+        addRange(start, i)
       }
     }
+
     let enabled = this.foldEnabled
     if (enabled) {
       this.foldEnabled = false
@@ -700,6 +709,8 @@ export default class GitBuffer implements Disposable {
       nvim.call('setpos', ['.', cursor], true)
       await nvim.resumeNotification()
     } else {
+      console.log(33)
+      console.log(ranges)
       this.foldEnabled = true
       let [foldmethod, foldenable, foldlevel] = await nvim.eval('[&foldmethod,&foldenable,&foldlevel]') as [string, number, number]
       this.foldSettings = {
@@ -899,4 +910,16 @@ export default class GitBuffer implements Disposable {
     this.conflicts = undefined
     this.currentSigns = undefined
   }
+}
+
+function plus(val: number, count: number, max: number): number {
+  if (!count) return val
+  val = val + count
+  return Math.min(max, val)
+}
+
+function minus(val: number, count: number, min: number): number {
+  if (!count) return val
+  val = val - count
+  return Math.max(min, val)
 }

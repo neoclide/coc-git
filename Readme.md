@@ -50,6 +50,10 @@ In your vim/neovim, run command:
 
 - `git.remoteName`: Remote name for fetch github issues., default: `"origin"`
 
+- `git.diffOptions`: Options for git diff command, eg: `["--ignore-all-space"]`, default: `[]`
+
+- `git.foldContext`: Line count to leave below and above the fold, default: `0`.
+
 - `git.browserRemoteName`: Remote name for browserOpen and copyUrl., default: `""`
 
 - `git.browserBranchName`: Branch name for browserOpen and copyUrl., default: `""`

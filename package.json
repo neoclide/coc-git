@@ -104,6 +104,12 @@
             "type": "string"
           }
         },
+        "git.foldContext": {
+          "type": "number",
+          "default": 0,
+          "scope": "window",
+          "description": "Line count to leave below and above the fold."
+        },
         "git.browserRemoteName": {
           "type": "string",
           "default": "",
