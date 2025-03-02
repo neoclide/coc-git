@@ -222,15 +222,12 @@ export default class GitBuffer implements Disposable {
       let content = diff.head + '\n' + diff.lines.join('\n')
       await this.showDoc(content, 'diff')
     } else {
-      let chunks: StageChunk[]
+      let chunks: StageChunk[] = []
       try {
         let stagedDiff = await this.repo.getStagedChunks(this.relpath)
         chunks = Object.values(stagedDiff)[0]
       } catch (e) {
-        return
-      }
-      if (!chunks.length) {
-        return
+        // return
       }
       let adjust = 0
       for (let diff of this.diffs) {
@@ -245,6 +242,8 @@ export default class GitBuffer implements Disposable {
       if (chunk) {
         let content = 'Staged changes' + '\n' + chunk.lines.join('\n')
         await this.showDoc(content, 'diff')
+      } else {
+        await this.showCommit(true)
       }
     }
   }
@@ -620,7 +619,7 @@ export default class GitBuffer implements Disposable {
   }
 
   // show commit of current line in split window
-  public async showCommit(): Promise<void> {
+  public async showCommit(useFloating = false): Promise<void> {
     let indexed = await this.repo.isIndexed(this.relpath)
     if (!indexed) {
       window.showWarningMessage(`"${this.relpath}" not indexed.`)
@@ -637,7 +636,7 @@ export default class GitBuffer implements Disposable {
       window.showWarningMessage('not committed yet!')
       return
     }
-    let useFloating = this.config.showCommitInFloating
+    if (!useFloating) useFloating = this.config.showCommitInFloating
     if (useFloating) {
       let content = await this.repo.safeRun(['--no-pager', 'show', commit])
       if (content == null) return
