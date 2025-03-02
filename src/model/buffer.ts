@@ -1,4 +1,4 @@
-import { Disposable, Document, Documentation, FloatFactory, Mutex, OutputChannel, window, workspace } from 'coc.nvim'
+import { Disposable, Document, Documentation, FloatFactory, Mutex, OutputChannel, Position, Range, window, workspace } from 'coc.nvim'
 import debounce from 'debounce'
 import { format } from 'timeago.js'
 import { URL } from 'url'
@@ -8,6 +8,11 @@ import Git from './git'
 import Repo from './repo'
 
 const signGroup = 'CocGit'
+const revPattern = '([0-9A-Za-z_.:/-]+)'
+const startPattern = new RegExp(`^<{7} (${revPattern})(:? .+)?$`)
+const sepPattern = new RegExp(`^={7}$`)
+const endPattern = new RegExp(`^>{7} (${revPattern})(:? .+)?$`)
+const commonPattern = /^\|{7}\smerged\scommon\sancestors/
 
 export default class GitBuffer implements Disposable {
   private blameInfo: BlameInfo[] = []
@@ -520,15 +525,19 @@ export default class GitBuffer implements Disposable {
       if (conflict.start <= line && conflict.end >= line) {
         switch (part) {
           case ConflictPart.Current:
-            await nvim.command(`${conflict.sep},${conflict.end}d`)
-            return nvim.command(`${conflict.start}d`)
+            let start = conflict.common ? conflict.common : conflict.sep
+            await nvim.command(`${start},${conflict.end}d | ${conflict.start}d`)
+            return
           case ConflictPart.Incoming:
-            await nvim.command(`${conflict.end}d`)
-            return nvim.command(`${conflict.start},${conflict.sep}d`)
+            await nvim.command(`${conflict.end}d | ${conflict.start},${conflict.sep}d`)
+            return
           case ConflictPart.Both:
-            await nvim.command(`${conflict.end}d`)
-            await nvim.command(`${conflict.sep}d`)
-            return nvim.command(`${conflict.start}d`)
+            if (conflict.common) {
+              await nvim.command(`${conflict.end}d | ${conflict.common},${conflict.sep}d | ${conflict.start}d`)
+            } else {
+              await nvim.command(`${conflict.end}d | ${conflict.sep}d | ${conflict.start}d`)
+            }
+            return
         }
       }
     }
@@ -709,8 +718,6 @@ export default class GitBuffer implements Disposable {
       nvim.call('setpos', ['.', cursor], true)
       await nvim.resumeNotification()
     } else {
-      console.log(33)
-      console.log(ranges)
       this.foldEnabled = true
       let [foldmethod, foldenable, foldlevel] = await nvim.eval('[&foldmethod,&foldenable,&foldlevel]') as [string, number, number]
       this.foldSettings = {
@@ -745,12 +752,7 @@ export default class GitBuffer implements Disposable {
 
   private async parseConflicts(): Promise<void> {
     if (!this.hasConflicts || !this.config.conflict.enabled) return
-    const lines = this.doc.getLines()
-    const revPattern = '([0-9A-Za-z_.:/-]+)'
-    const startPattern = new RegExp(`^<{7} (${revPattern})(:? .+)?$`)
-    const sepPattern = new RegExp(`^={7}$`)
-    const endPattern = new RegExp(`^>{7} (${revPattern})(:? .+)?$`)
-
+    const lines = this.doc.textDocument.lines
     let conflicts: Conflict[] = []
     let conflict: Conflict = null
     let state = ConflictParseState.Initial
@@ -769,27 +771,27 @@ export default class GitBuffer implements Disposable {
             conflict = mkStartConflict(index, match[1])
             state = ConflictParseState.MatchedStart
           }
-
           break
         }
+        case ConflictParseState.MatchedCommon:
         case ConflictParseState.MatchedStart: {
-          const match = line.match(sepPattern)
+          let match = line.match(sepPattern)
           if (match) {
             conflict.sep = index + 1
             state = ConflictParseState.MatchedSep
-          }
-          else {
+          } else {
             const startMatch = line.match(startPattern)
             if (startMatch) {
               conflict = mkStartConflict(index, startMatch[1])
               state = ConflictParseState.MatchedStart
-            }
-            else if (line.match(endPattern)) {
+            } else if (line.match(endPattern)) {
               conflict = null
               state = ConflictParseState.Initial
+            } else if (line.match(commonPattern)) {
+              conflict.common = index + 1
+              state = ConflictParseState.MatchedCommon
             }
           }
-
           break
         }
         case ConflictParseState.MatchedSep: {
@@ -800,19 +802,16 @@ export default class GitBuffer implements Disposable {
             conflicts.push(conflict)
             conflict = null
             state = ConflictParseState.Initial
-          }
-          else {
+          } else {
             const startMatch = line.match(startPattern)
             if (startMatch) {
               conflict = mkStartConflict(index, startMatch[1])
               state = ConflictParseState.MatchedStart
-            }
-            else if (line.match(sepPattern)) {
+            } else if (line.match(sepPattern)) {
               conflict = null
               state = ConflictParseState.Initial
             }
           }
-
           break
         }
       }
@@ -828,20 +827,20 @@ export default class GitBuffer implements Disposable {
     let buffer = this.doc.buffer
     let currentHlGroup = this.config.conflict.currentHlGroup
     let incomingHlGroup = this.config.conflict.incomingHlGroup
+    let commonHlGroup = this.config.conflict.commonHlGroup
     let { nvim } = workspace
     nvim.pauseNotification()
     buffer.clearNamespace(this.config.conflictSrcId, 0, -1)
     const srcId = this.config.conflictSrcId
     conflicts.map(conflict => {
-      buffer.addHighlight({
-        hlGroup: currentHlGroup, line: conflict.start,
-        colStart: 0, colEnd: 10000, srcId
-      })
-      for (let line = conflict.start - 1; line < conflict.sep - 1; line++) {
-        buffer.addHighlight({ hlGroup: currentHlGroup, line, srcId })
-      }
-      for (let line = conflict.end - 1; line >= conflict.sep; line--) {
-        buffer.addHighlight({ hlGroup: incomingHlGroup, line, srcId })
+      let currEnd = conflict.common ? conflict.common - 1 : conflict.sep - 1
+      let currRange = Range.create(Position.create(conflict.start - 1, 0), Position.create(currEnd, 0))
+      let incomingRange = Range.create(Position.create(conflict.sep, 0), Position.create(conflict.end, 0))
+      buffer.highlightRanges(srcId, currentHlGroup, [currRange])
+      buffer.highlightRanges(srcId, incomingHlGroup, [incomingRange])
+      if (conflict.common) {
+        let range = Range.create(Position.create(conflict.common - 1, 0), Position.create(conflict.sep - 1, 0))
+        buffer.highlightRanges(srcId, commonHlGroup, [range])
       }
     })
     nvim.resumeNotification(false, true)

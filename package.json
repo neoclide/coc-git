@@ -430,6 +430,12 @@
           "scope": "application",
           "description": "Highlight group for the incoming version of a merge conflict."
         },
+        "git.conflict.common.hlGroup": {
+          "type": "string",
+          "default": "DiffText",
+          "scope": "application",
+          "description": "Highlight group for the merged common ancestors highlight group."
+        },
         "git.gstatus.saveBeforeOpen": {
           "type": "boolean",
           "default": "false",

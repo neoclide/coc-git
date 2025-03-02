@@ -126,7 +126,8 @@ export default class DocumentManager {
       conflict: {
         enabled: config.get<boolean>('conflict.enabled', true),
         currentHlGroup: config.get<string>('conflict.current.hlGroup', 'DiffChange'),
-        incomingHlGroup: config.get<string>('conflict.incoming.hlGroup', 'DiffAdd')
+        incomingHlGroup: config.get<string>('conflict.incoming.hlGroup', 'DiffAdd'),
+        commonHlGroup: config.get<string>('conflict.common.hlGroup', 'DiffText')
       },
       floatConfig: config.get<any>('floatConfig', {}),
       gstatus: {
