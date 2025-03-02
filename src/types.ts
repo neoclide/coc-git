@@ -39,6 +39,7 @@ export interface GitConfiguration {
     enabled: boolean
     currentHlGroup: string
     incomingHlGroup: string
+    commonHlGroup: string
   }
   floatConfig: {
     border?: boolean
@@ -124,6 +125,7 @@ export enum DiffCategory {
 
 export interface Conflict {
   start: number
+  common?: number
   sep: number
   end: number
   current: string
@@ -144,6 +146,7 @@ export interface FoldSettings {
 export enum ConflictParseState {
   Initial,
   MatchedStart,
+  MatchedCommon,
   MatchedSep,
 }
 
