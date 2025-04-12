@@ -318,6 +318,7 @@ export default class GitBuffer implements Disposable {
       if (this.currentSigns?.length > 0) {
         this.currentSigns = []
         nvim.call('sign_unplace', [signGroup, { buffer: bufnr }], true)
+        nvim.redrawVim()
       }
       return
     }
@@ -329,6 +330,7 @@ export default class GitBuffer implements Disposable {
       this.setBufferStatus('')
       if (this.config.enableGutters) {
         nvim.call('sign_unplace', [signGroup, { buffer: bufnr }], true)
+        nvim.redrawVim()
       }
       this.currentSigns = []
     } else {
@@ -394,7 +396,7 @@ export default class GitBuffer implements Disposable {
       let name = this.getSignName(sign.changeType)
       nvim.call('sign_place', [0, signGroup, name, bufnr, { lnum: sign.lnum, priority: signPriority }], true)
     }
-    nvim.resumeNotification(false, true)
+    nvim.resumeNotification(true, true)
   }
 
   private async loadBlames(): Promise<void> {
@@ -743,6 +745,7 @@ export default class GitBuffer implements Disposable {
     let { nvim } = workspace
     if (!enabled) {
       nvim.call('sign_unplace', [signGroup, { buffer: this.doc.bufnr }], true)
+      nvim.redrawVim()
     } else {
       this.diffs = []
       await this.diffDocument(true)
@@ -863,7 +866,7 @@ export default class GitBuffer implements Disposable {
     let buffer = nvim.createBuffer(this.doc.bufnr)
     nvim.pauseNotification()
     buffer.setVar('coc_git_status', status, true)
-    nvim.call('coc#util#do_autocmd', ['CocGitStatusChange'], true)
+    nvim.callTimer('coc#util#do_autocmd', ['CocGitStatusChange'], true)
     nvim.resumeNotification(false, true)
   }
 
