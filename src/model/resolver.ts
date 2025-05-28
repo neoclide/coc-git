@@ -77,7 +77,9 @@ export default class Resolver {
         this.resolvedRoots.set(uri, root)
       } else {
         try {
-          root = await this.git.getRepositoryRoot(path.dirname(fullpath))
+          let stat = fs.statSync(fullpath)
+          let dir = stat.isDirectory() ? fullpath : path.dirname(fullpath)
+          root = await this.git.getRepositoryRoot(dir)
           if (path.isAbsolute(root)) {
             this.resolvedRoots.set(uri, root)
           } else {

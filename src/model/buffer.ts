@@ -20,10 +20,8 @@ export default class GitBuffer implements Disposable {
   private conflicts: Conflict[] = []
   private currentSigns: SignInfo[] = []
   private gitStatus: string = ''
-  private hasConflicts = false
   private foldEnabled = false
   private foldSettings: FoldSettings
-  private encoding: string | undefined
   private mutex: Mutex
   private _disposed = false
   public refresh: Function & { clear(): void }
@@ -34,7 +32,8 @@ export default class GitBuffer implements Disposable {
     public readonly repo: Repo,
     private git: Git,
     private channel: OutputChannel,
-    private floatFactory: FloatFactory | undefined
+    private floatFactory: FloatFactory | undefined,
+    private hasConflicts: boolean
   ) {
     this.mutex = new Mutex()
     this.refresh = debounce(() => {
@@ -42,33 +41,25 @@ export default class GitBuffer implements Disposable {
         channel.append(`[Error] ${e.message}`)
       })
     }, 200)
-    this.repo.hasConflicts(relpath).then(hasConflicts => {
-      this.hasConflicts = hasConflicts
-      this.refresh()
-    })
-    this.doc.buffer.getOption('fileencoding').then(encoding => {
-      this.encoding = encoding as string
-    }).catch(_e => {
-      // ignore, the buffer may unloaded.
-    })
+    this._refresh()
   }
 
   public get cachedDiffs(): Diff[] {
     return this.diffs
   }
 
-  private async _refresh(): Promise<void> {
+  public async _refresh(): Promise<void> {
     if (this._disposed) return
+    this.refresh.clear()
     let release = await this.mutex.acquire()
-    try {
-      await Promise.all([
-        this.diffDocument(),
-        this.loadBlames(),
-        this.parseConflicts()
-      ])
-    } catch (e) {
-      this.channel.append(`[Error] refresh error ${e.message}`)
-    }
+    let result = await Promise.allSettled([
+      this.diffDocument(),
+      this.loadBlames(),
+      this.parseConflicts()
+    ])
+    result.forEach(res => {
+      if (res.status === 'rejected') this.channel.append(`[Error] refresh error ${res.reason}`)
+    })
     release()
   }
 
@@ -307,16 +298,20 @@ export default class GitBuffer implements Disposable {
     }
   }
 
-  private async diffDocument(force = false): Promise<void> {
+  public async diffDocument(force = false): Promise<void> {
     let { nvim } = workspace
     let revision = this.config.diffRevision
     const { bufnr } = this.doc
     let content = this.doc.content
     let eol = this.doc.textDocument['eol']
-    const diffs = await this.repo.getDiff(this.relpath, eol ? content : content + '\n', revision, this.encoding || 'utf8')
-    if (diffs == null) {
-      if (this.currentSigns?.length > 0) {
-        this.currentSigns = []
+    let encoding = await this.doc.buffer.getOption('fileencoding') as string
+    const diffs = await this.repo.getDiff(this.relpath, eol ? content : content + '\n', revision, encoding || 'utf8')
+    if (diffs == null) return
+    if (diffs.length === 0) {
+      this.currentSigns = []
+      this.diffs = []
+      this.setBufferStatus('')
+      if (this.config.enableGutters) {
         nvim.call('sign_unplace', [signGroup, { buffer: bufnr }], true)
         nvim.redrawVim()
       }
@@ -326,61 +321,52 @@ export default class GitBuffer implements Disposable {
       return
     }
     this.diffs = diffs
-    if (!diffs || diffs.length == 0) {
-      this.setBufferStatus('')
-      if (this.config.enableGutters) {
-        nvim.call('sign_unplace', [signGroup, { buffer: bufnr }], true)
-        nvim.redrawVim()
+    let added = 0
+    let changed = 0
+    let removed = 0
+    let signs: SignInfo[] = []
+    for (let diff of diffs) {
+      if (diff.changeType == ChangeType.Add) {
+        added += diff.added.count
+      } else if (diff.changeType == ChangeType.Delete) {
+        removed += diff.removed.count
+      } else if (diff.changeType == ChangeType.Change) {
+        let [add, remove] = [diff.added.count, diff.removed.count]
+        let min = Math.min(add, remove)
+        changed += min
+        added += add - min
+        removed += remove - min
       }
-      this.currentSigns = []
-    } else {
-      let added = 0
-      let changed = 0
-      let removed = 0
-      let signs: SignInfo[] = []
-      for (let diff of diffs) {
-        if (diff.changeType == ChangeType.Add) {
-          added += diff.added.count
-        } else if (diff.changeType == ChangeType.Delete) {
-          removed += diff.removed.count
-        } else if (diff.changeType == ChangeType.Change) {
-          let [add, remove] = [diff.added.count, diff.removed.count]
-          let min = Math.min(add, remove)
-          changed += min
-          added += add - min
-          removed += remove - min
-        }
-        let { start, end } = diff
-        for (let i = start; i <= end; i++) {
-          let topdelete = diff.changeType == ChangeType.Delete && i == 0
-          let changedelete = diff.changeType == ChangeType.Change && diff.removed.count > diff.added.count && i == end
-          signs.push({
-            changeType: topdelete ? 'topdelete' : changedelete ? 'changedelete' : diff.changeType,
-            lnum: topdelete ? 1 : i
-          })
-        }
-        if (diff.changeType == ChangeType.Change) {
-          let [add, remove] = [diff.added.count, diff.removed.count]
-          if (add > remove) {
-            for (let i = 0; i < add - remove; i++) {
-              signs.push({
-                changeType: ChangeType.Add,
-                lnum: diff.end + 1 + i
-              })
-            }
+      let { start, end } = diff
+      for (let i = start; i <= end; i++) {
+        let topdelete = diff.changeType == ChangeType.Delete && i == 0
+        let changedelete = diff.changeType == ChangeType.Change && diff.removed.count > diff.added.count && i == end
+        signs.push({
+          changeType: topdelete ? 'topdelete' : changedelete ? 'changedelete' : diff.changeType,
+          lnum: topdelete ? 1 : i
+        })
+      }
+      if (diff.changeType == ChangeType.Change) {
+        let [add, remove] = [diff.added.count, diff.removed.count]
+        if (add > remove) {
+          for (let i = 0; i < add - remove; i++) {
+            signs.push({
+              changeType: ChangeType.Add,
+              lnum: diff.end + 1 + i
+            })
           }
         }
       }
-      let items: string[] = []
-      if (added) items.push(`+${added}`)
-      if (changed) items.push(`~${changed}`)
-      if (removed) items.push(`-${removed}`)
-      let status = '  ' + `${items.join(' ')} `
-      this.setBufferStatus(status)
-      this.currentSigns = signs
-      if (!this.config.realtimeGutters && !force) return
-      this.updateGutters()
     }
+    let items: string[] = []
+    if (added) items.push(`+${added}`)
+    if (changed) items.push(`~${changed}`)
+    if (removed) items.push(`-${removed}`)
+    let status = '  ' + `${items.join(' ')} `
+    this.setBufferStatus(status)
+    this.currentSigns = signs
+    if (!this.config.realtimeGutters && !force) return
+    this.updateGutters()
   }
 
   public updateGutters(): void {
@@ -897,6 +883,7 @@ export default class GitBuffer implements Disposable {
     buffer.setVar('coc_git_status', '', true)
     buffer.clearNamespace(this.config.conflictSrcId, 0, -1)
     nvim.call('sign_unplace', [signGroup, { buffer: bufnr }], true)
+    this.refresh.clear()
     if (this.config.addGBlameToBufferVar) {
       buffer.setVar('coc_git_blame', '', true)
     }

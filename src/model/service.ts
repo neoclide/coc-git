@@ -1,11 +1,12 @@
-import { OutputChannel, window, workspace, Uri, Document, FloatFactory } from 'coc.nvim'
-import GitRepo from './repo'
-import Git from './git'
-import GitResolver from './resolver'
-import GitBuffer from './buffer'
-import { IGit } from '../util'
-import path from 'path'
+import { Document, FloatFactory, OutputChannel, Uri, window, workspace } from 'coc.nvim'
 import { GitConfiguration } from '../types'
+import { IGit } from '../util'
+import GitBuffer from './buffer'
+import Git from './git'
+import GitRepo from './repo'
+import GitResolver from './resolver'
+
+const uriToRoot: Map<string, string> = new Map()
 
 export default class GitService {
   private _git: Git
@@ -22,7 +23,8 @@ export default class GitService {
     }
   }
 
-  public getRepoFromRoot(root: string): GitRepo {
+  public getRepoFromRoot(root: string | undefined): GitRepo {
+    if (!root) return undefined
     if (this.repos.has(root)) {
       return this.repos.get(root)
     }
@@ -40,14 +42,24 @@ export default class GitService {
     if (!relpath) return undefined
     let ignored = await repo.isIgnored(relpath)
     if (ignored) return undefined
-    return new GitBuffer(doc, config, relpath, repo, this.git, this.outputChannel, this.floatFactory)
+    uriToRoot.set(doc.uri, root)
+    let hasConflicts = await repo.hasConflicts(relpath)
+    return new GitBuffer(doc, config, relpath, repo, this.git, this.outputChannel, this.floatFactory, hasConflicts)
   }
 
   public async getCurrentRepo(): Promise<GitRepo | undefined> {
-    let { nvim } = workspace
-    let [fullpath, buftype] = await nvim.eval('[expand("%:p"),&buftype]') as [string, string]
-    if (!path.isAbsolute(fullpath) || buftype != '') return undefined
-    let root = await this.resolver.resolveGitRoot({ uri: Uri.file(fullpath).toString(), schema: 'file', buftype: '' })
+    let editor = window.activeTextEditor
+    let root: string | undefined
+    if (editor) {
+      let { uri } = editor.document
+      root = uriToRoot.get(uri)
+      if (!root) {
+        root = await this.resolver.resolveGitRoot(editor.document)
+      }
+    } else {
+      let cwd = workspace.cwd
+      root = await this.resolver.resolveGitRoot({ uri: Uri.file(cwd).toString(), schema: 'file', buftype: '' })
+    }
     if (root == null) return undefined
     return this.getRepoFromRoot(root)
   }

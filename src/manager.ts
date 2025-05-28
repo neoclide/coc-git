@@ -21,41 +21,43 @@ export default class DocumentManager {
     this.loadConfiguration()
     workspace.onDidChangeConfiguration(this.loadConfiguration, this, this.disposables)
     this.gitStatus = new GitStatus(service)
-    const createBuffer = (doc: Document) => {
-      let { uri } = doc
+    workspace.registerBufferSync((doc: Document) => {
+      let disposed = false
+      let gitBuffer: GitBuffer
+      let { bufnr, uri } = doc
       service.createBuffer(doc, this.config).then(buf => {
-        if (!buf || workspace.getDocument(uri) == null) return
+        if (!buf || disposed) return
+        gitBuffer = buf
         this.defineSigns().catch(e => {
           console.error(e.message)
         })
         this.buffers.set(doc.bufnr, buf)
       })
-    }
-    for (let doc of workspace.documents) {
-      createBuffer(doc)
-    }
-    workspace.onDidOpenTextDocument(async e => {
-      createBuffer(workspace.getDocument(e.bufnr))
-    }, null, this.disposables)
-    workspace.onDidChangeTextDocument(async e => {
-      let buf = this.buffers.get(e.bufnr)
-      if (buf) buf.refresh()
-    }, null, this.disposables)
-    workspace.onDidCloseTextDocument(e => {
-      let buf = this.buffers.get(e.bufnr)
-      if (buf) buf.dispose()
-      this.buffers.delete(e.bufnr)
-      this.service.resolver.delete(e.uri)
-    }, null, this.disposables)
+      return {
+        onChange: () => {
+          if (gitBuffer) gitBuffer._refresh()
+        },
+        dispose: () => {
+          disposed = true
+          this.buffers.delete(bufnr)
+          this.service.resolver.delete(uri)
+          if (gitBuffer) gitBuffer.dispose()
+        }
+      }
+    })
     events.on('CursorMoved', debounce(async (bufnr, cursor) => {
       let buf = this.buffers.get(bufnr)
       if (buf) await buf.showBlameInfo(cursor[0])
     }, 100), null, this.disposables)
-    events.on('BufWritePre', bufnr => {
-      if (!this.enableGutters || this.config.realtimeGutters) return
-      let buf = this.buffers.get(bufnr)
-      if (buf) buf.updateGutters()
-    }, null, this.disposables)
+    workspace.registerAutocmd({
+      event: 'BufWritePost',
+      arglist: ["+expand('<abuf>')"],
+      callback: bufnr => {
+        if (!this.enableGutters || this.config.realtimeGutters) return
+        let buf = this.buffers.get(bufnr)
+        if (buf) buf.diffDocument(true)
+      }
+    })
     events.on('FocusGained', async () => {
       let bufnr = await nvim.call('bufnr', ['%'])
       let buf = this.buffers.get(bufnr)

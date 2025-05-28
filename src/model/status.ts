@@ -1,4 +1,4 @@
-import { workspace, events, Disposable, Mutex, disposeAll } from 'coc.nvim'
+import { Disposable, Mutex, disposeAll, events, workspace } from 'coc.nvim'
 import { Decorator } from '../types'
 import GitService from './service'
 
@@ -26,16 +26,18 @@ export default class GitStatus implements Disposable {
     events.on('BufWritePost', () => {
       timer = setTimeout(() => {
         this.refresh()
-      }, 300)
+      }, 50)
     }, this, this.disposables)
     this.disposables.push({
       dispose: () => {
         if (timer) clearTimeout(timer)
       }
     })
-    this.refresh().catch(_e => {
-      // noop
-    })
+    setTimeout(() => {
+      this.refresh().catch(_e => {
+        // noop
+      })
+    }, 300)
   }
 
   private async refresh(): Promise<void> {
