@@ -312,7 +312,7 @@ export default class DocumentManager {
   private get buffer(): Promise<GitBuffer> {
     return workspace.nvim.call('bufnr', '%').then(bufnr => {
       let buf = this.buffers.get(bufnr)
-      if (!buf) window.showWarningMessage(`Cant't resolve git repository for current buffer.`)
+      if (!buf) window.showWarningMessage(`Can't resolve git repository for current buffer.`)
       return buf
     })
   }
