@@ -1,6 +1,6 @@
 import { exec, ExecOptions, spawn } from 'child_process'
 import { Event, window } from 'coc.nvim'
-import { StageChunk } from './types'
+import { BlameInfo, StageChunk } from './types'
 import path from 'path'
 import which from 'which'
 
@@ -29,6 +29,17 @@ export function createUnstagePatch(relpath: string, chunk: StageChunk): string {
   lines.push(...chunk.lines.map(s => reverseLine(s)))
   lines.push('')
   return lines.join('\n')
+}
+
+export function formatBlameText(info: BlameInfo, format = '(%a %t) %s'): string {
+  let { author = '', time = '', summary = '', sha = '' } = info
+  return format
+    .replace(/%%/g, '\u0000')
+    .replace(/%a/g, author)
+    .replace(/%t/g, time)
+    .replace(/%s/g, summary)
+    .replace(/%S/g, sha.substring(0, 7))
+    .replace(/\u0000/g, '%')
 }
 
 export function wait(ms: number): Promise<any> {

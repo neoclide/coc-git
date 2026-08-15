@@ -169,6 +169,12 @@
           "scope": "application",
           "description": "Prefix of git blame information to virtual text, require virtual text feature of vim/neovim."
         },
+        "git.blameFormat": {
+          "type": "string",
+          "default": "(%a %t) %s",
+          "scope": "window",
+          "description": "Format of git blame virtual text. Supported placeholders: %a author, %t time, %s summary, %S short sha, %% literal percent."
+        },
         "git.addGBlameToVirtualText": {
           "type": "boolean",
           "default": false,

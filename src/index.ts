@@ -12,7 +12,9 @@ import Git from './model/git'
 import Resolver from './model/resolver'
 import GitService from './model/service'
 import addSource from './source'
-import { findGit, IGit } from './util'
+import { findGit, formatBlameText, IGit } from './util'
+
+export { formatBlameText }
 
 export interface ExtensionApi {
   git: Git

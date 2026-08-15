@@ -96,6 +96,7 @@ export default class DocumentManager {
       diffOptions: config.get<string[]>('diffOptions', []),
       issueFormat: config.get<string>('issueFormat', '#%i'),
       virtualTextPrefix: config.get<string>('virtualTextPrefix', '     '),
+      blameFormat: config.get<string>('blameFormat', '(%a %t) %s'),
       addGBlameToVirtualText: config.get<boolean>('addGBlameToVirtualText', false),
       addGBlameToBufferVar: config.get<boolean>('addGBlameToBufferVar', false),
       blameUseRealTime: config.get<boolean>('blameUseRealTime', false),

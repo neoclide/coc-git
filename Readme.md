@@ -66,6 +66,8 @@ In your vim/neovim, run command:
 
 - `git.virtualTextPrefix`: Prefix of git blame infomation to virtual text, require virtual text feature of neovim., default: `" "`
 
+- `git.blameFormat`: Format of git blame virtual text. Supported placeholders: `%a` author, `%t` time, `%s` summary, `%S` short sha, `%%` literal percent., default: `"(%a %t) %s"`
+
 - `git.addGBlameToVirtualText`: Add git blame information to virtual text, require virtual text feature of neovim., default: `false`
 
 - `git.addGBlameToBufferVar`: Add git blame information to b:coc_git_blame., default: `false`

@@ -3,6 +3,7 @@ import debounce from 'debounce'
 import { format } from 'timeago.js'
 import { URL } from 'url'
 import { BlameInfo, ChangeType, Conflict, ConflictParseState, ConflictPart, Diff, FoldSettings, GitConfiguration, SignInfo, StageChunk } from '../types'
+import { formatBlameText } from '../util'
 import { createUnstagePatch, equals, getRepoUrl, getUrl, toUnixSlash } from '../util'
 import Git from './git'
 import Repo from './repo'
@@ -251,7 +252,7 @@ export default class GitBuffer implements Disposable {
     } else {
       let info = infos.find(o => lnum >= o.startLnum && lnum <= o.endLnum)
       if (info && info.author && info.author != 'Not Committed Yet') {
-        blameText = `(${info.author} ${info.time}) ${info.summary}`
+        blameText = formatBlameText(info, this.config.blameFormat)
       } else {
         blameText = 'Not committed yet'
       }
