@@ -240,6 +240,10 @@ export default class GitBuffer implements Disposable {
     }
   }
 
+  public allChunkInfo(): Diff[] {
+    return this.diffs ? this.diffs.slice() : []
+  }
+
   public async showBlameInfo(lnum: number): Promise<void> {
     let { nvim } = workspace
     let { virtualTextSrcId, addGBlameToBufferVar, addGBlameToVirtualText } = this.config

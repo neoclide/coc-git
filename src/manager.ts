@@ -198,6 +198,12 @@ export default class DocumentManager {
     if (buf) await buf.chunkInfo()
   }
 
+  public async allChunkInfo(): Promise<Diff[]> {
+    let buf = await this.buffer
+    if (buf) return buf.allChunkInfo()
+    return []
+  }
+
   public async nextChunk(): Promise<void> {
     let buf = await this.buffer
     if (buf) await buf.nextChunk()

@@ -109,6 +109,10 @@ export async function activate(context: ExtensionContext): Promise<ExtensionApi 
     await manager.chunkInfo()
   }))
 
+  subscriptions.push(commands.registerCommand('git.allChunkInfo', async () => {
+    return await manager.allChunkInfo()
+  }))
+
   subscriptions.push(commands.registerCommand('git.chunkStage', async () => {
     await manager.chunkStage()
   }))
