@@ -22,7 +22,7 @@ export default class GitStatus implements Disposable {
     }
     events.on('BufEnter', this.refresh, this, this.disposables)
     events.on('FocusGained', this.refresh, this, this.disposables)
-    let timer: NodeJS.Timer
+    let timer: ReturnType<typeof setTimeout>
     events.on('BufWritePost', () => {
       timer = setTimeout(() => {
         this.refresh()

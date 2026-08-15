@@ -64,7 +64,7 @@ export async function safeRun(cmd: string, opts: ExecOptions = {}): Promise<stri
     return await runCommand(cmd, opts, 5000)
   } catch (e) {
     // tslint:disable-next-line: no-console
-    console.error(e.message)
+    console.error((e as Error).message)
     return null
   }
 }
@@ -91,7 +91,7 @@ export function spawnCommand(cmd: string, args: string[], cwd: string): Promise<
 export function runCommand(cmd: string, opts: ExecOptions = {}, timeout?: number): Promise<string> {
   opts.maxBuffer = 5 * 1024 * 1024
   return new Promise<string>((resolve, reject) => {
-    let timer: NodeJS.Timer
+    let timer: ReturnType<typeof setTimeout>
     if (timeout) {
       timer = setTimeout(() => {
         reject(new Error(`timeout after ${timeout}s`))
@@ -103,14 +103,14 @@ export function runCommand(cmd: string, opts: ExecOptions = {}, timeout?: number
         reject(new Error(`exited with ${err.code}\n${stderr}`))
         return
       }
-      resolve(stdout)
+      resolve(stdout.toString())
     })
   })
 }
 
 export function getStdout(cmd: string, opts: ExecOptions = {}, timeout?: number): Promise<string> {
   return new Promise<string>((resolve, reject) => {
-    let timer: NodeJS.Timer
+    let timer: ReturnType<typeof setTimeout>
     if (timeout) {
       timer = setTimeout(() => {
         reject(new Error(`timeout after ${timeout}s`))
@@ -120,7 +120,7 @@ export function getStdout(cmd: string, opts: ExecOptions = {}, timeout?: number)
     exec(cmd, opts, (_err, stdout) => {
       if (timer) clearTimeout(timer)
       if (stdout) {
-        resolve(stdout)
+        resolve(stdout.toString())
         return
       }
       resolve(undefined)

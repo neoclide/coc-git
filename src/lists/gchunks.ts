@@ -9,7 +9,7 @@ export default class GChunks extends BasicList {
   public readonly defaultAction = 'jump'
 
   constructor(nvim: Neovim, private manager: Manager) {
-    super(nvim)
+    super()
     this.actions.push({
       name: 'jump',
       execute: item => {

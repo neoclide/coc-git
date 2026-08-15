@@ -1,5 +1,7 @@
 # coc-git
 
+[![CI](https://github.com/neoclide/coc-git/actions/workflows/ci.yaml/badge.svg)](https://github.com/neoclide/coc-git/actions/workflows/ci.yaml)
+
 Git integration of [coc.nvim](https://github.com/neoclide/coc.nvim).
 
 **Note:** many useful features not implemented, it's recommended to

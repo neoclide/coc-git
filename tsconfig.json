@@ -3,11 +3,13 @@
   "compilerOptions": {
     "noUnusedLocals": true,
     "declaration": false,
+    "noEmit": true,
     "outDir": "lib",
     "target": "es2017",
-    "module": "commonjs",
-    "moduleResolution": "node",
-    "lib": ["es2018"],
+    "module": "es2022",
+    "moduleResolution": "bundler",
+    "lib": ["es2018", "DOM"],
+    "useUnknownInCatchVariables": false,
     "plugins": []
   },
   "include": ["src"],
