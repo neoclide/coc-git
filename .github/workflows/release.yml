@@ -1,0 +1,174 @@
+name: Daily release
+
+on:
+  schedule:
+    # GitHub Actions cron uses UTC. Run daily away from the top of the hour.
+    - cron: "17 3 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  id-token: write
+
+concurrency:
+  group: release-${{ github.repository }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out the default branch
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.repository.default_branch }}
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+          package-manager-cache: false
+          registry-url: https://registry.npmjs.org
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install editors
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y neovim vim
+
+      - name: Download coc.nvim (release branch)
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/coc.nvim"
+          curl -fsSL -o "$RUNNER_TEMP/coc.nvim.tar.gz" https://github.com/neoclide/coc.nvim/archive/refs/heads/release.tar.gz
+          tar -xzf "$RUNNER_TEMP/coc.nvim.tar.gz" --strip-components=1 -C "$RUNNER_TEMP/coc.nvim"
+          echo "COC_TEST_COC_PATH=$RUNNER_TEMP/coc.nvim" >> "$GITHUB_ENV"
+
+      - name: Build
+        run: npm run build
+
+      - name: Test
+        run: npm run test
+
+      - name: Integration tests (Neovim)
+        run: npm run test:nvim
+
+      - name: Integration tests (Vim)
+        run: npm run test:vim
+
+      - name: Plan release
+        id: release
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          package_name="$(node -p "require('./package.json').name")"
+          current_version="$(node -p "require('./package.json').version")"
+          previous_tag="$current_version"
+
+          if ! git rev-parse --verify --quiet "refs/tags/${previous_tag}^{commit}" >/dev/null; then
+            echo "::error::Expected release tag ${previous_tag} for package.json version ${current_version}"
+            exit 1
+          fi
+
+          if ! git merge-base --is-ancestor "$previous_tag" HEAD; then
+            echo "::error::Release tag ${previous_tag} is not an ancestor of HEAD"
+            exit 1
+          fi
+
+          commit_count="$(git rev-list --count "${previous_tag}..HEAD")"
+          if [[ "$commit_count" == "0" ]]; then
+            if npm view "${package_name}@${current_version}" version --json >/dev/null 2>&1; then
+              echo "No commits since ${previous_tag}; nothing to release."
+              echo "mode=skip" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+
+            echo "Git release ${current_version} exists but npm does not have it; retrying publication only."
+            echo "mode=publish-only" >> "$GITHUB_OUTPUT"
+            echo "version=${current_version}" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          published_version="$(npm view "$package_name" version)"
+          if [[ "$published_version" != "$current_version" ]]; then
+            echo "::error::package.json version ${current_version} does not match npm latest ${published_version}"
+            exit 1
+          fi
+          echo "mode=release" >> "$GITHUB_OUTPUT"
+          echo "previous_tag=${previous_tag}" >> "$GITHUB_OUTPUT"
+
+      - name: Update version and history
+        if: steps.release.outputs.mode == 'release'
+        id: prepare
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          previous_tag="${{ steps.release.outputs.previous_tag }}"
+          version="$(npm version patch --no-git-tag-version)"
+          version="${version#v}"
+
+          if git rev-parse --verify --quiet "refs/tags/${version}^{commit}" >/dev/null; then
+            echo "::error::Release tag ${version} already exists; inspect remote branch/tag divergence"
+            exit 1
+          fi
+
+          release_notes="$(mktemp)"
+          updated_history="$(mktemp)"
+          git log --format='- %s (%h)' "${previous_tag}..HEAD" > "$release_notes"
+          {
+            printf '## %s\n\n' "$version"
+            cat "$release_notes"
+            if [[ -s history.md ]]; then
+              printf '\n'
+              cat history.md
+            fi
+          } > "$updated_history"
+          mv "$updated_history" history.md
+          # history.md is created on the first release; track it so the release
+          # commit includes the changelog.
+          git add history.md
+
+          npm pack --dry-run
+
+          untracked="$(git ls-files --others --exclude-standard)"
+          if [[ -n "$untracked" ]]; then
+            echo "::error::git commit -a would omit untracked files:"
+            printf '%s\n' "$untracked"
+            exit 1
+          fi
+
+          git diff --check
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+
+      - name: Commit, tag, and push
+        if: steps.release.outputs.mode == 'release'
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          version="${{ steps.prepare.outputs.version }}"
+          default_branch="${{ github.event.repository.default_branch }}"
+          source_head="$(git rev-parse HEAD)"
+          git fetch --quiet origin "$default_branch"
+          remote_head="$(git rev-parse FETCH_HEAD)"
+          if [[ "$remote_head" != "$source_head" ]]; then
+            echo "::error::Default branch advanced during this run; retry from ${remote_head}"
+            exit 1
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -a -m "Release $version"
+          git tag -a "$version" -m "Release $version"
+          git push --tags
+          git push
+
+      - name: Publish to npm
+        if: steps.release.outputs.mode == 'release' || steps.release.outputs.mode == 'publish-only'
+        run: npm publish
