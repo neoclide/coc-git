@@ -238,7 +238,9 @@ export default function addSource(context: ExtensionContext, service: GitService
   subscriptions.push(workspace.registerAutocmd({
     event: 'BufUnload',
     arglist: ["+expand('<abuf>')"],
-    callback: bufnr => issuesMap.delete(bufnr)
+    callback: bufnr => {
+      issuesMap.delete(bufnr)
+    }
   }))
 
   let source: SourceConfig = {

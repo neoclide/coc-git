@@ -80,7 +80,7 @@ export default class DocumentManager {
       }
     }))
     events.on('FocusGained', async () => {
-      let bufnr = await nvim.call('bufnr', ['%'])
+      let bufnr = await nvim.call('bufnr', ['%']) as number
       let buf = this.buffers.get(bufnr)
       if (buf) {
         buf.markConflictCheck()
@@ -227,7 +227,7 @@ export default class DocumentManager {
     const { nvim } = this
     let buf = await this.buffer
     if (!buf) return
-    let line = await nvim.call('line', '.')
+    let line = await nvim.call('line', '.') as number
     return buf.getChunk(line)
   }
 
@@ -304,7 +304,7 @@ export default class DocumentManager {
 
   public async showBlameDoc(): Promise<void> {
     let buf = await this.buffer
-    let line = await this.nvim.call('line', '.')
+    let line = await this.nvim.call('line', '.') as number
     if (buf) await buf.showBlameDoc(line)
   }
 
@@ -326,7 +326,7 @@ export default class DocumentManager {
 
   // push code
   public async push(args: string[]): Promise<void> {
-    let bufnr = await workspace.nvim.call('bufnr', '%')
+    let bufnr = await workspace.nvim.call('bufnr', '%') as number
     let root = await this.resolveGitRootFromBufferOrCwd(bufnr)
     let extra = this.config.pushArguments
     if (!root) {
@@ -356,7 +356,7 @@ export default class DocumentManager {
 
   private get buffer(): Promise<GitBuffer> {
     return workspace.nvim.call('bufnr', '%').then(bufnr => {
-      let buf = this.buffers.get(bufnr)
+      let buf = this.buffers.get(bufnr as number)
       if (!buf) window.showWarningMessage(`Can't resolve git repository for current buffer.`)
       return buf
     })
@@ -367,7 +367,7 @@ export default class DocumentManager {
   }
 
   public async getDiffAll(category: DiffCategory): Promise<Map<string, Diff[]>> {
-    let bufnr = await workspace.nvim.call('bufnr', '%')
+    let bufnr = await workspace.nvim.call('bufnr', '%') as number
     let root = await this.resolveGitRootFromBufferOrCwd(bufnr)
     if (!root) {
       window.showWarningMessage(`not belongs to git repository.`)

@@ -100,7 +100,7 @@ export default class GitBuffer implements Disposable {
   }
 
   public async chunkUndo(): Promise<void> {
-    let line = await workspace.nvim.call('line', '.')
+    let line = await workspace.nvim.call('line', '.') as number
     let diff = this.getChunk(line)
     if (!diff) return
     let { start, lines, changeType } = diff
@@ -120,7 +120,7 @@ export default class GitBuffer implements Disposable {
 
   public async chunkStage(): Promise<void> {
     let relpath = toUnixSlash(this.relpath)
-    let line = await workspace.nvim.call('line', '.')
+    let line = await workspace.nvim.call('line', '.') as number
     let diff = this.getChunk(line)
     if (!diff) {
       window.showErrorMessage('Not positioned in git chunk')
@@ -157,7 +157,7 @@ export default class GitBuffer implements Disposable {
     let { nvim } = workspace
     const { diffs } = this
     // find out staged line first.
-    let line = await nvim.call('line', '.')
+    let line = await nvim.call('line', '.') as number
     let adjust = 0
     let invalid = false
     for (let diff of diffs) {
@@ -200,7 +200,7 @@ export default class GitBuffer implements Disposable {
     const { diffs } = this
     let { nvim } = workspace
     if (!diffs || diffs.length == 0) return
-    let line = await nvim.call('line', '.')
+    let line = await nvim.call('line', '.') as number
     for (let diff of diffs) {
       if (diff.start > line) {
         await window.moveTo({ line: Math.max(diff.start - 1, 0), character: 0 })
@@ -215,7 +215,7 @@ export default class GitBuffer implements Disposable {
   public async prevChunk(): Promise<void> {
     const { nvim } = workspace
     let { diffs } = this
-    let line = await nvim.call('line', '.')
+    let line = await nvim.call('line', '.') as number
     if (!diffs || diffs.length == 0) return
     for (let diff of diffs.slice().reverse()) {
       if (diff.end < line) {
@@ -229,7 +229,7 @@ export default class GitBuffer implements Disposable {
   }
 
   public async chunkInfo(): Promise<void> {
-    let line = await workspace.nvim.call('line', '.')
+    let line = await workspace.nvim.call('line', '.') as number
     let diff = this.getChunk(line)
     if (diff) {
       let content = diff.head + '\n' + diff.lines.join('\n')
@@ -502,7 +502,7 @@ export default class GitBuffer implements Disposable {
       window.showWarningMessage('No conflicts detected')
       return
     }
-    let line = await nvim.call('line', '.')
+    let line = await nvim.call('line', '.') as number
     for (let conflict of this.conflicts) {
       if (conflict.start > line) {
         await window.moveTo({ line: Math.max(conflict.start - 1, 0), character: 0 })
@@ -520,7 +520,7 @@ export default class GitBuffer implements Disposable {
       window.showWarningMessage('No conflicts detected', 'warning')
       return
     }
-    let line = await nvim.call('line', '.')
+    let line = await nvim.call('line', '.') as number
     let conflict = getPreviousConflict(this.conflicts, line)
     if (conflict) {
       await window.moveTo({ line: Math.max(conflict.start - 1, 0), character: 0 })
@@ -539,7 +539,7 @@ export default class GitBuffer implements Disposable {
       window.showWarningMessage('No conflicts detected')
       return
     }
-    let line = await nvim.call('line', '.')
+    let line = await nvim.call('line', '.') as number
     for (let conflict of conflicts) {
       if (conflict.start <= line && conflict.end >= line) {
         switch (part) {
