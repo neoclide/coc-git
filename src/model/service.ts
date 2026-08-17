@@ -6,8 +6,6 @@ import Git from './git'
 import GitRepo from './repo'
 import GitResolver from './resolver'
 
-const uriToRoot: Map<string, string> = new Map()
-
 export default class GitService {
   private _git: Git
   private _resolver: GitResolver
@@ -42,8 +40,8 @@ export default class GitService {
     if (!relpath) return undefined
     let ignored = await repo.isIgnored(relpath)
     if (ignored) return undefined
-    uriToRoot.set(doc.uri, root)
     let hasConflicts = await repo.hasConflicts(relpath)
+    if (!doc.attached) return undefined
     return new GitBuffer(doc, config, relpath, repo, this.git, this.outputChannel, this.floatFactory, hasConflicts)
   }
 
@@ -51,11 +49,7 @@ export default class GitService {
     let editor = window.activeTextEditor
     let root: string | undefined
     if (editor) {
-      let { uri } = editor.document
-      root = uriToRoot.get(uri)
-      if (!root) {
-        root = await this.resolver.resolveGitRoot(editor.document)
-      }
+      root = await this.resolver.resolveGitRoot(editor.document)
     } else {
       let cwd = workspace.cwd
       root = await this.resolver.resolveGitRoot({ uri: Uri.file(cwd).toString(), schema: 'file', buftype: '' })

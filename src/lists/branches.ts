@@ -1,7 +1,6 @@
 import { IList, ListAction, ListContext, ListItem, Neovim, window } from 'coc.nvim'
 import colors from 'colors/safe'
 import Manager from '../manager'
-import { safeRun } from '../util'
 
 export default class Branches implements IList {
   public readonly name = 'branches'
@@ -14,7 +13,7 @@ export default class Branches implements IList {
       name: 'checkout',
       execute: async (item: ListItem) => {
         let { root, branch } = item.data
-        await safeRun(`git checkout ${branch}`, { cwd: root })
+        await this.manager.git.exec(root, ['checkout', branch])
         nvim.command('bufdo e', true)
       }
     })
@@ -23,22 +22,23 @@ export default class Branches implements IList {
       persist: true,
       reload: true,
       execute: async (item: ListItem) => {
-        let cmd: string
         let { root, branch, remote } = item.data
         if (remote) {
           let res = await window.showPrompt(`Delete remote branch ${branch}?`)
           if (!res) return
-          let parts = branch.split('/', 2)
-          cmd = `git push ${parts[0]} --delete ${parts[1]}`
-          await safeRun(cmd, { cwd: root })
-          await safeRun(`git fetch -p ${parts[0]}`)
+          let separator = branch.indexOf('/')
+          if (separator === -1) throw new Error(`Invalid remote branch: ${branch}`)
+          let remoteName = branch.slice(0, separator)
+          let remoteBranch = branch.slice(separator + 1)
+          await this.manager.git.exec(root, ['push', remoteName, '--delete', remoteBranch])
+          await this.manager.git.exec(root, ['fetch', '-p', remoteName])
         } else {
-          cmd = `git branch -d ${branch}`
-          let res = await safeRun(cmd, { cwd: root })
-          if (res == null) {
+          try {
+            await this.manager.git.exec(root, ['branch', '-d', branch])
+          } catch (_e) {
             let res = await window.showPrompt(`Delete failed, force delete ${branch}?`)
             if (!res) return
-            await safeRun(`git branch -D ${branch}`, { cwd: root })
+            await this.manager.git.exec(root, ['branch', '-D', branch])
           }
         }
       }
@@ -47,8 +47,7 @@ export default class Branches implements IList {
       name: 'merge',
       execute: async (item: ListItem) => {
         let { root, branch } = item.data
-        let cmd = `git merge ${branch}`
-        await safeRun(cmd, { cwd: root })
+        await this.manager.git.exec(root, ['merge', branch])
         nvim.command('bufdo e', true)
       }
     })
@@ -56,8 +55,7 @@ export default class Branches implements IList {
       name: 'rebase',
       execute: async (item: ListItem) => {
         let { root, branch } = item.data
-        let cmd = `git rebase ${branch}`
-        await safeRun(cmd, { cwd: root })
+        await this.manager.git.exec(root, ['rebase', branch])
         nvim.command('bufdo e', true)
       }
     })

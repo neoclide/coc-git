@@ -1,7 +1,7 @@
 import { CompleteResult, Document, ExtensionContext, fetch, IList, ListContext, ListItem, listManager, SourceConfig, sources, window, workspace } from 'coc.nvim'
 import colors from 'colors/safe'
-import Resolver from './model/resolver'
-import { safeRun } from './util'
+import { URL } from 'url'
+import GitService from './model/service'
 
 interface Issue {
   id: number
@@ -21,7 +21,7 @@ function byteSlice(content: string, start: number, end?: number): string {
 
 const issuesMap: Map<number, Issue[]> = new Map()
 function issuesFiletypes(): string[] {
-  return workspace.getConfiguration().get<string[]>('coc.source.issues.filetypes')
+  return workspace.getConfiguration().get<string[]>('coc.source.issues.filetypes') ?? []
 }
 
 function getOrganizationNameAndRepoNameFromGitHubRemoteUrl(remoteUrl: string): { organizationName: string, repoName: string } | null {
@@ -52,9 +52,11 @@ function renderWord(issue: Issue, issueFormat: string): string {
   }).join('')
 }
 
-export default function addSource(context: ExtensionContext, resolver: Resolver): void {
+export default function addSource(context: ExtensionContext, service: GitService): void {
   let { subscriptions, logger } = context
+  const { resolver } = service
   let statusItem = window.createStatusBarItem(0, { progress: true })
+  subscriptions.push(statusItem, { dispose: () => issuesMap.clear() })
   statusItem.text = 'loading issues'
   let statusItemCounter = 0
 
@@ -66,7 +68,7 @@ export default function addSource(context: ExtensionContext, resolver: Resolver)
   }
 
   function onEndLoading(): void {
-    statusItemCounter--
+    statusItemCounter = Math.max(0, statusItemCounter - 1)
     if (statusItemCounter === 0) {
       statusItem.hide()
     }
@@ -81,12 +83,16 @@ export default function addSource(context: ExtensionContext, resolver: Resolver)
     if (!token) return []
 
     let repo: string
-    if (res.startsWith('https')) {
-      const re = new RegExp(`^https:\\/\\/${host}\\/(.*)`)
-      let ms = res.match(re)
-      repo = ms ? ms[1].replace(/\.git$/, '') : null
-    } else if (res.startsWith('git')) {
-      const re = new RegExp(`git@${host}:(.*)`)
+    const escapedHost = host.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    if (res.startsWith('http')) {
+      try {
+        const url = new URL(res)
+        if (url.hostname === host) repo = url.pathname.replace(/^\//, '').replace(/\.git$/, '')
+      } catch (_e) {
+        // Invalid remote URL.
+      }
+    } else {
+      const re = new RegExp(`^(?:git@${escapedHost}:|ssh:\\/\\/git@${escapedHost}\\/)(.*)`)
       let ms = res.match(re)
       repo = ms ? ms[1].replace(/\.git$/, '') : null
     }
@@ -98,10 +104,10 @@ export default function addSource(context: ExtensionContext, resolver: Resolver)
     onStartLoading()
     let issues: Issue[] = []
     let pageIndex = 1
-    while (true) {
-      const pageUri = `${uri}&page=${pageIndex}`
-      pageIndex++
-      try {
+    try {
+      while (true) {
+        const pageUri = `${uri}&page=${pageIndex}`
+        pageIndex++
         let info = await fetch(pageUri, { headers: { 'Private-Token': token } })
         if (!info.length) {
           break
@@ -113,16 +119,17 @@ export default function addSource(context: ExtensionContext, resolver: Resolver)
             title: info[i].title,
             createAt: new Date(info[i].created_at),
             creator: info[i].author.username,
-            body: info[i].description,
+            body: info[i].description || '',
             repo,
             url: `https://${host}/${repo}/issues/${info[i].iid}`
           })
         }
-      } catch (e) {
-        logger.error(`Request GitLab ${host} issues error:`, e)
       }
+    } catch (e) {
+      logger.error(`Request GitLab ${host} issues error:`, e)
+    } finally {
+      onEndLoading()
     }
-    onEndLoading()
     return issues
   }
 
@@ -150,7 +157,7 @@ export default function addSource(context: ExtensionContext, resolver: Resolver)
             title: info[i].title,
             createAt: new Date(info[i].created_at),
             creator: info[i].user.login,
-            body: info[i].body,
+            body: info[i].body || '',
             repo,
             url: `https://github.com/${repo}/issues/${info[i].number}`,
             shouldIncludeOrganizationNameAndRepoNameInAbbr,
@@ -167,7 +174,8 @@ export default function addSource(context: ExtensionContext, resolver: Resolver)
 
   async function loadIssues(root: string): Promise<Issue[]> {
     let config = workspace.getConfiguration('git', root)
-    const issueSources = (await safeRun(`git config --get coc-git.issuesources`, { cwd: root }) || '').trim()
+    const repo = service.getRepoFromRoot(root)
+    const issueSources = (await repo.safeRun(['config', '--get', 'coc-git.issuesources']) || '').trim()
     if (issueSources) {
       return Array.prototype.concat.apply([],
         await Promise.all(issueSources.split(',').map(issueSource => {
@@ -181,7 +189,7 @@ export default function addSource(context: ExtensionContext, resolver: Resolver)
     }
 
     let remoteName = config.get<string>('remoteName', 'origin')
-    let res = await safeRun(`git config --get remote.${remoteName}.url`, { cwd: root })
+    let res = await repo.safeRun(['config', '--get', `remote.${remoteName}.url`])
     res = res.trim()
     if (res.indexOf('github.com') > 0) {
       const organizationNameAndRepoName = getOrganizationNameAndRepoNameFromGitHubRemoteUrl(res)
@@ -210,7 +218,9 @@ export default function addSource(context: ExtensionContext, resolver: Resolver)
     resolver.resolveGitRoot(doc).then(async root => {
       if (root) {
         let issues = await loadIssues(root)
-        issuesMap.set(doc.bufnr, issues)
+        if (workspace.getDocument(doc.bufnr)?.uri === doc.uri) {
+          issuesMap.set(doc.bufnr, issues)
+        }
       }
     }).catch(onError)
   }
@@ -225,6 +235,11 @@ export default function addSource(context: ExtensionContext, resolver: Resolver)
       loadIssuesFromDocument(doc)
     }
   }, null, subscriptions)
+  subscriptions.push(workspace.registerAutocmd({
+    event: 'BufUnload',
+    arglist: ["+expand('<abuf>')"],
+    callback: bufnr => issuesMap.delete(bufnr)
+  }))
 
   let source: SourceConfig = {
     name: 'issues',
@@ -272,7 +287,7 @@ export default function addSource(context: ExtensionContext, resolver: Resolver)
       execute: async (item: ListItem, context: ListContext) => {
         let winid = context.listWindow.id
         let { body, id } = item.data
-        let lines = body.split(/\r?\n/)
+        let lines = (body || '').split(/\r?\n/)
         let mod = context.options.position == 'top' ? 'below' : 'above'
         let { nvim } = workspace
         nvim.pauseNotification()

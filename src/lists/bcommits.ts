@@ -1,9 +1,8 @@
-import { ChildProcess, spawn } from 'child_process'
-import { ansiparse, BasicList, events, ListContext, ListTask, Neovim, runCommand } from 'coc.nvim'
+import { ChildProcess } from 'child_process'
+import { ansiparse, BasicList, events, ListContext, ListTask, Neovim } from 'coc.nvim'
 import { EventEmitter } from 'events'
 import readline from 'readline'
 import Manager from '../manager'
-import { shellescape } from '../util'
 
 class CommitsTask extends EventEmitter implements ListTask {
   private process: ChildProcess
@@ -11,8 +10,8 @@ class CommitsTask extends EventEmitter implements ListTask {
     super()
   }
 
-  public start(cmd: string, args: string[], cwd: string): void {
-    this.process = spawn(cmd, args, { cwd })
+  public start(process: ChildProcess): void {
+    this.process = process
     this.process.on('error', e => {
       this.emit('error', e.message)
     })
@@ -61,7 +60,7 @@ export default class Bcommits extends BasicList {
       let { commit, root } = item.data
       let lines: string[] = []
       if (commit) {
-        let content = await runCommand(`git --no-pager show ${commit}`, { cwd: root })
+        let content = (await this.manager.git.exec(root, ['--no-pager', 'show', commit])).stdout
         lines = content.trim().split('\n')
       }
       await this.preview({
@@ -80,7 +79,7 @@ export default class Bcommits extends BasicList {
         await nvim.command(`${cmd} ${commit}`)
       } else {
         let cmd = ctx.options.position === 'tab' ? 'tabe' : 'edit'
-        let content = await runCommand(`git --no-pager show ${commit}`, { cwd: root })
+        let content = (await this.manager.git.exec(root, ['--no-pager', 'show', commit])).stdout
         let lines = content.trim().split('\n')
         nvim.pauseNotification()
         nvim.command(`${cmd} +setl\\ buftype=nofile [commit ${commit}]`, true)
@@ -95,11 +94,12 @@ export default class Bcommits extends BasicList {
     this.addAction('view', async (item, context) => {
       let { commit, root, file } = item.data
       let { window } = context
-      let content = await runCommand(`git show ${commit}:${shellescape(file)}`, { cwd: root })
+      let content = (await this.manager.git.exec(root, ['show', `${commit}:${file}`])).stdout
       let lines = content.replace(/\n$/, '').split('\n')
+      let name = await nvim.call('fnameescape', [`(${commit}) ${file}`]) as string
       nvim.pauseNotification()
       nvim.call('win_gotoid', [window.id], true)
-      nvim.command(`exe "tabe ".fnameescape('(${commit}) ${file}')`, true)
+      nvim.command(`tabe ${name}`, true)
       nvim.call('append', [0, lines], true)
       nvim.command('normal! Gdd', true)
       nvim.command(`exe 1`, true)
@@ -113,7 +113,7 @@ export default class Bcommits extends BasicList {
       let filetype = await buffer.getOption('filetype')
       let { root, commit, file } = item.data
       if (!commit) return
-      let content = await runCommand(`git --no-pager show --no-color ${commit}:${file}`, { cwd: root })
+      let content = (await this.manager.git.exec(root, ['--no-pager', 'show', '--no-color', `${commit}:${file}`])).stdout
       if (!content) return
       let lines = content.replace(/\n$/, '').split(/\r?\n/)
       nvim.pauseNotification()
@@ -159,7 +159,7 @@ export default class Bcommits extends BasicList {
       `--format=%Cred%h%Creset -%C(yellow)%d%Creset %s %Cgreen(%cr) %C(bold blue)<%an>%Creset`,
       '--abbrev-commit', '--date=iso', '--', relpath]
     let task = new CommitsTask(root, relpath)
-    task.start('git', args, root)
+    task.start(this.manager.git.stream(root, args))
     return task
   }
 }

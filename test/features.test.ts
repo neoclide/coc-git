@@ -5,7 +5,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { describe, it } from 'node:test'
 import { commands, workspace } from 'coc.nvim'
-import { formatBlameText } from '../lib/index.js'
+import { formatBlameText } from '../src/index'
 
 describe('git blame format', () => {
   it('formats blame text with the default placeholders', () => {
@@ -41,7 +41,8 @@ describe('git chunk info', () => {
       fs.writeFileSync(file, '1\n2\n3\n4\n5\n')
       execSync('git add a.txt && git commit -q -m init', { cwd: dir })
       fs.writeFileSync(file, '1\nchanged\n3\n4\n5\n')
-      await workspace.nvim.command(`edit ${file}`)
+      const document = await workspace.openTextDocument(file)
+      await workspace.nvim.command(`buffer ${document.bufnr}`)
       const chunks = await waitForChunks()
       assert.ok(chunks.length >= 1)
       const chunk = chunks[0]

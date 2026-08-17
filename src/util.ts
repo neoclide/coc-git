@@ -1,4 +1,4 @@
-import { exec, ExecOptions, spawn } from 'child_process'
+import { exec, spawn } from 'child_process'
 import { Event, window } from 'coc.nvim'
 import { BlameInfo, StageChunk } from './types'
 import path from 'path'
@@ -15,15 +15,31 @@ function reverseLine(line: string): string {
   return line
 }
 
+export function quoteGitPath(filepath: string): string {
+  if (!/[\s"\\\x00-\x1f\x7f]/.test(filepath)) return filepath
+  return `"${filepath.replace(/["\\\x00-\x1f\x7f]/g, character => {
+    switch (character) {
+      case '"': return '\\"'
+      case '\\': return '\\\\'
+      case '\t': return '\\t'
+      case '\n': return '\\n'
+      case '\r': return '\\r'
+      default: return `\\${character.charCodeAt(0).toString(8).padStart(3, '0')}`
+    }
+  })}"`
+}
+
 export function createUnstagePatch(relpath: string, chunk: StageChunk): string {
   if (chunk.remove.count == 0 && chunk.add.count == 0) return ''
   let head = `@@ -${chunk.add.lnum},${chunk.add.count} +${chunk.add.lnum + 1 - chunk.add.count},${chunk.remove.count} @@`
   if (!head) return ''
+  const from = quoteGitPath(`a/${relpath}`)
+  const to = quoteGitPath(`b/${relpath}`)
   const lines = [
-    `diff --git a/${relpath} b/${relpath}`,
+    `diff --git ${from} ${to}`,
     `index 000000..000000 100644`,
-    `--- a/${relpath}`,
-    `+++ b/${relpath}`,
+    `--- ${from}`,
+    `+++ ${to}`,
     head
   ]
   lines.push(...chunk.lines.map(s => reverseLine(s)))
@@ -42,27 +58,6 @@ export function formatBlameText(info: BlameInfo, format = '(%a %t) %s'): string 
     .replace(/\u0000/g, '%')
 }
 
-export function wait(ms: number): Promise<any> {
-  return new Promise(resolve => {
-    setTimeout(() => {
-      resolve(undefined)
-    }, ms)
-  })
-}
-
-export function shellescape(s: string): string {
-  if (process.platform == 'win32') {
-    return `"${s.replace(/"/g, '\\"')}"`
-  }
-  if (/[^A-Za-z0-9_\/:=-]/.test(s)) {
-    s = "'" + s.replace(/'/g, "'\\''") + "'"
-    s = s.replace(/^(?:'')+/g, '') // unduplicate single-quote at the beginning
-      .replace(/\\'''/g, "\\'") // remove non-escaped single-quote if there are enclosed between 2 escaped
-    return s
-  }
-  return s
-}
-
 export function toUnixSlash(fsPath: string): string {
   if (process.platform == 'win32') {
     return fsPath.replace(/\\/g, '/')
@@ -70,20 +65,11 @@ export function toUnixSlash(fsPath: string): string {
   return fsPath
 }
 
-export async function safeRun(cmd: string, opts: ExecOptions = {}): Promise<string> {
-  try {
-    return await runCommand(cmd, opts, 5000)
-  } catch (e) {
-    // tslint:disable-next-line: no-console
-    console.error((e as Error).message)
-    return null
-  }
-}
-
 export function spawnCommand(cmd: string, args: string[], cwd: string): Promise<string> {
   const cp = spawn(cmd, args, { cwd })
   let res = ''
   return new Promise((resolve, reject) => {
+    cp.on('error', reject)
     cp.stdout.on('data', data => {
       res += data.toString()
     })
@@ -95,46 +81,6 @@ export function spawnCommand(cmd: string, args: string[], cwd: string): Promise<
         return reject(new Error(`${cmd} exited with code ${code}`))
       }
       resolve(res)
-    })
-  })
-}
-
-export function runCommand(cmd: string, opts: ExecOptions = {}, timeout?: number): Promise<string> {
-  opts.maxBuffer = 5 * 1024 * 1024
-  return new Promise<string>((resolve, reject) => {
-    let timer: ReturnType<typeof setTimeout>
-    if (timeout) {
-      timer = setTimeout(() => {
-        reject(new Error(`timeout after ${timeout}s`))
-      }, timeout * 1000)
-    }
-    exec(cmd, opts, (err, stdout, stderr) => {
-      if (timer) clearTimeout(timer)
-      if (err) {
-        reject(new Error(`exited with ${err.code}\n${stderr}`))
-        return
-      }
-      resolve(stdout.toString())
-    })
-  })
-}
-
-export function getStdout(cmd: string, opts: ExecOptions = {}, timeout?: number): Promise<string> {
-  return new Promise<string>((resolve, reject) => {
-    let timer: ReturnType<typeof setTimeout>
-    if (timeout) {
-      timer = setTimeout(() => {
-        reject(new Error(`timeout after ${timeout}s`))
-      }, timeout * 1000)
-    }
-    opts.maxBuffer = 5 * 1024 * 1024
-    exec(cmd, opts, (_err, stdout) => {
-      if (timer) clearTimeout(timer)
-      if (stdout) {
-        resolve(stdout.toString())
-        return
-      }
-      resolve(undefined)
     })
   })
 }
@@ -205,8 +151,12 @@ export function getRepoUrl(remote: string): string | null {
     let str = url.slice(4)
     let parts = str.split(':', 2)
     url = `https://${parts[0]}/${parts[1]}`
+  } else if (url.startsWith('ssh://git@')) {
+    url = url.replace(/^ssh:\/\/git@([^/]+)\//, 'https://$1/')
+  } else if (url.startsWith('git://')) {
+    url = url.replace(/^git:\/\//, 'https://')
   }
-  return url
+  return /^https?:\/\//.test(url) ? url : null
 }
 
 export function getUrl(fix: string, repoURL: string, name: string, filepath: string, lines?: number[] | string): string {
@@ -216,10 +166,16 @@ export function getUrl(fix: string, repoURL: string, name: string, filepath: str
   } else if (typeof lines == 'string') {
     anchor = lines
   }
-  let url = repoURL + '/blob/' + name + '/' + filepath + (anchor ? '#' + anchor : '')
+  const encodePath = (value: string): string => value.split('/').map(encodeURIComponent).join('/')
+  let url = repoURL + '/blob/' + encodePath(name) + '/' + encodePath(filepath) + (anchor ? '#' + encodeURIComponent(anchor) : '')
   let parts = fix.split('|')
-  let match = RegExp(parts[0]), result = parts[1]
-  return url.replace(match, result)
+  if (parts.length < 2) return url
+  try {
+    let match = RegExp(parts[0]), result = parts[1]
+    return url.replace(match, result)
+  } catch (_e) {
+    return url
+  }
 }
 
 function parseVersion(raw: string): string {
@@ -274,28 +230,19 @@ function findGitDarwin(onLookup: (path: string) => void): Promise<IGit> {
         return e('git not found')
       }
       const path = gitPathBuffer.toString().replace(/^\s+|\s+$/g, '')
-      function getVersion(path: string): void {
-        onLookup(path)
-        // make sure git executes
-        exec('git --version', (err, stdout) => {
-          if (err) {
-            return e('git not found')
-          }
-          return c({ path, version: parseVersion(stdout.trim()) })
-        })
-      }
       if (path !== '/usr/bin/git') {
-        return getVersion(path)
+        findSpecificGit(path, onLookup).then(c, e)
+        return
       }
-      getVersion(path)
       // must check if XCode is installed
       exec('xcode-select -p', (err: any) => {
         if (err && err.code === 2) {
           // git is not installed, and launching /usr/bin/git
           // will prompt the user to install it
-
-          return e('git not found')
+          e('git not found')
+          return
         }
+        findSpecificGit(path, onLookup).then(c, e)
       })
     })
   })

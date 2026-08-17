@@ -34,8 +34,32 @@
         "command": "git.refresh"
       },
       {
+        "title": "Navigate to the next changed chunk.",
+        "command": "git.nextChunk"
+      },
+      {
+        "title": "Navigate to the previous changed chunk.",
+        "command": "git.prevChunk"
+      },
+      {
+        "title": "Keep the current part of the merge conflict.",
+        "command": "git.keepCurrent"
+      },
+      {
+        "title": "Keep the incoming part of the merge conflict.",
+        "command": "git.keepIncoming"
+      },
+      {
+        "title": "Keep both parts of the merge conflict.",
+        "command": "git.keepBoth"
+      },
+      {
         "title": "Show chunk info under cursor",
         "command": "git.chunkInfo"
+      },
+      {
+        "title": "Return all changed chunks in the current buffer.",
+        "command": "git.allChunkInfo"
       },
       {
         "title": "Stage current chunk.",
@@ -155,7 +179,7 @@
           "type": "string",
           "default": "",
           "scope": "window",
-          "description": "Revision used for git diff used by gutters, default is current HEAD."
+          "description": "Revision used as the gutter diff base, default is the current index."
         },
         "git.issueFormat": {
           "type": "string",
@@ -248,12 +272,9 @@
           "description": "Priority of sign gutters, default to 10."
         },
         "git.pushArguments": {
-          "type": [
-            "array",
-            "null"
-          ],
-          "default": null,
-          "description": "Default arguments used for git.pushCode command, ex: [\"--force-with-lease\"]",
+          "type": "array",
+          "default": [],
+          "description": "Default arguments used for the git.push command, ex: [\"--force-with-lease\"]",
           "scope": "window",
           "items": {
             "type": "string"
@@ -354,6 +375,7 @@
         },
         "git.floatConfig": {
           "type": "object",
+          "default": {},
           "description": "Configure style of float window/popup, extends from floatFactory.floatConfig",
           "additionalProperties": false,
           "scope": "application",
@@ -422,7 +444,10 @@
           "default": [
             "gitlab.com"
           ],
-          "description": "Custom GitLab hosts"
+          "description": "Custom GitLab hosts",
+          "items": {
+            "type": "string"
+          }
         },
         "git.conflict.enabled": {
           "type": "boolean",
@@ -450,7 +475,7 @@
         },
         "git.gstatus.saveBeforeOpen": {
           "type": "boolean",
-          "default": "false",
+          "default": false,
           "scope": "application",
           "description": "Auto save opened files before open list."
         },
@@ -496,6 +521,9 @@
         }
       }
     }
+  },
+  "coc-test": {
+    "entryFile": "src/index.ts"
   },
   "author": "chemzqm@gmail.com",
   "license": "MIT",

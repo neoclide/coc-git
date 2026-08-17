@@ -4,11 +4,18 @@ import os from 'node:os'
 import path from 'node:path'
 import { describe, it } from 'node:test'
 import { commands, window, workspace } from 'coc.nvim'
-import extension from '../lib/index.js'
+import * as extension from '../src/index'
+import manifest from '../package.json'
 
 const gitCommands = [
   'git.refresh',
+  'git.nextChunk',
+  'git.prevChunk',
+  'git.keepCurrent',
+  'git.keepIncoming',
+  'git.keepBoth',
   'git.chunkInfo',
+  'git.allChunkInfo',
   'git.chunkStage',
   'git.chunkUnstage',
   'git.chunkUndo',
@@ -34,6 +41,20 @@ describe('coc-git extension', () => {
     }
   })
 
+  it('declares every registered git command in the extension manifest', () => {
+    const declared = new Set(manifest.contributes.commands.map(item => item.command))
+    for (const name of gitCommands) {
+      assert.equal(declared.has(name), true, `command ${name} missing from package.json`)
+    }
+  })
+
+  it('uses runtime-compatible configuration defaults', () => {
+    const properties = manifest.contributes.configuration.properties
+    assert.deepEqual(properties['git.pushArguments'].default, [])
+    assert.equal(properties['git.gstatus.saveBeforeOpen'].default, false)
+    assert.equal(manifest['coc-test'].entryFile, 'src/index.ts')
+  })
+
   it('communicates with the editor', async () => {
     assert.equal(await workspace.nvim.eval('1 + 1'), 2)
   })
@@ -43,7 +64,8 @@ describe('coc-git extension', () => {
     const file = path.join(dir, 'plain.txt')
     fs.writeFileSync(file, 'hello\n')
     try {
-      await workspace.nvim.command(`edit ${file}`)
+      const document = await workspace.openTextDocument(file)
+      await workspace.nvim.command(`buffer ${document.bufnr}`)
       const original = window.showWarningMessage
       const messages: string[] = []
       window.showWarningMessage = ((message: string) => {

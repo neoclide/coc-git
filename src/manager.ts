@@ -21,21 +21,32 @@ export default class DocumentManager {
     this.loadConfiguration()
     workspace.onDidChangeConfiguration(this.loadConfiguration, this, this.disposables)
     this.gitStatus = new GitStatus(service)
-    workspace.registerBufferSync((doc: Document) => {
+    this.disposables.push(workspace.registerBufferSync((doc: Document) => {
       let disposed = false
       let gitBuffer: GitBuffer
       let { bufnr, uri } = doc
       service.createBuffer(doc, this.config).then(buf => {
-        if (!buf || disposed) return
+        if (!buf) return
+        if (disposed) {
+          buf.dispose()
+          return
+        }
         gitBuffer = buf
         this.defineSigns().catch(e => {
           console.error(e.message)
         })
         this.buffers.set(doc.bufnr, buf)
+      }).catch(e => {
+        service.log(`[Error] unable to create git buffer for ${uri}: ${e.message}`)
       })
       return {
-        onChange: () => {
-          if (gitBuffer) gitBuffer._refresh()
+        onChange: e => {
+          if (gitBuffer) {
+            if (e.contentChanges.some(change => change.text.includes('<<<<<<<'))) {
+              gitBuffer.markConflictCheck()
+            }
+            gitBuffer._refresh().catch(e => service.log(`[Error] refresh error: ${e.message}`))
+          }
         },
         dispose: () => {
           disposed = true
@@ -44,28 +55,44 @@ export default class DocumentManager {
           if (gitBuffer) gitBuffer.dispose()
         }
       }
-    })
-    events.on('CursorMoved', debounce(async (bufnr, cursor) => {
+    }))
+    const cursorMoved = debounce(async (bufnr, cursor) => {
       let buf = this.buffers.get(bufnr)
-      if (buf) await buf.showBlameInfo(cursor[0])
-    }, 100), null, this.disposables)
-    workspace.registerAutocmd({
+      if (buf) {
+        try {
+          await buf.showBlameInfo(cursor[0])
+        } catch (e) {
+          service.log(`[Error] unable to show blame: ${e.message}`)
+        }
+      }
+    }, 100)
+    events.on('CursorMoved', cursorMoved, null, this.disposables)
+    this.disposables.push({ dispose: () => cursorMoved.clear() })
+    this.disposables.push(workspace.registerAutocmd({
       event: 'BufWritePost',
       arglist: ["+expand('<abuf>')"],
       callback: bufnr => {
         if (!this.enableGutters || this.config.realtimeGutters) return
         let buf = this.buffers.get(bufnr)
-        if (buf) buf.diffDocument(true)
+        if (buf) {
+          buf.diffDocument(true).catch(e => service.log(`[Error] refresh error: ${e.message}`))
+        }
       }
-    })
+    }))
     events.on('FocusGained', async () => {
       let bufnr = await nvim.call('bufnr', ['%'])
       let buf = this.buffers.get(bufnr)
-      if (buf) buf.refresh()
+      if (buf) {
+        buf.markConflictCheck()
+        buf.refresh()
+      }
     }, null, this.disposables)
     events.on('BufEnter', bufnr => {
       let buf = this.buffers.get(bufnr)
-      if (buf) buf.refresh()
+      if (buf) {
+        buf.markConflictCheck()
+        buf.refresh()
+      }
     }, null, this.disposables)
   }
 
@@ -104,7 +131,7 @@ export default class DocumentManager {
       realtimeGutters: config.get<boolean>('realtimeGutters', true),
       showCommitInFloating: config.get<boolean>('showCommitInFloating', false),
       signPriority: config.get<number>('signPriority', 10),
-      pushArguments: config.get<string[]>('pushArguments', []),
+      pushArguments: config.get<string[]>('pushArguments') ?? [],
       splitWindowCommand: config.get<string>('splitWindowCommand', 'above sp'),
       changedSign: {
         text: config.get<string>('changedSign.text', '~'),
@@ -140,6 +167,11 @@ export default class DocumentManager {
       conflictSrcId: this.conflictSrcId
     }
     this.config = Object.assign(this.config || {}, obj)
+    if (e) {
+      this.defined = false
+      for (let buffer of this.buffers.values()) buffer.markConflictCheck()
+      this.defineSigns().catch(err => this.service.log(`[Error] define signs: ${err.message}`))
+    }
   }
 
   private get enableGutters(): boolean {
@@ -158,10 +190,16 @@ export default class DocumentManager {
     return this.config.diffOptions
   }
 
+  public async getTerminalGitCommand(args: string[]): Promise<string> {
+    const values = [this.git.path, ...args]
+    const escaped = await Promise.all(values.map(value => this.nvim.call('shellescape', [value, 1]) as Promise<string>))
+    return escaped.join(' ')
+  }
+
   public async toggleGutters(): Promise<void> {
     let enabled = this.enableGutters
     let config = workspace.getConfiguration('git')
-    config.update('enableGutters', !enabled, true)
+    await config.update('enableGutters', !enabled, true)
     for (let buf of this.buffers.values()) {
       await buf.toggleGutters(!enabled)
     }
@@ -296,7 +334,7 @@ export default class DocumentManager {
       return
     }
     if (args && args.length) {
-      await window.runTerminalCommand(`git push ${[...args, ...extra].join(' ')}`, root, true)
+      await window.runTerminalCommand(await this.getTerminalGitCommand(['push', ...args, ...extra]), root, true)
       return
     }
     let repo = this.service.getRepoFromRoot(root)
@@ -313,7 +351,7 @@ export default class DocumentManager {
       window.showWarningMessage(`current branch not found`)
       return
     }
-    await window.runTerminalCommand(`git push ${remote} ${output}${extra.length ? ' ' + extra.join(' ') : ''}`, root, true)
+    await window.runTerminalCommand(await this.getTerminalGitCommand(['push', remote, output, ...extra]), root, true)
   }
 
   private get buffer(): Promise<GitBuffer> {
@@ -340,12 +378,12 @@ export default class DocumentManager {
   }
 
   public dispose(): void {
+    disposeAll(this.disposables)
     this.gitStatus.dispose()
-    this.service.dispose()
     for (let buf of this.buffers.values()) {
       buf.dispose()
     }
     this.buffers.clear()
-    disposeAll(this.disposables)
+    this.service.dispose()
   }
 }

@@ -42,7 +42,7 @@ export default class GChunks extends BasicList {
     try { 
       let { relpath } = buf
       let stagedDiff = await buf.repo.getStagedChunks(relpath)
-      let chunks: StageChunk[] = Object.values(stagedDiff)[0]
+      let chunks: StageChunk[] = Object.values(stagedDiff)[0] ?? []
       if (chunks.length > 0) {
         for (let diff of chunks) {
           let adjust = 0
@@ -59,7 +59,7 @@ export default class GChunks extends BasicList {
           res.push({
             label: `${stagedSign} Line:${line} ${diff.lines[0]}`,
             data: {
-              line: `${line}`
+              line
             }
           })
         }

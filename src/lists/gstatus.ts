@@ -3,7 +3,7 @@ import colors from 'colors/safe'
 import fs from 'fs'
 import path from 'path'
 import Manager from '../manager'
-import { runCommand, spawnCommand, wait } from '../util'
+import { spawnCommand } from '../util'
 
 const STATUS_MAP = {
   ' ': ' ',
@@ -12,8 +12,30 @@ const STATUS_MAP = {
   D: colors.red('-'),
   R: colors.magenta('→'),
   C: colors.yellow('C'),
+  T: colors.yellow('T'),
   U: colors.blue('U'),
-  '?': colors.gray('?')
+  '?': colors.gray('?'),
+  '!': colors.gray('!')
+}
+
+export interface StatusEntry {
+  index: string
+  tree: string
+  relative: string
+}
+
+export function parseStatusEntries(output: string): StatusEntry[] {
+  let result: StatusEntry[] = []
+  let entries = output.split('\0')
+  for (let i = 0; i < entries.length; i++) {
+    let line = entries[i]
+    if (!line) continue
+    result.push({ index: line[0], tree: line[1], relative: line.slice(3) })
+    if (line[0] === 'R' || line[0] === 'C' || line[1] === 'R' || line[1] === 'C') {
+      i++ // porcelain -z emits the original path as the following record
+    }
+  }
+  return result
 }
 
 export default class GStatus extends BasicList {
@@ -27,13 +49,13 @@ export default class GStatus extends BasicList {
     this.addMultipleAction('add', async items => {
       let { root } = items[0].data
       let fileArgs = items.map(o => o.data.relative)
-      await spawnCommand('git', ['add', ...fileArgs], root)
+      await this.manager.git.exec(root, ['add', '--', ...fileArgs])
     }, { reload: true, persist: true })
 
     this.addMultipleAction('patch', async items => {
       let { root } = items[0].data
-      let fileArgs = items.map(o => o.data.relative.replace(/\s/, '\\ '))
-      let cmd = `git add ${fileArgs.join(' ')} --patch`
+      let fileArgs = items.map(o => o.data.relative)
+      let cmd = await this.manager.getTerminalGitCommand(['add', '--patch', '--', ...fileArgs])
       await nvim.call('coc#util#open_terminal', [{
         cmd,
         cwd: root
@@ -42,10 +64,11 @@ export default class GStatus extends BasicList {
 
     this.addMultipleAction('commit', async items => {
       let { root } = items[0].data
-      await nvim.command(`exe "lcd ".fnameescape('${root}')`)
-      let filesArg = await nvim.eval(`join(map([${items.map(s => "'" + s.data.relative + "'").join(',')}],'fnameescape(v:val)'),' ')`)
+      let escapedRoot = await nvim.call('fnameescape', [root]) as string
+      await nvim.command(`lcd ${escapedRoot}`)
+      let escapedFiles = await Promise.all(items.map(item => nvim.call('fnameescape', [item.data.relative]) as Promise<string>))
       try {
-        await nvim.command(`G commit -v ${filesArg}`)
+        await nvim.command(`G commit -v -- ${escapedFiles.join(' ')}`)
       } catch (e) {
         window.showErrorMessage(`G commit command failed, make sure fugitive installed.`)
       }
@@ -72,13 +95,12 @@ export default class GStatus extends BasicList {
         let hasRmtrash = await nvim.call('executable', ['rmtrash'])
         let fullpath = path.join(root, relative)
         if (hasRmtrash) {
-          await runCommand(`rmtrash ${fullpath.replace(/\s/, '\\ ')}`)
+          await spawnCommand('rmtrash', [fullpath], root)
         } else {
-          fs.unlinkSync(fullpath)
+          await fs.promises.unlink(fullpath)
         }
       }
-      this.nvim.command('checktime', true)
-      await wait(100)
+      await this.nvim.command('checktime')
     }, { reload: true, persist: true })
 
     // preview the diff
@@ -98,8 +120,7 @@ export default class GStatus extends BasicList {
       if (index_symbol == 'M' && tree_symbol != 'M') {
         args.push('--cached')
       }
-      let cmd = `git ${args.join(' ')} ${relative}`
-      let content = await runCommand(cmd, { cwd: root })
+      let content = (await this.manager.git.exec(root, [...args, '--', relative])).stdout
       let lines = content.trim().split('\n')
       await this.preview({
         lines,
@@ -111,11 +132,11 @@ export default class GStatus extends BasicList {
   }
 
   private async reset(root: string, relative: string): Promise<void> {
-    await spawnCommand('git', ['reset', 'HEAD', '--', relative], root)
+    await this.manager.git.exec(root, ['reset', '--', relative])
   }
 
   private async checkout(root: string, relative: string): Promise<void> {
-    await spawnCommand('git', ['checkout', '--', relative], root)
+    await this.manager.git.exec(root, ['checkout', '--', relative])
   }
 
   public async loadItems(context: ListContext): Promise<ListItem[]> {
@@ -128,25 +149,25 @@ export default class GStatus extends BasicList {
     if (this.manager.gstatusSaveBeforeOpen) {
       await this.nvim.command(`wa`)
     }
-    let output = await runCommand(`git status --porcelain -uall ${context.args.join(' ')}`, { cwd: root })
-    output = output.replace(/\s+$/, '')
+    let output = (await this.manager.git.exec(root, ['status', '--porcelain=v1', '-z', '-uall', ...context.args])).stdout
     if (!output) return []
     // let root = this.manager.refreshStatus
     let res: ListItem[] = []
-    for (let line of output.split(/\r?\n/)) {
-      let filepath = path.join(root, line.slice(3))
-      let index_symbol = STATUS_MAP[line[0]]
-      let tree_symbol = STATUS_MAP[line[1]]
+    for (let entry of parseStatusEntries(output)) {
+      let { index, tree, relative } = entry
+      let filepath = path.join(root, relative)
+      let index_symbol = STATUS_MAP[index]
+      let tree_symbol = STATUS_MAP[tree]
       res.push({
-        label: `${index_symbol}${tree_symbol} ${line.slice(3)}`,
-        filterText: line.slice(3),
+        label: `${index_symbol}${tree_symbol} ${relative}`,
+        filterText: relative,
         data: {
           root,
-          relative: line.slice(3),
-          index_symbol: line[0],
-          tree_symbol: line[1],
-          staged: line[0] != ' ' && line[0] != '?',
-          tree: line[1] != ' ' && line[1] != '?',
+          relative,
+          index_symbol: index,
+          tree_symbol: tree,
+          staged: index != ' ' && index != '?',
+          tree: tree != ' ' && tree != '?',
         },
         location: Uri.file(filepath).toString()
       })

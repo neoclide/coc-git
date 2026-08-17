@@ -4,7 +4,7 @@ import { format } from 'timeago.js'
 import { URL } from 'url'
 import { BlameInfo, ChangeType, Conflict, ConflictParseState, ConflictPart, Diff, FoldSettings, GitConfiguration, SignInfo, StageChunk } from '../types'
 import { formatBlameText } from '../util'
-import { createUnstagePatch, equals, getRepoUrl, getUrl, toUnixSlash } from '../util'
+import { createUnstagePatch, equals, getRepoUrl, getUrl, quoteGitPath, toUnixSlash } from '../util'
 import Git from './git'
 import Repo from './repo'
 
@@ -14,6 +14,15 @@ const startPattern = new RegExp(`^<{7} (${revPattern})(:? .+)?$`)
 const sepPattern = new RegExp(`^={7}$`)
 const endPattern = new RegExp(`^>{7} (${revPattern})(:? .+)?$`)
 const commonPattern = /^\|{7}\smerged\scommon\sancestors/
+
+export function getPreviousConflict(conflicts: Conflict[], line: number): Conflict | undefined {
+  return conflicts.slice().reverse().find(conflict => conflict.start < line)
+}
+
+function chunkContainsLine(chunk: StageChunk, line: number): boolean {
+  const end = chunk.add.count === 0 ? chunk.add.lnum : chunk.add.lnum + chunk.add.count - 1
+  return chunk.add.lnum <= line && end >= line
+}
 
 export default class GitBuffer implements Disposable {
   private blameInfo: BlameInfo[] = []
@@ -25,6 +34,7 @@ export default class GitBuffer implements Disposable {
   private foldSettings: FoldSettings
   private mutex: Mutex
   private _disposed = false
+  private conflictCheckNeeded: boolean
   public refresh: Function & { clear(): void }
   constructor(
     private doc: Document,
@@ -37,31 +47,40 @@ export default class GitBuffer implements Disposable {
     private hasConflicts: boolean
   ) {
     this.mutex = new Mutex()
+    this.conflictCheckNeeded = hasConflicts
     this.refresh = debounce(() => {
       this._refresh().catch(e => {
         channel.append(`[Error] ${e.message}`)
       })
     }, 200)
-    this._refresh()
+    this._refresh().catch(e => channel.append(`[Error] ${e.message}`))
   }
 
   public get cachedDiffs(): Diff[] {
     return this.diffs
   }
 
+  public markConflictCheck(): void {
+    this.conflictCheckNeeded = true
+  }
+
   public async _refresh(): Promise<void> {
     if (this._disposed) return
     this.refresh.clear()
     let release = await this.mutex.acquire()
-    let result = await Promise.allSettled([
-      this.diffDocument(),
-      this.loadBlames(),
-      this.parseConflicts()
-    ])
-    result.forEach(res => {
-      if (res.status === 'rejected') this.channel.append(`[Error] refresh error ${res.reason}`)
-    })
-    release()
+    try {
+      if (this._disposed) return
+      let result = await Promise.all([
+        this.diffDocument(),
+        this.loadBlames(),
+        this.parseConflicts()
+      ].map(promise => promise.then(() => undefined, error => error)))
+      result.forEach(error => {
+        if (error) this.channel.append(`[Error] refresh error ${error}`)
+      })
+    } finally {
+      release()
+    }
   }
 
   public getChunk(line: number): Diff | undefined {
@@ -115,11 +134,13 @@ export default class GitBuffer implements Disposable {
     } else if (diff.changeType === ChangeType.Change) {
       head = `@@ -${diff.removed.start},${diff.removed.count} +${diff.removed.start},${diff.added.count} @@`
     }
+    const from = quoteGitPath(`a/${relpath}`)
+    const to = quoteGitPath(`b/${relpath}`)
     const lines = [
-      `diff --git a/${relpath} b/${relpath}`,
+      `diff --git ${from} ${to}`,
       `index 000000..000000 100644`,
-      `--- a/${relpath}`,
-      `+++ b/${relpath}`,
+      `--- ${from}`,
+      `+++ ${to}`,
       head
     ]
     lines.push(...diff.lines)
@@ -153,12 +174,12 @@ export default class GitBuffer implements Disposable {
     if (invalid) return
     line = line + adjust
     let stagedDiff = await this.repo.getStagedChunks(this.relpath)
-    let chunks: StageChunk[] = Object.values(stagedDiff)[0]
+    let chunks: StageChunk[] = Object.values(stagedDiff)[0] ?? []
     if (!chunks.length) {
       window.showErrorMessage(`Staged chunk not found`)
       return
     }
-    let chunk = chunks.find(o => o.add.lnum <= line && o.add.lnum + o.add.count >= line)
+    let chunk = chunks.find(o => chunkContainsLine(o, line))
     if (!chunk) {
       window.showErrorMessage(`Unable to find staged chunk on current line`)
       return
@@ -230,7 +251,7 @@ export default class GitBuffer implements Disposable {
         adjust += diff.removed.count
       }
       line = line + adjust
-      let chunk = chunks.find(o => o.add.lnum <= line && o.add.lnum + o.add.count >= line)
+      let chunk = chunks.find(o => chunkContainsLine(o, line))
       if (chunk) {
         let content = 'Staged changes' + '\n' + chunk.lines.join('\n')
         await this.showDoc(content, 'diff')
@@ -245,6 +266,7 @@ export default class GitBuffer implements Disposable {
   }
 
   public async showBlameInfo(lnum: number): Promise<void> {
+    if (this._disposed) return
     let { nvim } = workspace
     let { virtualTextSrcId, addGBlameToBufferVar, addGBlameToVirtualText } = this.config
     if (!this.showBlame) return
@@ -311,7 +333,7 @@ export default class GitBuffer implements Disposable {
     let eol = this.doc.textDocument['eol']
     let encoding = await this.doc.buffer.getOption('fileencoding') as string
     const diffs = await this.repo.getDiff(this.relpath, eol ? content : content + '\n', revision, encoding || 'utf8')
-    if (diffs == null) return
+    if (diffs == null || this._disposed) return
     if (diffs.length === 0) {
       this.currentSigns = []
       this.diffs = []
@@ -395,6 +417,7 @@ export default class GitBuffer implements Disposable {
     let result: BlameInfo[] = []
     let indexed = await this.repo.isIndexed(this.relpath)
     if (indexed) result = await this.getBlameInfo()
+    if (this._disposed) return
     this.blameInfo = result
   }
 
@@ -405,14 +428,16 @@ export default class GitBuffer implements Disposable {
     const useRealTime = this.config.blameUseRealTime
     try {
       let currentAuthor = await this.repo.getUsername()
-      const args: string[] = ['--no-pager', 'blame', '-w', '-b', '-p', '--incremental', '--root', '--date', 'relative', '--contents', '-', relpath]
+      const args: string[] = ['--no-pager', 'blame', '-w', '-b', '-p', '--incremental', '--root', '--date', 'relative', '--contents', '-']
       if (range) args.push('-L', range.join(','))
+      args.push('--', relpath)
       let r = await this.git.exec(root, args, {
         log: false,
         input: this.doc.content
       })
       if (!r.stdout) return res
       let info: BlameInfo
+      const commits: Map<string, BlameInfo> = new Map()
       for (let line of r.stdout.trim().split(/\r?\n/)) {
         line = line.trim()
         if (/^(author |committer )?External file \(--contents\)/.test(line)) {
@@ -423,11 +448,13 @@ export default class GitBuffer implements Disposable {
           let startLnum = parseInt(ms[3], 10)
           info = { startLnum, sha: ms[1], endLnum: startLnum + parseInt(ms[4], 10) - 1, index: ms[2] }
           if (!/^0+$/.test(ms[1])) {
-            let find = res.find(o => o.sha == ms[1])
+            let find = commits.get(ms[1])
             if (find) {
               info.author = find.author
               info.time = find.time
               info.summary = find.summary
+            } else {
+              commits.set(ms[1], info)
             }
           }
           res.push(info)
@@ -494,14 +521,14 @@ export default class GitBuffer implements Disposable {
       return
     }
     let line = await nvim.call('line', '.')
-    for (let conflict of this.conflicts) {
-      if (conflict.start > line) {
-        await window.moveTo({ line: Math.max(conflict.start - 1, 0), character: 0 })
-        return
-      }
+    let conflict = getPreviousConflict(this.conflicts, line)
+    if (conflict) {
+      await window.moveTo({ line: Math.max(conflict.start - 1, 0), character: 0 })
+      return
     }
     if (await nvim.getOption('wrapscan')) {
-      await window.moveTo({ line: Math.max(this.conflicts[0].start - 1, 0), character: 0 })
+      conflict = this.conflicts[this.conflicts.length - 1]
+      await window.moveTo({ line: Math.max(conflict.start - 1, 0), character: 0 })
     }
   }
 
@@ -581,20 +608,25 @@ export default class GitBuffer implements Disposable {
       if (!uri.length) continue
       let repoURL = getRepoUrl(uri)
       if (!repoURL) continue
-      let tmp = new URL(repoURL)
+      let tmp: URL
+      try {
+        tmp = new URL(repoURL)
+      } catch (_e) {
+        continue
+      }
       let hostname = tmp.hostname
       let fix = "|"
       try {
         fix = config.get<object>("urlFix")[hostname][permalink ? 1 : 0]
       } catch (e) {}
-      let url = getUrl(fix, repoURL, permalink ? head : branch, this.relpath.replace(/\\\\/g, '/'), lines)
+      let url = getUrl(fix, repoURL, permalink ? head : (branch || head), toUnixSlash(this.relpath), lines)
       if (url) urls.push(url)
     }
     if (urls.length == 1) {
       if (action == 'open') {
         await workspace.openResource(urls[0])
       } else {
-        nvim.command(`let @+ = '${urls[0]}'`, true)
+        nvim.call('setreg', ['+', urls[0]], true)
         window.showInformationMessage('Copied url to clipboard')
       }
     } else if (urls.length > 1) {
@@ -603,8 +635,8 @@ export default class GitBuffer implements Disposable {
         if (action == 'open') {
           await workspace.openResource(url)
         } else {
-          nvim.command(`let @+ = '${url}'`, true)
-          nvim.command(`let @* = '${url}'`, true)
+          nvim.call('setreg', ['+', url], true)
+          nvim.call('setreg', ['*', url], true)
           window.showInformationMessage('Copied url to clipboard')
         }
       }
@@ -620,7 +652,7 @@ export default class GitBuffer implements Disposable {
     }
     let nvim = workspace.nvim
     let line = await nvim.eval('line(".")') as number
-    let args = ['--no-pager', 'blame', '-w', '-l', '--root', '-t', `-L${line},${line}`, this.relpath]
+    let args = ['--no-pager', 'blame', '-w', '-l', '--root', '-t', `-L${line},${line}`, '--', this.relpath]
     let res = await this.repo.exec(args)
     let output = res.stdout.trim()
     if (!output.length) return
@@ -668,7 +700,7 @@ export default class GitBuffer implements Disposable {
       window.showWarningMessage('No changes')
       return
     }
-    let lnums = infos.map(o => o.lnum)
+    let changedLines = new Set(infos.map(o => o.lnum))
     let foldContext = this.config.foldContext
     let max = this.doc.lineCount
     let ranges = []
@@ -680,7 +712,7 @@ export default class GitBuffer implements Disposable {
       ranges.push([s, e])
     }
     for (let i = 1; i <= doc.lineCount; i++) {
-      let fold = lnums.indexOf(i) == -1
+      let fold = !changedLines.has(i)
       if (fold && start == null) {
         start = i
         continue
@@ -744,7 +776,22 @@ export default class GitBuffer implements Disposable {
   }
 
   private async parseConflicts(): Promise<void> {
-    if (!this.hasConflicts || !this.config.conflict.enabled) return
+    if (!this.config.conflict.enabled) {
+      if (this.conflicts.length) {
+        this.conflicts = []
+        await this.highlightConflicts([])
+      }
+      return
+    }
+    if (!this.hasConflicts && !this.conflictCheckNeeded) return
+    this.conflictCheckNeeded = false
+    this.hasConflicts = await this.repo.hasConflicts(this.relpath)
+    if (this._disposed) return
+    if (!this.hasConflicts) {
+      this.conflicts = []
+      await this.highlightConflicts([])
+      return
+    }
     const lines = this.doc.textDocument.lines
     let conflicts: Conflict[] = []
     let conflict: Conflict = null
@@ -810,13 +857,14 @@ export default class GitBuffer implements Disposable {
       }
     })
     this.conflicts = conflicts
-    this.highlightConflicts(conflicts)
+    await this.highlightConflicts(conflicts)
     if (conflicts.length == 0) {
       this.hasConflicts = false
     }
   }
 
   private async highlightConflicts(conflicts: Conflict[]): Promise<void> {
+    if (this._disposed) return
     let buffer = this.doc.buffer
     let currentHlGroup = this.config.conflict.currentHlGroup
     let incomingHlGroup = this.config.conflict.incomingHlGroup
@@ -845,7 +893,7 @@ export default class GitBuffer implements Disposable {
       await this.floatFactory.show(docs, this.config.floatConfig)
     } else {
       const lines = content.split('\n')
-      workspace.nvim.call('coc#ui#preview_info', [lines, 'diff'], true)
+      workspace.nvim.call('coc#ui#preview_info', [lines, filetype], true)
     }
   }
 
@@ -882,9 +930,12 @@ export default class GitBuffer implements Disposable {
   }
 
   public dispose(): void {
+    if (this._disposed) return
+    this._disposed = true
     let { nvim } = workspace
     let { bufnr } = this.doc
     let buffer = nvim.createBuffer(bufnr)
+    nvim.pauseNotification()
     buffer.setVar('coc_git_status', '', true)
     buffer.clearNamespace(this.config.conflictSrcId, 0, -1)
     nvim.call('sign_unplace', [signGroup, { buffer: bufnr }], true)
@@ -896,12 +947,7 @@ export default class GitBuffer implements Disposable {
       buffer.clearNamespace(this.config.virtualTextSrcId)
     }
     nvim.resumeNotification(false, true)
-    this._disposed = true
     this.foldEnabled = false
-    this.blameInfo = undefined
-    this.diffs = undefined
-    this.conflicts = undefined
-    this.currentSigns = undefined
   }
 }
 
