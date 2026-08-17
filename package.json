@@ -19,10 +19,9 @@
     "prepare": "node esbuild.js",
     "build": "node esbuild.js",
     "lint": "tsc -p tsconfig.json",
-    "test": "npm run build && coc-test 'test/**/*.test.ts'",
-    "test:integration": "npm run build && coc-test 'test/**/*.test.ts'",
-    "test:integration:nvim": "npm run build && coc-test --nvim 'test/**/*.test.ts'",
-    "test:integration:vim": "npm run build && coc-test --vim 'test/**/*.test.ts'"
+    "test": "coc-test 'test/**/*.test.ts'",
+    "test:nvim": "coc-test --nvim 'test/**/*.test.ts'",
+    "test:vim": "coc-test --vim 'test/**/*.test.ts'"
   },
   "activationEvents": [
     "*"
@@ -535,7 +534,7 @@
     "@types/uuid": "^7.0.1",
     "@types/which": "^1.3.2",
     "coc-test": "^0.1.5",
-    "coc.nvim": "^0.0.83-next.19",
+    "coc.nvim": "^0.0.83-next.25",
     "colors": "^1.4.0",
     "debounce": "^1.2.0",
     "esbuild": "^0.25.0",
@@ -543,7 +542,7 @@
     "semver": "^7.7.1",
     "timeago.js": "^4.0.2",
     "typescript": "^6.0.3",
-    "uuid": "^7.0.1",
+    "uuid": "^14.0.1",
     "which": "^2.0.2"
   }
 }

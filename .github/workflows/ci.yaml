@@ -33,4 +33,4 @@ jobs:
         run: npm run lint
 
       - name: Integration tests (${{ matrix.editor }})
-        run: npm run test:integration:${{ matrix.editor }}
+        run: npm run test:${{ matrix.editor }}
