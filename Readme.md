@@ -1,5 +1,7 @@
 # coc-git
 
+[![CI](https://github.com/neoclide/coc-git/actions/workflows/ci.yaml/badge.svg)](https://github.com/neoclide/coc-git/actions/workflows/ci.yaml)
+
 Git integration of [coc.nvim](https://github.com/neoclide/coc.nvim).
 
 **Note:** many useful features not implemented, it's recommended to
@@ -27,7 +29,7 @@ In your vim/neovim, run command:
 - Git status of current project, by `g:coc_git_status`.
 - Git status of current buffer, by`b:coc_git_status`.
 - Git status of current line, by`b:coc_git_blame` for statusline, and `addGBlameToVirtualText` for inline blames.
-- Git related lists, including `issues`, `gfiles`, `gstatus`, `commits`, `branches` & `bcommits`
+- Git related lists, including `issues`, `gfiles`, `gstatus`, `gchanges`, `gchunks`, `commits`, `branches` & `bcommits`
 - Keymaps for git chunks, including `<Plug>(coc-git-chunkinfo)` `<Plug>(coc-git-nextchunk)` & `<Plug>(coc-git-prevchunk)` ,
 - Commands for chunks, including `git.chunkInfo` `git.chunkStage` `git.chunkUndo` and more.
 - Keymaps & commands for git conflicts.
@@ -60,13 +62,19 @@ In your vim/neovim, run command:
 
 - `git.urlFix`: a object to configure the url style of copyUrl and browserOpen, make this two command support other git services like gitlab and gitea. default: `{}`
 
+- `git.diffRevision`: Revision used as the gutter diff base, default: `""` (the current index).
+
 - `git.issueFormat`: Formatting string for issue completion. Supported interpolation variables: %i - issue id. %r - repository name. %o - organization/owner name. %t - issue title. %b - issue body. %c - issue created at. %a - issue author. %u - issue url., default: `"#%i"`
 
 - `git.virtualTextPrefix`: Prefix of git blame infomation to virtual text, require virtual text feature of neovim., default: `" "`
 
+- `git.blameFormat`: Format of git blame virtual text. Supported placeholders: `%a` author, `%t` time, `%s` summary, `%S` short sha, `%%` literal percent., default: `"(%a %t) %s"`
+
 - `git.addGBlameToVirtualText`: Add git blame information to virtual text, require virtual text feature of neovim., default: `false`
 
 - `git.addGBlameToBufferVar`: Add git blame information to b:coc_git_blame., default: `false`
+
+- `git.blameUseRealTime`: Use an absolute local timestamp in blame information, default: `false`.
 
 - `git.branchCharacter`: Branch character used with g:coc_git_status, default: `""`
 
@@ -85,6 +93,8 @@ In your vim/neovim, run command:
 - `git.realtimeGutters`: Update gutters in realtime, default: true., default: `true`
 
 - `git.signPriority`: Priority of sign gutters, default to `10`.
+
+- `git.pushArguments`: Additional arguments passed to `git push`, default: `[]`.
 
 - `git.changedSign.text`: Text of changed sign., default: `"~"`
 
@@ -114,7 +124,7 @@ In your vim/neovim, run command:
 
 - `git.showCommitInFloating`: Show commit in floating or popup window, default: `false`
 
-- `git.floatConfig`: Configure style of float window/popup, extends from floatFactory.floatConfig
+- `git.floatConfig`: Configure style of float window/popup, extends from floatFactory.floatConfig, default: `{}`.
 
 - `git.gitlab.hosts`: Custom GitLab hosts, default: `["gitlab.com"]`
 
@@ -123,6 +133,20 @@ In your vim/neovim, run command:
 - `git.conflict.current.hlGroup`: Highlight group for the current version of a merge conflict, default: `"DiffChange"`
 
 - `git.conflict.incoming.hlGroup`: Highlight group for the incoming version of a merge conflict., default: `"DiffAdd"`
+
+- `git.conflict.common.hlGroup`: Highlight group for diff3 common-ancestor sections, default: `"DiffText"`.
+
+- `git.gstatus.saveBeforeOpen`: Save open buffers before loading the `gstatus` list, default: `false`.
+
+- `coc.source.issues.enable`: Enable issue completion, default: `true`.
+
+- `coc.source.issues.triggerCharacters`: Trigger characters for issue completion, default: `["#"]`.
+
+- `coc.source.issues.priority`: Issue completion priority, default: `99`.
+
+- `coc.source.issues.shortcut`: Issue completion menu shortcut, default: `"[I]"`.
+
+- `coc.source.issues.filetypes`: Filetypes where issue completion is active, default: `["gitcommit", "gina-commit"]`.
 
 more information, see [package.json](https://github.com/neoclide/coc-git/blob/master/package.json)
 
@@ -202,10 +226,16 @@ nmap ]g <Plug>(coc-git-nextchunk)
 " navigate conflicts of current buffer
 nmap [c <Plug>(coc-git-prevconflict)
 nmap ]c <Plug>(coc-git-nextconflict)
+" resolve the conflict under the cursor
+nmap <leader>cc <Plug>(coc-git-keepcurrent)
+nmap <leader>ci <Plug>(coc-git-keepincoming)
+nmap <leader>cb <Plug>(coc-git-keepboth)
 " show chunk diff at current position
 nmap gs <Plug>(coc-git-chunkinfo)
 " show commit contains current position
 nmap gc <Plug>(coc-git-commit)
+" show blame details for the current line
+nmap gb <Plug>(coc-git-showblamedoc)
 " create text object for git chunks
 omap ig <Plug>(coc-git-chunk-inner)
 xmap ig <Plug>(coc-git-chunk-inner)
@@ -219,14 +249,21 @@ Use command `:CocCommand` to open commands and type `git.` to get all git
 related commands.
 
 - `:CocCommand git.copyUrl` Copy url of current line to clipboard.
+- `:CocCommand git.copyPermalink` Copy a permalink for the current line to clipboard.
+- `:CocCommand git.refresh` Refresh Git information for all buffers.
 - `:CocCommand git.nextChunk` Navigate to the next chunk.
 - `:CocCommand git.prevChunk` Navigate to the previous chunk.
 - `:CocCommand git.chunkInfo` Show chunk info under cursor.
+- `:CocCommand git.allChunkInfo` Return all changed chunks in the current buffer.
+- `:CocCommand git.keepCurrent` Keep the current part of the conflict under the cursor.
+- `:CocCommand git.keepIncoming` Keep the incoming part of the conflict under the cursor.
+- `:CocCommand git.keepBoth` Keep both parts of the conflict under the cursor.
 - `:CocCommand git.chunkUndo` Undo current chunk.
 - `:CocCommand git.chunkStage` Stage current chunk.
 - `:CocCommand git.chunkUnstage` Unstage chunk that contains current line.
 - `:CocCommand git.diffCached` Show cached diff in preview window.
 - `:CocCommand git.showCommit` Show commit of current chunk.
+- `:CocCommand git.showBlameDoc` Show blame details for the current line.
 - `:CocCommand git.browserOpen` Open current line in browser
 - `:CocCommand git.foldUnchanged` Fold unchanged lines of current buffer.
 - `:CocCommand git.toggleGutters` Toggle git gutters in sign column.

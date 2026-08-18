@@ -1,6 +1,6 @@
 {
   "name": "coc-git",
-  "version": "2.7.7",
+  "version": "2.7.8",
   "description": "Git extension for coc.nvim",
   "main": "lib/index.js",
   "publisher": "chemzqm",
@@ -16,7 +16,12 @@
     "url": "git+https://github.com/neoclide/coc-git.git"
   },
   "scripts": {
-    "prepare": "node esbuild.js"
+    "prepare": "node esbuild.js",
+    "build": "node esbuild.js",
+    "lint": "tsc -p tsconfig.json",
+    "test": "coc-test 'test/**/*.test.ts'",
+    "test:nvim": "coc-test --nvim 'test/**/*.test.ts'",
+    "test:vim": "coc-test --vim 'test/**/*.test.ts'"
   },
   "activationEvents": [
     "*"
@@ -28,8 +33,32 @@
         "command": "git.refresh"
       },
       {
+        "title": "Navigate to the next changed chunk.",
+        "command": "git.nextChunk"
+      },
+      {
+        "title": "Navigate to the previous changed chunk.",
+        "command": "git.prevChunk"
+      },
+      {
+        "title": "Keep the current part of the merge conflict.",
+        "command": "git.keepCurrent"
+      },
+      {
+        "title": "Keep the incoming part of the merge conflict.",
+        "command": "git.keepIncoming"
+      },
+      {
+        "title": "Keep both parts of the merge conflict.",
+        "command": "git.keepBoth"
+      },
+      {
         "title": "Show chunk info under cursor",
         "command": "git.chunkInfo"
+      },
+      {
+        "title": "Return all changed chunks in the current buffer.",
+        "command": "git.allChunkInfo"
       },
       {
         "title": "Stage current chunk.",
@@ -149,7 +178,7 @@
           "type": "string",
           "default": "",
           "scope": "window",
-          "description": "Revision used for git diff used by gutters, default is current HEAD."
+          "description": "Revision used as the gutter diff base, default is the current index."
         },
         "git.issueFormat": {
           "type": "string",
@@ -162,6 +191,12 @@
           "default": "     ",
           "scope": "application",
           "description": "Prefix of git blame information to virtual text, require virtual text feature of vim/neovim."
+        },
+        "git.blameFormat": {
+          "type": "string",
+          "default": "(%a %t) %s",
+          "scope": "window",
+          "description": "Format of git blame virtual text. Supported placeholders: %a author, %t time, %s summary, %S short sha, %% literal percent."
         },
         "git.addGBlameToVirtualText": {
           "type": "boolean",
@@ -236,12 +271,9 @@
           "description": "Priority of sign gutters, default to 10."
         },
         "git.pushArguments": {
-          "type": [
-            "array",
-            "null"
-          ],
-          "default": null,
-          "description": "Default arguments used for git.pushCode command, ex: [\"--force-with-lease\"]",
+          "type": "array",
+          "default": [],
+          "description": "Default arguments used for the git.push command, ex: [\"--force-with-lease\"]",
           "scope": "window",
           "items": {
             "type": "string"
@@ -342,6 +374,7 @@
         },
         "git.floatConfig": {
           "type": "object",
+          "default": {},
           "description": "Configure style of float window/popup, extends from floatFactory.floatConfig",
           "additionalProperties": false,
           "scope": "application",
@@ -410,7 +443,10 @@
           "default": [
             "gitlab.com"
           ],
-          "description": "Custom GitLab hosts"
+          "description": "Custom GitLab hosts",
+          "items": {
+            "type": "string"
+          }
         },
         "git.conflict.enabled": {
           "type": "boolean",
@@ -438,7 +474,7 @@
         },
         "git.gstatus.saveBeforeOpen": {
           "type": "boolean",
-          "default": "false",
+          "default": false,
           "scope": "application",
           "description": "Auto save opened files before open list."
         },
@@ -485,25 +521,28 @@
       }
     }
   },
+  "coc-test": {
+    "entryFile": "src/index.ts"
+  },
   "author": "chemzqm@gmail.com",
   "license": "MIT",
   "devDependencies": {
     "@chemzqm/tsconfig": "^0.0.3",
     "@types/colors": "^1.2.1",
     "@types/debounce": "^1.2.0",
-    "@types/node": "^16.18",
+    "@types/node": "^20.19.43",
     "@types/uuid": "^7.0.1",
     "@types/which": "^1.3.2",
-    "coc.nvim": "^0.0.83-next.19",
+    "coc-test": "^0.1.5",
+    "coc.nvim": "^0.0.83-next.25",
     "colors": "^1.4.0",
     "debounce": "^1.2.0",
     "esbuild": "^0.25.0",
     "iconv-lite": "^0.6.2",
     "semver": "^7.7.1",
     "timeago.js": "^4.0.2",
-    "typescript": "^4.5.4",
-    "uuid": "^7.0.1",
+    "typescript": "^6.0.3",
+    "uuid": "^11.1.1",
     "which": "^2.0.2"
-  },
-  "dependencies": {}
+  }
 }

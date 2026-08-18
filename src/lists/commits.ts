@@ -1,9 +1,8 @@
-import { ChildProcess, spawn } from 'child_process'
+import { ChildProcess } from 'child_process'
 import { ansiparse, BasicList, ListContext, ListTask, Neovim } from 'coc.nvim'
 import { EventEmitter } from 'events'
 import readline from 'readline'
 import Manager from '../manager'
-import { runCommand, safeRun, wait } from '../util'
 
 class CommitsTask extends EventEmitter implements ListTask {
   private process: ChildProcess
@@ -11,8 +10,8 @@ class CommitsTask extends EventEmitter implements ListTask {
     super()
   }
 
-  public start(cmd: string, args: string[], cwd: string): void {
-    this.process = spawn(cmd, args, { cwd })
+  public start(process: ChildProcess): void {
+    this.process = process
     this.process.on('error', e => {
       this.emit('error', e.message)
     })
@@ -54,18 +53,34 @@ export default class Commits extends BasicList {
   public readonly defaultAction = 'show'
   private cachedCommits: Map<string, string[]> = new Map()
 
+  private cacheKey(root: string, commit: string): string {
+    return `${root}\0${commit}`
+  }
+
+  private getCached(root: string, commit: string): string[] | undefined {
+    return this.cachedCommits.get(this.cacheKey(root, commit))
+  }
+
+  private setCached(root: string, commit: string, lines: string[]): void {
+    const key = this.cacheKey(root, commit)
+    this.cachedCommits.delete(key)
+    this.cachedCommits.set(key, lines)
+    if (this.cachedCommits.size > 100) {
+      this.cachedCommits.delete(this.cachedCommits.keys().next().value)
+    }
+  }
+
   constructor(nvim: Neovim, private manager: Manager) {
     super()
     this.addAction('preview', async (item, context) => {
       let { commit, root } = item.data
       let lines: string[] = []
       if (commit) {
-        lines = this.cachedCommits.get(commit)
+        lines = this.getCached(root, commit)
         if (!lines) {
-          let content = await safeRun(`git --no-pager show ${commit}`, { cwd: root })
-          if (content == null) return
+          let content = (await this.manager.git.exec(root, ['--no-pager', 'show', commit])).stdout
           lines = content.replace(/\n$/, '').split(/\r?\n/)
-          this.cachedCommits.set(commit, lines)
+          this.setCached(root, commit, lines)
         }
       }
       await this.preview({
@@ -83,12 +98,11 @@ export default class Commits extends BasicList {
         let cmd = ctx.options.position === 'tab' ? 'Gtabedit' : 'Gedit'
         await nvim.command(`${cmd} ${commit}`)
       } else {
-        let lines = this.cachedCommits.get(commit)
+        let lines = this.getCached(root, commit)
         if (!lines) {
-          let content = await safeRun(`git --no-pager show ${commit}`, { cwd: root })
-          if (content == null) return
+          let content = (await this.manager.git.exec(root, ['--no-pager', 'show', commit])).stdout
           lines = content.replace(/\n$/, '').split(/\r?\n/)
-          this.cachedCommits.set(commit, lines)
+          this.setCached(root, commit, lines)
         }
         let cmd = ctx.options.position === 'tab' ? 'tabe' : 'edit'
         nvim.pauseNotification()
@@ -119,20 +133,18 @@ export default class Commits extends BasicList {
           opt = '--hard'
           break
       }
-      await runCommand(`git reset ${opt} ${commit}`, { cwd: root })
-      this.nvim.command('checktime', true)
-      await wait(100)
+      await this.manager.git.exec(root, ['reset', opt, commit])
+      await this.nvim.command('checktime')
     })
     this.addAction('checkout', async item => {
       let { root, commit } = item.data
       if (!commit) return
-      await runCommand(`git checkout ${commit}`, { cwd: root })
+      await this.manager.git.exec(root, ['checkout', commit])
     })
     this.addMultipleAction('revert', async items => {
       let list = items.filter(item => item.data.commit != null)
       if (!list.length) return
-      let arg = list.map(o => o.data.commit).join(' ')
-      await runCommand(`git revert ${arg}`, { cwd: list[0].data.root })
+      await this.manager.git.exec(list[0].data.root, ['revert', ...list.map(o => o.data.commit)])
     })
     this.addMultipleAction('tabdiff', async items => {
       let list = items.filter(item => item.data.commit != null)
@@ -143,7 +155,7 @@ export default class Commits extends BasicList {
       } else {
         arg = `${list[1].data.commit} ${list[0].data.commit}`
       }
-      let content = await runCommand(`git --no-pager diff --no-ext-diff ${this.manager.diffOptions.join(' ')} ${arg}`, { cwd: list[0].data.root })
+      let content = (await this.manager.git.exec(list[0].data.root, ['--no-pager', 'diff', '--no-ext-diff', ...this.manager.diffOptions, ...arg.split(' ')])).stdout
       let lines = content.replace(/\n$/, '').split('\n')
       nvim.pauseNotification()
       nvim.command(`tabe [diff ${arg}]`, true)
@@ -167,7 +179,7 @@ export default class Commits extends BasicList {
       } else {
         arg = `${list[1].data.commit} ${list[0].data.commit}`
       }
-      let content = await runCommand(`git --no-pager diff ${this.manager.diffOptions.join(' ')} --no-ext-diff ${arg}`, { cwd: list[0].data.root })
+      let content = (await this.manager.git.exec(list[0].data.root, ['--no-pager', 'diff', ...this.manager.diffOptions, '--no-ext-diff', ...arg.split(' ')])).stdout
       let lines = content.replace(/\n$/, '').split('\n')
       let winid = context.listWindow.id
       let mod = context.options.position == 'tab' ? 'below' : 'above'
@@ -206,7 +218,7 @@ export default class Commits extends BasicList {
       `--format=%Cred%h%Creset -%C(yellow)%d%Creset %s %Cgreen(%cd) %C(bold blue)<%an>%Creset`,
       '--abbrev-commit', ...context.args]
     let task = new CommitsTask(root)
-    task.start('git', args, root)
+    task.start(this.manager.git.stream(root, args))
     return task
   }
 }

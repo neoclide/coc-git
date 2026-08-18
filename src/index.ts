@@ -12,7 +12,9 @@ import Git from './model/git'
 import Resolver from './model/resolver'
 import GitService from './model/service'
 import addSource from './source'
-import { findGit, IGit } from './util'
+import { findGit, formatBlameText, IGit } from './util'
+
+export { formatBlameText }
 
 export interface ExtensionApi {
   git: Git
@@ -37,7 +39,7 @@ export async function activate(context: ExtensionContext): Promise<ExtensionApi 
   const service = new GitService(gitInfo)
   const manager = new Manager(nvim, service, virtualTextSrcId, conflictSrcId)
   subscriptions.push(manager)
-  addSource(context, service.resolver)
+  addSource(context, service)
 
   subscriptions.push(commands.registerCommand('git.refresh', () => {
     manager.refresh()
@@ -107,6 +109,10 @@ export async function activate(context: ExtensionContext): Promise<ExtensionApi 
     await manager.chunkInfo()
   }))
 
+  subscriptions.push(commands.registerCommand('git.allChunkInfo', async () => {
+    return await manager.allChunkInfo()
+  }))
+
   subscriptions.push(commands.registerCommand('git.chunkStage', async () => {
     await manager.chunkStage()
   }))
@@ -162,7 +168,7 @@ export async function activate(context: ExtensionContext): Promise<ExtensionApi 
   subscriptions.push(listManager.registerList(new Gfiles(nvim, manager)))
   subscriptions.push(listManager.registerList(new GChunks(nvim, manager)))
   subscriptions.push(listManager.registerList(new GChanges(nvim, manager)))
-  subscriptions.push(languages.registerCompletionItemProvider('semantic-commit', 'Commit', config.get<string[]>('semanticCommit.filetypes'), {
+  subscriptions.push(languages.registerCompletionItemProvider('semantic-commit', 'Commit', config.get<string[]>('semanticCommit.filetypes') ?? [], {
     provideCompletionItems: async (document, position): Promise<CompletionItem[]> => {
       if (position.line !== 0) {
         return []

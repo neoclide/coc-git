@@ -1,7 +1,15 @@
 import { BasicList, ListAction, ListContext, ListItem, Neovim, Uri, workspace } from 'coc.nvim'
 import path from 'path'
 import Manager from '../manager'
-import { runCommand, shellescape } from '../util'
+
+export function parseTreeEntry(entry: string): { sha: string, filepath: string } | undefined {
+  const separator = entry.indexOf('\t')
+  if (separator === -1) return undefined
+  const head = entry.slice(0, separator)
+  const filepath = entry.slice(separator + 1)
+  const sha = head.split(/\s+/)[2]
+  return sha ? { sha, filepath } : undefined
+}
 
 export default class Gfiles extends BasicList {
   public readonly name = 'gfiles'
@@ -26,11 +34,12 @@ export default class Gfiles extends BasicList {
           await workspace.jumpTo(Uri.file(fullpath).toString(), null, cmd)
           return
         }
-        let content = await runCommand(`git cat-file -p ${sha}`, { cwd: root })
+        let content = (await this.manager.git.exec(root, ['cat-file', '-p', sha])).stdout
         let lines = content.replace(/\n$/, '').split('\n')
         let cmd = name == 'edit' ? jumpCommand : name
+        let bufferName = await nvim.call('fnameescape', [`(${branch}) ${filepath}`]) as string
         nvim.pauseNotification()
-        nvim.command(`exe "${cmd} ".fnameescape('(${branch}) ${filepath}')`, true)
+        nvim.command(`${cmd} ${bufferName}`, true)
         nvim.call('append', [0, lines], true)
         nvim.command('normal! Gdd', true)
         nvim.command(`exe 1`, true)
@@ -43,7 +52,7 @@ export default class Gfiles extends BasicList {
     this.addAction('preview', async (item, context) => {
       let { root, sha, filepath, branch } = item.data
       if (!sha) return
-      let content = await runCommand(`git --no-pager diff ${this.manager.diffOptions.join(' ')} --no-ext-diff ${branch} -- ${shellescape(filepath)}`, { cwd: root })
+      let content = (await this.manager.git.exec(root, ['--no-pager', 'diff', ...this.manager.diffOptions, '--no-ext-diff', branch, '--', filepath])).stdout
       let lines = content.replace(/\n$/, '').split('\n')
       await this.preview({
         lines,
@@ -62,15 +71,16 @@ export default class Gfiles extends BasicList {
       return
     }
     const { args } = context
-    let arg = args.length ? args.join(' ') : 'HEAD'
-    let output = await runCommand(`git ls-tree -r ${arg}`, { cwd: root })
-    output = output.replace(/\s+$/, '')
+    let revisions = args.length ? args : ['HEAD']
+    const output = (await this.manager.git.exec(root, ['-c', 'core.quotepath=false', 'ls-tree', '-r', '-z', ...revisions])).stdout
     if (!output) return []
     // let root = this.manager.refreshStatus
     let res: ListItem[] = []
-    for (let line of output.split(/\r?\n/)) {
-      let [head, filepath] = line.split('\t', 2)
-      let sha = head.split(' ')[2]
+    for (let line of output.split('\0')) {
+      if (!line) continue
+      const entry = parseTreeEntry(line)
+      if (!entry) continue
+      const { sha, filepath } = entry
       res.push({
         label: filepath,
         data: {

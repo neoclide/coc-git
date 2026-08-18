@@ -9,6 +9,7 @@ export interface SpawnOptions extends cp.SpawnOptions {
   encoding?: string
   log?: boolean
   cancellationToken?: CancellationToken
+  allowedExitCodes?: number[]
 }
 
 export interface IExecutionResult<T extends string | Buffer> {
@@ -17,11 +18,15 @@ export interface IExecutionResult<T extends string | Buffer> {
   stderr: string
 }
 
-export default class Git {
+export class Git {
   constructor(
     private gitInfo: IGit,
     private channel: OutputChannel
   ) {
+  }
+
+  public get path(): string {
+    return this.gitInfo.path
   }
 
   public async getRepositoryRoot(repositoryPath: string): Promise<string> {
@@ -44,10 +49,16 @@ export default class Git {
   }
 
   private async _exec(args: string[], options: SpawnOptions = {}): Promise<IExecutionResult<string>> {
+    if (options.cancellationToken?.isCancellationRequested) {
+      throw new Error('Cancelled')
+    }
     const child = this.spawn(args, options)
 
-    if (options.input) {
-      child.stdin.end(options.input, 'utf8')
+    if (options.input !== undefined) {
+      child.stdin?.on('error', () => {
+        // The process error/exit handlers below report the actual command failure.
+      })
+      child.stdin?.end(options.input, 'utf8')
     }
 
     const bufferResult = await exec(child, options.cancellationToken)
@@ -65,7 +76,7 @@ export default class Git {
       stderr: bufferResult.stderr
     }
 
-    if (bufferResult.exitCode) {
+    if (bufferResult.exitCode && !options.allowedExitCodes?.includes(bufferResult.exitCode)) {
       this.channel.appendLine(`Error ${result.exitCode} on: 'git ${args.join(' ')}' in ${options.cwd}`)
       this.channel.append(result.stderr)
       this.channel.append(result.stdout)
@@ -75,35 +86,29 @@ export default class Git {
   }
 
   private spawn(args: string[], options: SpawnOptions = {}): cp.ChildProcess {
-
-    if (!options) {
-      options = {}
+    const { input, encoding: _encoding, log: _log, cancellationToken: _cancellationToken, allowedExitCodes: _allowedExitCodes, ...spawnOptions } = options
+    if (!spawnOptions.stdio && input === undefined) {
+      spawnOptions.stdio = ['ignore', null, null]
     }
 
-    if (!options.stdio && !options.input) {
-      options.stdio = ['ignore', null, null]
-    }
-
-    options.env = Object.assign({}, process.env, options.env || {}, {
+    spawnOptions.env = Object.assign({}, process.env, spawnOptions.env || {}, {
       LC_ALL: 'en_US.UTF-8',
       LANG: 'en_US.UTF-8'
     })
-
-    if (process.platform === 'win32') {
-      options.shell = true
-    }
 
     if (options.log !== false) {
       this.log(`> git ${args.join(' ')}\n`)
     }
 
-    return cp.spawn(this.gitInfo.path, args, options)
+    return cp.spawn(this.gitInfo.path, args, spawnOptions)
   }
 
   private log(output: string): void {
     this.channel.append(output)
   }
 }
+
+export default Git
 
 async function exec(child: cp.ChildProcess, cancellationToken?: CancellationToken): Promise<IExecutionResult<Buffer>> {
   if (!child.stdout || !child.stderr) {
@@ -129,7 +134,7 @@ async function exec(child: cp.ChildProcess, cancellationToken?: CancellationToke
   let result = Promise.all<any>([
     new Promise<number>((c, e) => {
       once(child, 'error', cpErrorHandler(e))
-      once(child, 'exit', c)
+      once(child, 'exit', code => c(code ?? -1))
     }),
     new Promise<Buffer>(c => {
       const buffers: Buffer[] = []
@@ -145,7 +150,7 @@ async function exec(child: cp.ChildProcess, cancellationToken?: CancellationToke
 
   if (cancellationToken) {
     const cancellationPromise = new Promise<[number, Buffer, string]>((_, e) => {
-      onceEvent(cancellationToken.onCancellationRequested)(() => {
+      const disposable = onceEvent(cancellationToken.onCancellationRequested)(() => {
         try {
           child.kill()
         } catch (err) {
@@ -154,6 +159,7 @@ async function exec(child: cp.ChildProcess, cancellationToken?: CancellationToke
 
         e(new Error('Cancelled'))
       })
+      disposables.push(disposable)
     })
 
     result = Promise.race([result, cancellationPromise])

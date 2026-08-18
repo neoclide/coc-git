@@ -5,10 +5,10 @@ import path from 'path'
 import util from 'util'
 import Git, { IExecutionResult, SpawnOptions } from './git'
 import { ChangeType, Decorator, Diff, DiffCategory, DiffChunks, StageChunk } from '../types'
-import { getStdout, shellescape, toUnixSlash } from '../util'
+import { toUnixSlash } from '../util'
 import { v4 as uuid } from 'uuid'
 
-export default class Repo {
+export class Repo {
   private userName: string | undefined
   constructor(
     private git: Git,
@@ -21,11 +21,11 @@ export default class Repo {
    * Get staged info
    */
   public async getStagedChunks(relpath?: string): Promise<DiffChunks> {
-    let args = ['--no-pager', 'diff', '--no-ext-diff', '-p', '-U0', '--no-color', '--staged']
-    if (relpath) args.push(toUnixSlash(relpath))
+    let args = ['-c', 'core.quotepath=false', '--no-pager', 'diff', '--no-ext-diff', '--no-renames', '-p', '-U0', '--no-color', '--staged']
+    if (relpath) args.push('--', toUnixSlash(relpath))
     const result = await this.exec(args)
     if (!result.stdout) {
-      throw new Error(`No staged result.`)
+      return {}
     }
     let res: DiffChunks = {}
     let idx = 0
@@ -49,9 +49,9 @@ export default class Repo {
       } else if (curr && /^[+\-]/.test(line)) {
         curr.lines.push(line)
       } else if (line.startsWith('diff --git')) {
-        let ms = line.match(/diff\s--git\sa\/(.*)\sb\//)
-        if (ms) {
-          fsPath = ms[1]
+        const parsedPath = parseDiffPath(line)
+        if (relpath || parsedPath) {
+          fsPath = relpath ? toUnixSlash(relpath) : parsedPath
           curr = undefined
           idx += 4
           continue
@@ -80,9 +80,7 @@ export default class Repo {
 
   private async hasChanged(): Promise<boolean> {
     let result = await this.exec(['diff', '--name-status'])
-    if (!result.stdout) return false
-    let lines = result.stdout.split(/\r?\n/)
-    return lines.some(l => l.startsWith('M'))
+    return result.stdout.trim().length > 0
   }
 
   private async getStaged(): Promise<[number, number]> {
@@ -103,23 +101,23 @@ export default class Repo {
   }
 
   private async hasUntracked(): Promise<boolean> {
-    let cp = this.git.stream(this.root, ['ls-files', '--others', '--exclude-standard'])
+    let cp = this.git.stream(this.root, ['ls-files', '--others', '--exclude-standard', '--directory'])
     return new Promise(resolve => {
-      let hasData = false
-      let timer = setTimeout(() => {
-        if (cp.killed) return
-        cp.kill('SIGKILL')
-        resolve(false)
-      }, 100)
+      let settled = false
+      const finish = (value: boolean): void => {
+        if (settled) return
+        settled = true
+        resolve(value)
+      }
       cp.stdout.on('data', () => {
-        clearTimeout(timer)
-        hasData = true
         cp.kill('SIGKILL')
-        resolve(hasData)
+        finish(true)
       })
       cp.on('exit', () => {
-        clearTimeout(timer)
-        resolve(hasData)
+        finish(false)
+      })
+      cp.on('error', () => {
+        finish(false)
       })
     })
   }
@@ -145,15 +143,12 @@ export default class Repo {
 
   public async getDiff(relFilepath: string, content: string, revision = '', encoding = 'utf8'): Promise<Diff[]> {
     if (relFilepath.startsWith(`.git${path.sep}`)) return
-    let fullpath = path.join(this.root, relFilepath)
-    if (!fs.existsSync(fullpath)) return
     // check if indexed
     let staged: string
     try {
       let indexed = await this.isIndexed(relFilepath)
       if (!indexed) return
       let res = await this.exec(['--no-pager', 'show', `${revision}:${toUnixSlash(relFilepath)}`], { encoding })
-      if (!res.stdout) return
       staged = res.stdout.replace(/\r?\n$/, '').split(/\r?\n/).join('\n')
     } catch (e) {
       this.channel.append(e.stack)
@@ -161,43 +156,52 @@ export default class Repo {
     }
     const stagedFile = path.join(os.tmpdir(), `coc-${uuid()}`)
     const currentFile = path.join(os.tmpdir(), `coc-${uuid()}`)
-    await util.promisify(fs.writeFile)(stagedFile, staged + '\n', 'utf8')
-    await util.promisify(fs.writeFile)(currentFile, content, 'utf8')
-    let output = await getStdout(`git --no-pager diff --no-ext-diff -p -U0 --no-color ${shellescape(stagedFile)} ${shellescape(currentFile)}`)
-    await util.promisify(fs.unlink)(stagedFile)
-    await util.promisify(fs.unlink)(currentFile)
+    let output: string
+    try {
+      await util.promisify(fs.writeFile)(stagedFile, staged + '\n', 'utf8')
+      await util.promisify(fs.writeFile)(currentFile, content, 'utf8')
+      const result = await this.exec([
+        '--no-pager', 'diff', '--no-index', '--no-ext-diff', '-p', '-U0', '--no-color',
+        stagedFile, currentFile
+      ], { allowedExitCodes: [1] })
+      output = result.stdout
+    } finally {
+      await Promise.all([
+        util.promisify(fs.unlink)(stagedFile).catch(() => undefined),
+        util.promisify(fs.unlink)(currentFile).catch(() => undefined)
+      ])
+    }
     if (!output) return []
     this.channel.appendLine(`> git diff ${relFilepath}`)
     // split output into lines and delete trailing empty line
-    const lines = output.trim().split('\n')
+    const lines = output.replace(/\r?\n$/, '').split(/\r?\n/)
     return parseDiff(lines)
   }
 
   public async getDiffAll(category: DiffCategory): Promise<Map<string, Diff[]>> {
     let diffGroups: Map<string, Diff[]> = new Map()
-    let args: string = ''
+    let args: string[] = ['-c', 'core.quotepath=false', '--no-pager', 'diff', '--no-ext-diff', '--no-renames', '-p', '-U0', '--no-color']
     if (category === DiffCategory.All) {
-      args = 'HEAD'
+      const head = await this.safeRun(['rev-parse', '--verify', 'HEAD'])
+      if (head) {
+        args.push('HEAD')
+      } else {
+        const emptyTree = await this.exec(['hash-object', '-t', 'tree', '--stdin'], { input: '', log: false })
+        args.push(emptyTree.stdout.trim())
+      }
     } else if (category === DiffCategory.Staged) {
-      args = '--cached'
-    } else {
-      args = ''
+      args.push('--cached')
     }
-    let output = await getStdout(`git --no-pager diff --no-ext-diff -p -U0 --no-color ${args}`)
+    let output = (await this.exec(args)).stdout
     if (!output) return diffGroups
 
     /* Split diff output into lines and group by filename */
-    const lines = output.trim().split('\n')
+    const lines = output.replace(/\r?\n$/, '').split(/\r?\n/)
     let lineGroups: Map<string, string[]> = new Map()
     let file: string = null
     for (const line of lines) {
       if (line.startsWith('diff --git')) {
-        let ms = line.match(/diff\s--git\sa\/(.*)\sb\//)
-        if (ms) {
-          file = ms[1]
-        } else {
-          file = null
-        }
+        file = parseDiffPath(line) || null
       }
       if (file) {
         if (!lineGroups.has(file)) {
@@ -217,8 +221,8 @@ export default class Repo {
   }
 
   public async isIgnored(relativePath: string): Promise<boolean> {
-    let res = await this.safeRun(['check-ignore', '--', relativePath])
-    return res.trim() == relativePath
+    let res = await this.exec(['check-ignore', '-q', '--', relativePath], { allowedExitCodes: [1] })
+    return res.exitCode === 0
   }
 
   public async hasConflicts(relativePath: string): Promise<boolean> {
@@ -267,6 +271,63 @@ export default class Repo {
     }
   }
 }
+
+function readQuotedGitPath(input: string, start: number): { value: string, end: number } | undefined {
+  if (input[start] !== '"') return undefined
+  let value = ''
+  for (let index = start + 1; index < input.length; index++) {
+    const character = input[index]
+    if (character === '"') return { value, end: index + 1 }
+    if (character !== '\\') {
+      value += character
+      continue
+    }
+    const escaped = input[++index]
+    if (escaped == null) return undefined
+    const escapes: { [key: string]: string } = {
+      a: '\x07', b: '\b', t: '\t', n: '\n', v: '\v', f: '\f', r: '\r', '"': '"', '\\': '\\'
+    }
+    if (escapes[escaped] != null) {
+      value += escapes[escaped]
+      continue
+    }
+    if (/[0-7]/.test(escaped)) {
+      let octal = escaped
+      while (octal.length < 3 && /[0-7]/.test(input[index + 1] || '')) octal += input[++index]
+      value += String.fromCharCode(parseInt(octal, 8))
+      continue
+    }
+    value += escaped
+  }
+  return undefined
+}
+
+/** Parse the same-path header emitted by `git diff --no-renames`. */
+export function parseDiffPath(line: string): string | undefined {
+  const prefix = 'diff --git '
+  if (!line.startsWith(prefix)) return undefined
+  const value = line.slice(prefix.length)
+  if (value.startsWith('"')) {
+    const first = readQuotedGitPath(value, 0)
+    if (!first) return undefined
+    const secondStart = value.indexOf('"', first.end)
+    const second = secondStart === -1 ? undefined : readQuotedGitPath(value, secondStart)
+    if (!second || !first.value.startsWith('a/') || !second.value.startsWith('b/')) return undefined
+    const firstPath = first.value.slice(2)
+    return firstPath === second.value.slice(2) ? firstPath : undefined
+  }
+  if (!value.startsWith('a/')) return undefined
+  const paths = value.slice(2)
+  let separator = paths.indexOf(' b/')
+  while (separator !== -1) {
+    const firstPath = paths.slice(0, separator)
+    if (firstPath === paths.slice(separator + 3)) return firstPath
+    separator = paths.indexOf(' b/', separator + 1)
+  }
+  return undefined
+}
+
+export default Repo
 
 export function parseDiff(diffLines: string[]): Diff[] {
   // delete the first four lines

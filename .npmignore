@@ -1,4 +1,7 @@
+.github
+.codex
 src
+test
 tsconfig.json
 tslint.json
 *.map

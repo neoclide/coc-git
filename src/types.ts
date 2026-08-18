@@ -5,6 +5,7 @@ export interface GitConfiguration {
   diffOptions: string[]
   issueFormat: string
   virtualTextPrefix: string
+  blameFormat: string
   addGBlameToVirtualText: boolean
   addGBlameToBufferVar: boolean
   blameUseRealTime: boolean
