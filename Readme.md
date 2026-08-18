@@ -1,5 +1,9 @@
 # coc-git
 
+<p align="center">
+  <img src="assets/coc-git-logo.png" alt="coc-git logo" width="180">
+</p>
+
 [![CI](https://github.com/neoclide/coc-git/actions/workflows/ci.yaml/badge.svg)](https://github.com/neoclide/coc-git/actions/workflows/ci.yaml)
 
 Git integration of [coc.nvim](https://github.com/neoclide/coc.nvim).
