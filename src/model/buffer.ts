@@ -6,7 +6,7 @@ import { BlameInfo, ChangeType, Conflict, ConflictParseState, ConflictPart, Diff
 import { formatBlameText } from '../util'
 import { createUnstagePatch, equals, getRepoUrl, getUrl, quoteGitPath, toUnixSlash } from '../util'
 import Git from './git'
-import Repo from './repo'
+import Repo, { parseDiffPath } from './repo'
 
 const signGroup = 'CocGit'
 const revPattern = '([0-9A-Za-z_.:/-]+)'
@@ -22,6 +22,29 @@ export function getPreviousConflict(conflicts: Conflict[], line: number): Confli
 function chunkContainsLine(chunk: StageChunk, line: number): boolean {
   const end = chunk.add.count === 0 ? chunk.add.lnum : chunk.add.lnum + chunk.add.count - 1
   return chunk.add.lnum <= line && end >= line
+}
+
+export function findCommitLine(lines: string[], relpath: string, targetLine: number): number | undefined {
+  let matchesFile = false
+  let currentLine: number | undefined
+  for (let index = 0; index < lines.length; index++) {
+    let text = lines[index]
+    if (text.startsWith('diff --git ')) {
+      matchesFile = parseDiffPath(text) === relpath
+      currentLine = undefined
+      continue
+    }
+    if (!matchesFile) continue
+    let match = text.match(/^@@ -\d+(?:,\d+)? \+(\d+)(?:,\d+)? @@/)
+    if (match) {
+      currentLine = Number(match[1])
+      continue
+    }
+    if (currentLine == null || (!text.startsWith('+') && !text.startsWith(' '))) continue
+    if (currentLine === targetLine) return index + 1
+    currentLine++
+  }
+  return undefined
 }
 
 export default class GitBuffer implements Disposable {
@@ -652,11 +675,14 @@ export default class GitBuffer implements Disposable {
     }
     let nvim = workspace.nvim
     let line = await nvim.eval('line(".")') as number
-    let args = ['--no-pager', 'blame', '-w', '-l', '--root', '-t', `-L${line},${line}`, '--', this.relpath]
+    let args = ['--no-pager', 'blame', '-w', '--porcelain', '--root', `-L${line},${line}`, '--', this.relpath]
     let res = await this.repo.exec(args)
     let output = res.stdout.trim()
     if (!output.length) return
-    let commit = output.match(/^\S+/)[0]
+    let match = output.match(/^(\S+)\s+(\d+)/)
+    if (!match) return
+    let commit = match[1]
+    let commitLine = Number(match[2])
     if (/^0+$/.test(commit)) {
       window.showWarningMessage('not committed yet!')
       return
@@ -670,20 +696,24 @@ export default class GitBuffer implements Disposable {
     }
     await nvim.command(`keepalt above ${this.config.splitWindowCommand}`)
 
-    let hasFugitive = await nvim.getVar('loaded_fugitive')
+    let hasFugitive = await nvim.eval('get(g:, "loaded_fugitive", 0)')
     if (hasFugitive) {
       await nvim.command(`Gedit ${commit}`)
+      let lines = await nvim.call('getline', [1, '$']) as string[]
+      let target = findCommitLine(lines, this.relpath, commitLine)
+      if (target) await nvim.call('cursor', [target, 1])
     } else {
       let content = await this.repo.safeRun(['--no-pager', 'show', commit])
       if (content == null) return
       let lines = content.trim().split('\n')
+      let target = findCommitLine(lines, this.relpath, commitLine) ?? 1
       nvim.pauseNotification()
       nvim.command(`edit +setl\\ buftype=nofile [commit ${commit}]`, true)
       nvim.command('setl foldmethod=syntax nobuflisted bufhidden=wipe', true)
       nvim.command('setf git', true)
       nvim.call('append', [0, lines], true)
       nvim.command('normal! Gdd', true)
-      nvim.command(`exe 1`, true)
+      nvim.command(`exe ${target}`, true)
       await nvim.resumeNotification(false, true)
     }
   }
