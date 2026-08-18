@@ -2,11 +2,12 @@ import { Disposable, Document, Documentation, FloatFactory, Mutex, OutputChannel
 import debounce from 'debounce'
 import { format } from 'timeago.js'
 import { URL } from 'url'
-import { BlameInfo, ChangeType, Conflict, ConflictParseState, ConflictPart, Diff, FoldSettings, GitConfiguration, SignInfo, StageChunk } from '../types'
+import { BlameInfo, BufferGitState, ChangeType, Conflict, ConflictParseState, ConflictPart, Diff, FoldSettings, GitConfiguration, GutterSign, GitChange, StageChunk } from '../types'
 import { formatBlameText } from '../util'
 import { createUnstagePatch, equals, getRepoUrl, getUrl, quoteGitPath, toUnixSlash } from '../util'
 import Git from './git'
 import Repo, { parseDiffPath } from './repo'
+import { changesFromDiffs, createLineMapping, gutterSignsFromChanges, mapIndexChangesToBuffer, mergeGutterSigns } from './staged'
 
 const signGroup = 'CocGit'
 const revPattern = '([0-9A-Za-z_.:/-]+)'
@@ -51,7 +52,15 @@ export default class GitBuffer implements Disposable {
   private blameInfo: BlameInfo[] = []
   private diffs: Diff[] = []
   private conflicts: Conflict[] = []
-  private currentSigns: SignInfo[] = []
+  private currentSigns: GutterSign[] = []
+  private gitState: BufferGitState = { staged: [], unstaged: [] }
+  private stagedCache: {
+    indexIdentity: string
+    headIdentity: string
+    headLines: string[]
+    indexLines: string[]
+    stagedInIndex: GitChange[]
+  } | undefined
   private gitStatus: string = ''
   private foldEnabled = false
   private foldSettings: FoldSettings
@@ -81,6 +90,10 @@ export default class GitBuffer implements Disposable {
 
   public get cachedDiffs(): Diff[] {
     return this.diffs
+  }
+
+  public invalidateStagedCache(): void {
+    this.stagedCache = undefined
   }
 
   public markConflictCheck(): void {
@@ -170,6 +183,7 @@ export default class GitBuffer implements Disposable {
     lines.push('')
     try {
       await this.git.exec(this.repo.root, ['apply', '--cached', '--unidiff-zero', '-'], { input: lines.join('\n') })
+      this.invalidateStagedCache()
       this.refresh()
     } catch (e) {
       this.channel.appendLine(`[Error] ${e.message}`)
@@ -212,6 +226,7 @@ export default class GitBuffer implements Disposable {
     if (!patch) return
     try {
       await this.git.exec(this.repo.root, ['apply', '--cached', '--unidiff-zero', '-'], { input: patch })
+      this.invalidateStagedCache()
       this.refresh()
     } catch (e) {
       window.showErrorMessage(`Unable to apply patch: ${e.message}`)
@@ -220,6 +235,10 @@ export default class GitBuffer implements Disposable {
   }
 
   public async nextChunk(): Promise<void> {
+    if (this.config.enableStagedGutters) {
+      await this.moveToNextChunk()
+      return
+    }
     const { diffs } = this
     let { nvim } = workspace
     if (!diffs || diffs.length == 0) return
@@ -236,6 +255,10 @@ export default class GitBuffer implements Disposable {
   }
 
   public async prevChunk(): Promise<void> {
+    if (this.config.enableStagedGutters) {
+      await this.moveToPreviousChunk()
+      return
+    }
     const { nvim } = workspace
     let { diffs } = this
     let line = await nvim.call('line', '.') as number
@@ -248,6 +271,61 @@ export default class GitBuffer implements Disposable {
     }
     if (await nvim.getOption('wrapscan')) {
       await window.moveTo({ line: Math.max(diffs[diffs.length - 1].start - 1, 0), character: 0 })
+    }
+  }
+
+  private getNavigationChunks(): Array<{ start: number, end: number }> {
+    const chunks = [
+      ...this.diffs.map(diff => ({
+        start: Math.max(1, diff.start),
+        end: Math.max(1, diff.end)
+      })),
+      ...this.gitState.staged.map(change => ({
+        start: Math.max(1, change.line),
+        end: Math.max(1, change.endLine ?? change.line)
+      }))
+    ].sort((a, b) => a.start - b.start || a.end - b.end)
+    const result: Array<{ start: number, end: number }> = []
+    for (const chunk of chunks) {
+      const previous = result[result.length - 1]
+      if (previous && chunk.start <= previous.end) {
+        previous.end = Math.max(previous.end, chunk.end)
+      } else {
+        result.push({ ...chunk })
+      }
+    }
+    return result
+  }
+
+  private async moveToNextChunk(): Promise<void> {
+    const chunks = this.getNavigationChunks()
+    const { nvim } = workspace
+    if (chunks.length === 0) return
+    const line = await nvim.call('line', '.') as number
+    for (const chunk of chunks) {
+      if (chunk.start > line) {
+        await window.moveTo({ line: Math.max(chunk.start - 1, 0), character: 0 })
+        return
+      }
+    }
+    if (await nvim.getOption('wrapscan')) {
+      await window.moveTo({ line: Math.max(chunks[0].start - 1, 0), character: 0 })
+    }
+  }
+
+  private async moveToPreviousChunk(): Promise<void> {
+    const chunks = this.getNavigationChunks()
+    const { nvim } = workspace
+    if (chunks.length === 0) return
+    const line = await nvim.call('line', '.') as number
+    for (const chunk of chunks.slice().reverse()) {
+      if (chunk.end < line) {
+        await window.moveTo({ line: Math.max(chunk.start - 1, 0), character: 0 })
+        return
+      }
+    }
+    if (await nvim.getOption('wrapscan')) {
+      await window.moveTo({ line: Math.max(chunks[chunks.length - 1].start - 1, 0), character: 0 })
     }
   }
 
@@ -357,24 +435,31 @@ export default class GitBuffer implements Disposable {
     let encoding = await this.doc.buffer.getOption('fileencoding') as string
     const diffs = await this.repo.getDiff(this.relpath, eol ? content : content + '\n', revision, encoding || 'utf8')
     if (diffs == null || this._disposed) return
-    if (diffs.length === 0) {
-      this.currentSigns = []
-      this.diffs = []
-      this.setBufferStatus('')
-      if (this.config.enableGutters) {
-        nvim.call('sign_unplace', [signGroup, { buffer: bufnr }], true)
-        nvim.redrawVim()
+    const unstaged = changesFromDiffs(diffs, 'unstaged')
+    let staged: GitChange[] = []
+    let stagedLines: string[] = []
+    if (this.config.enableStagedGutters) {
+      const cached = await this.getStagedChanges(encoding || 'utf8')
+      if (cached) {
+        staged = cached.changes
+        stagedLines = cached.indexLines
       }
-      return
     }
-    if (equals(diffs, this.diffs)) {
-      return
-    }
+    if (this._disposed) return
+    const oldState = this.gitState
+    const mapping = createLineMapping(stagedLines, this.doc.textDocument.lines, unstaged)
+    const mappedStaged = staged.length
+      ? mapIndexChangesToBuffer(staged, mapping, this.doc.textDocument.lines.length)
+      : []
+    const unstagedSigns = gutterSignsFromChanges(unstaged)
+    const stagedSigns = gutterSignsFromChanges(mappedStaged)
+    const currentSigns = mergeGutterSigns(unstagedSigns, this.config.enableStagedGutters ? stagedSigns : [])
     this.diffs = diffs
+    this.gitState = { staged: mappedStaged, unstaged }
+    if (equals(oldState, this.gitState) && !force) return
     let added = 0
     let changed = 0
     let removed = 0
-    let signs: SignInfo[] = []
     for (let diff of diffs) {
       if (diff.changeType == ChangeType.Add) {
         added += diff.added.count
@@ -387,26 +472,6 @@ export default class GitBuffer implements Disposable {
         added += add - min
         removed += remove - min
       }
-      let { start, end } = diff
-      for (let i = start; i <= end; i++) {
-        let topdelete = diff.changeType == ChangeType.Delete && i == 0
-        let changedelete = diff.changeType == ChangeType.Change && diff.removed.count > diff.added.count && i == end
-        signs.push({
-          changeType: topdelete ? 'topdelete' : changedelete ? 'changedelete' : diff.changeType,
-          lnum: topdelete ? 1 : i
-        })
-      }
-      if (diff.changeType == ChangeType.Change) {
-        let [add, remove] = [diff.added.count, diff.removed.count]
-        if (add > remove) {
-          for (let i = 0; i < add - remove; i++) {
-            signs.push({
-              changeType: ChangeType.Add,
-              lnum: diff.end + 1 + i
-            })
-          }
-        }
-      }
     }
     let items: string[] = []
     if (added) items.push(`+${added}`)
@@ -414,9 +479,36 @@ export default class GitBuffer implements Disposable {
     if (removed) items.push(`-${removed}`)
     let status = '  ' + `${items.join(' ')} `
     this.setBufferStatus(status)
-    this.currentSigns = signs
+    this.currentSigns = currentSigns
+    if (this.currentSigns.length === 0) {
+      if (this.config.enableGutters) {
+        nvim.call('sign_unplace', [signGroup, { buffer: bufnr }], true)
+        nvim.redrawVim()
+      }
+      return
+    }
     if (!this.config.realtimeGutters && !force) return
     this.updateGutters()
+  }
+
+  private async getStagedChanges(encoding: string): Promise<{ changes: GitChange[], indexLines: string[] } | undefined> {
+    const [indexIdentity, headIdentity] = await Promise.all([
+      this.repo.getIndexIdentity(),
+      this.repo.getHeadIdentity()
+    ])
+    if (this.stagedCache && this.stagedCache.indexIdentity === indexIdentity && this.stagedCache.headIdentity === headIdentity) {
+      return { changes: this.stagedCache.stagedInIndex, indexLines: this.stagedCache.indexLines }
+    }
+    const [head, index] = await Promise.all([
+      this.repo.getFileContent(this.relpath, 'HEAD:', encoding),
+      this.repo.getFileContent(this.relpath, ':', encoding)
+    ])
+    const stagedDiffs = await this.repo.getDiffFromContents(head ? head + '\n' : '', index ? index + '\n' : '')
+    const stagedInIndex = changesFromDiffs(stagedDiffs, 'staged')
+    const headLines = head ? head.split('\n') : []
+    const indexLines = index ? index.split('\n') : []
+    this.stagedCache = { indexIdentity, headIdentity, headLines, indexLines, stagedInIndex }
+    return { changes: stagedInIndex, indexLines }
   }
 
   public updateGutters(): void {
@@ -424,13 +516,14 @@ export default class GitBuffer implements Disposable {
     if (!this.config.enableGutters) return
     let { nvim } = workspace
     let { bufnr } = this.doc
-    let { signPriority } = this.config
+    let { signPriority, stagedSignPriority } = this.config
     let signs = this.currentSigns
     nvim.pauseNotification()
     nvim.call('sign_unplace', [signGroup, { buffer: bufnr }], true)
     for (let sign of signs) {
-      let name = this.getSignName(sign.changeType)
-      nvim.call('sign_place', [0, signGroup, name, bufnr, { lnum: sign.lnum, priority: signPriority }], true)
+      let name = this.getSignName(sign.kind, sign.layer)
+      const priority = sign.layer === 'staged' ? stagedSignPriority : signPriority
+      nvim.call('sign_place', [0, signGroup, name, bufnr, { lnum: sign.line, priority }], true)
     }
     nvim.resumeNotification(true, true)
   }
@@ -730,7 +823,7 @@ export default class GitBuffer implements Disposable {
       window.showWarningMessage('No changes')
       return
     }
-    let changedLines = new Set(infos.map(o => o.lnum))
+    let changedLines = new Set(infos.map(o => o.line))
     let foldContext = this.config.foldContext
     let max = this.doc.lineCount
     let ranges = []
@@ -939,17 +1032,30 @@ export default class GitBuffer implements Disposable {
     nvim.resumeNotification(false, true)
   }
 
-  private getSignName(changeType: ChangeType | string): string {
-    switch (changeType) {
-      case ChangeType.Delete:
+  private getSignName(kind: GutterSign['kind'], layer: GutterSign['layer']): string {
+    if (layer === 'staged') {
+      switch (kind) {
+        case 'add':
+          return 'CocGitStagedAdded'
+        case 'change':
+          return 'CocGitStagedChanged'
+        case 'delete':
+        case 'topDelete':
+        case 'changeDelete':
+          return 'CocGitStagedRemoved'
+      }
+    }
+    if (kind === 'mixed') return 'CocGitMixed'
+    switch (kind) {
+      case 'delete':
         return 'CocGitRemoved'
-      case ChangeType.Add:
+      case 'add':
         return 'CocGitAdded'
-      case ChangeType.Change:
+      case 'change':
         return 'CocGitChanged'
-      case 'topdelete':
+      case 'topDelete':
         return 'CocGitTopRemoved'
-      case 'changedelete':
+      case 'changeDelete':
         return 'CocGitChangeRemoved'
     }
     return ''
@@ -969,6 +1075,7 @@ export default class GitBuffer implements Disposable {
     buffer.setVar('coc_git_status', '', true)
     buffer.clearNamespace(this.config.conflictSrcId, 0, -1)
     nvim.call('sign_unplace', [signGroup, { buffer: bufnr }], true)
+    this.invalidateStagedCache()
     this.refresh.clear()
     if (this.config.addGBlameToBufferVar) {
       buffer.setVar('coc_git_blame', '', true)

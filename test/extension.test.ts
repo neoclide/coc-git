@@ -52,6 +52,9 @@ describe('coc-git extension', () => {
     const properties = manifest.contributes.configuration.properties
     assert.deepEqual(properties['git.pushArguments'].default, [])
     assert.equal(properties['git.gstatus.saveBeforeOpen'].default, false)
+    assert.equal(properties['git.enableStagedGutters'].default, false)
+    assert.equal(properties['git.stagedSignPriority'].default, 9)
+    assert.equal(properties['git.mixedSign.hlGroup'].default, 'CocGitMixed')
     assert.equal(manifest['coc-test'].entryFile, 'src/index.ts')
   })
 

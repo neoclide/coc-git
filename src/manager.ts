@@ -110,6 +110,18 @@ export default class DocumentManager {
       nvim.command(`sign define CocGit${item} text=${text} texthl=CocGit${item}Sign`, true)
       nvim.command(`highlight default link CocGit${item}Sign ${hlGroup}`, true)
     }
+    const stagedItems = [
+      ['StagedAdded', 'stagedAddedSign', 'CocGitStagedAdd', 'DiffAdd'],
+      ['StagedChanged', 'stagedChangedSign', 'CocGitStagedChange', 'DiffChange'],
+      ['StagedRemoved', 'stagedRemovedSign', 'CocGitStagedDelete', 'DiffDelete'],
+      ['Mixed', 'mixedSign', 'CocGitMixed', 'WarningMsg']
+    ]
+    for (let [item, section, defaultGroup, fallback] of stagedItems) {
+      let text = config.get<string>(`${section}.text`, '')
+      let hlGroup = config.get<string>(`${section}.hlGroup`, defaultGroup)
+      nvim.command(`sign define CocGit${item} text=${text} texthl=${hlGroup}`, true)
+      nvim.command(`highlight default link ${hlGroup} ${fallback}`, true)
+    }
     await nvim.resumeNotification()
   }
 
@@ -129,8 +141,10 @@ export default class DocumentManager {
       blameUseRealTime: config.get<boolean>('blameUseRealTime', false),
       enableGutters: config.get<boolean>('enableGutters', true),
       realtimeGutters: config.get<boolean>('realtimeGutters', true),
+      enableStagedGutters: config.get<boolean>('enableStagedGutters', false),
       showCommitInFloating: config.get<boolean>('showCommitInFloating', false),
       signPriority: config.get<number>('signPriority', 10),
+      stagedSignPriority: config.get<number>('stagedSignPriority', 9),
       pushArguments: config.get<string[]>('pushArguments') ?? [],
       splitWindowCommand: config.get<string>('splitWindowCommand', 'above sp'),
       changedSign: {
@@ -153,6 +167,22 @@ export default class DocumentManager {
         text: config.get<string>('changeRemovedSign.text', '≃'),
         hlGroup: config.get<string>('changeRemovedSign.hlGroup', 'DiffChange')
       },
+      stagedAddedSign: {
+        text: config.get<string>('stagedAddedSign.text', '┃'),
+        hlGroup: config.get<string>('stagedAddedSign.hlGroup', 'CocGitStagedAdd')
+      },
+      stagedChangedSign: {
+        text: config.get<string>('stagedChangedSign.text', '┃'),
+        hlGroup: config.get<string>('stagedChangedSign.hlGroup', 'CocGitStagedChange')
+      },
+      stagedRemovedSign: {
+        text: config.get<string>('stagedRemovedSign.text', '╻'),
+        hlGroup: config.get<string>('stagedRemovedSign.hlGroup', 'CocGitStagedDelete')
+      },
+      mixedSign: {
+        text: config.get<string>('mixedSign.text', '┋'),
+        hlGroup: config.get<string>('mixedSign.hlGroup', 'CocGitMixed')
+      },
       conflict: {
         enabled: config.get<boolean>('conflict.enabled', true),
         currentHlGroup: config.get<string>('conflict.current.hlGroup', 'DiffChange'),
@@ -169,7 +199,11 @@ export default class DocumentManager {
     this.config = Object.assign(this.config || {}, obj)
     if (e) {
       this.defined = false
-      for (let buffer of this.buffers.values()) buffer.markConflictCheck()
+      for (let buffer of this.buffers.values()) {
+        buffer.markConflictCheck()
+        buffer.invalidateStagedCache()
+        buffer.diffDocument(true).catch(err => this.service.log(`[Error] configuration refresh: ${err.message}`))
+      }
       this.defineSigns().catch(err => this.service.log(`[Error] define signs: ${err.message}`))
     }
   }
@@ -320,6 +354,7 @@ export default class DocumentManager {
 
   public refresh(): void {
     for (let buf of this.buffers.values()) {
+      buf.invalidateStagedCache()
       buf.refresh()
     }
   }

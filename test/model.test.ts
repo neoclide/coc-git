@@ -11,6 +11,7 @@ import { parseStatusEntries } from '../src/lists/gstatus'
 import { parseTreeEntry } from '../src/lists/gfiles'
 import { DiffCategory } from '../src/types'
 import { createUnstagePatch } from '../src/util'
+import { createLineMapping, mapIndexChangesToBuffer, mergeGutterSigns } from '../src/model/staged'
 
 const tempDirs: string[] = []
 const channel = {
@@ -175,6 +176,36 @@ process.exit(result.status == null ? 1 : result.status)
 })
 
 describe('edge-case parsing and navigation', () => {
+  it('maps a staged line below an unstaged insertion', () => {
+    const changes = [{ kind: 'add', layer: 'unstaged', line: 2, endLine: 2, sourceLine: 2, sourceCount: 0, targetCount: 1 } as const]
+    const mapping = createLineMapping(['a', 'b', 'c'], ['a', 'new', 'b', 'c'], changes)
+    const [mapped] = mapIndexChangesToBuffer([
+      { kind: 'change', layer: 'staged', line: 3, endLine: 3 }
+    ], mapping, 4)
+    assert.equal(mapped.line, 4)
+  })
+
+  it('maps a staged deletion to a valid shared anchor', () => {
+    const mapping = createLineMapping(['b', 'c'], ['b'], [
+      { kind: 'delete', layer: 'unstaged', line: 2, endLine: 2, sourceLine: 2, sourceCount: 1, targetCount: 0 }
+    ])
+    const [mapped] = mapIndexChangesToBuffer([
+      { kind: 'delete', layer: 'staged', line: 2, sourceLine: 2, sourceEndLine: 2 }
+    ], mapping, 1)
+    assert.equal(mapped.line, 1)
+  })
+
+  it('renders overlap as one mixed sign', () => {
+    const signs = mergeGutterSigns(
+      [{ line: 3, kind: 'change', layer: 'unstaged' }],
+      [{ line: 3, kind: 'add', layer: 'staged' }]
+    )
+    assert.equal(signs.length, 1)
+    assert.equal(signs[0].line, 3)
+    assert.equal(signs[0].kind, 'mixed')
+    assert.equal(signs[0].layer, 'mixed')
+  })
+
   it('parses ls-tree entries whose filenames contain tabs', () => {
     assert.deepEqual(
       JSON.parse(JSON.stringify(parseTreeEntry('100644 blob abcdef\tpath\twith-tab.txt'))),

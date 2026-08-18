@@ -264,11 +264,23 @@
           "scope": "window",
           "description": "Update gutters in realtime, default: true."
         },
+        "git.enableStagedGutters": {
+          "type": "boolean",
+          "default": false,
+          "scope": "window",
+          "description": "Show staged changes in the sign column."
+        },
         "git.signPriority": {
           "type": "number",
           "default": 10,
           "scope": "application",
           "description": "Priority of sign gutters, default to 10."
+        },
+        "git.stagedSignPriority": {
+          "type": "number",
+          "default": 9,
+          "scope": "window",
+          "description": "Priority of staged gutter signs."
         },
         "git.pushArguments": {
           "type": "array",
@@ -338,6 +350,38 @@
           "default": "DiffChange",
           "scope": "application",
           "description": "Highlight group for change removed sign."
+        },
+        "git.stagedAddedSign.text": {
+          "type": "string",
+          "default": "┃"
+        },
+        "git.stagedAddedSign.hlGroup": {
+          "type": "string",
+          "default": "CocGitStagedAdd"
+        },
+        "git.stagedChangedSign.text": {
+          "type": "string",
+          "default": "┃"
+        },
+        "git.stagedChangedSign.hlGroup": {
+          "type": "string",
+          "default": "CocGitStagedChange"
+        },
+        "git.stagedRemovedSign.text": {
+          "type": "string",
+          "default": "╻"
+        },
+        "git.stagedRemovedSign.hlGroup": {
+          "type": "string",
+          "default": "CocGitStagedDelete"
+        },
+        "git.mixedSign.text": {
+          "type": "string",
+          "default": "┋"
+        },
+        "git.mixedSign.hlGroup": {
+          "type": "string",
+          "default": "CocGitMixed"
         },
         "git.semanticCommit.filetypes": {
           "type": [

@@ -143,22 +143,16 @@ export class Repo {
 
   public async getDiff(relFilepath: string, content: string, revision = '', encoding = 'utf8'): Promise<Diff[]> {
     if (relFilepath.startsWith(`.git${path.sep}`)) return
-    // check if indexed
-    let staged: string
-    try {
-      let indexed = await this.isIndexed(relFilepath)
-      if (!indexed) return
-      let res = await this.exec(['--no-pager', 'show', `${revision}:${toUnixSlash(relFilepath)}`], { encoding })
-      staged = res.stdout.replace(/\r?\n$/, '').split(/\r?\n/).join('\n')
-    } catch (e) {
-      this.channel.append(e.stack)
-      return
-    }
+    const base = await this.getFileContent(relFilepath, revision || ':', encoding)
+    return this.getDiffFromContents(base ? base + '\n' : '', content)
+  }
+
+  public async getDiffFromContents(base: string, content: string): Promise<Diff[]> {
     const stagedFile = path.join(os.tmpdir(), `coc-${uuid()}`)
     const currentFile = path.join(os.tmpdir(), `coc-${uuid()}`)
     let output: string
     try {
-      await util.promisify(fs.writeFile)(stagedFile, staged + '\n', 'utf8')
+      await util.promisify(fs.writeFile)(stagedFile, base, 'utf8')
       await util.promisify(fs.writeFile)(currentFile, content, 'utf8')
       const result = await this.exec([
         '--no-pager', 'diff', '--no-index', '--no-ext-diff', '-p', '-U0', '--no-color',
@@ -172,10 +166,41 @@ export class Repo {
       ])
     }
     if (!output) return []
-    this.channel.appendLine(`> git diff ${relFilepath}`)
+    this.channel.appendLine('> git diff buffer contents')
     // split output into lines and delete trailing empty line
     const lines = output.replace(/\r?\n$/, '').split(/\r?\n/)
     return parseDiff(lines)
+  }
+
+  public async getFileContent(relpath: string, revision: string, encoding = 'utf8'): Promise<string> {
+    try {
+      const object = revision.endsWith(':') ? revision : `${revision}:`
+      const result = await this.exec(['--no-pager', 'show', `${object}${toUnixSlash(relpath)}`], {
+        encoding,
+        log: false,
+        allowedExitCodes: [128]
+      })
+      if (result.exitCode !== 0) return ''
+      return result.stdout.replace(/\r?\n$/, '').split(/\r?\n/).join('\n')
+    } catch (_e) {
+      return ''
+    }
+  }
+
+  public async getIndexIdentity(): Promise<string> {
+    try {
+      const gitPath = (await this.safeRun(['rev-parse', '--git-path', 'index'])).trim()
+      if (!gitPath) return ''
+      const indexPath = path.isAbsolute(gitPath) ? gitPath : path.join(this.root, gitPath)
+      const stat = await util.promisify(fs.stat)(indexPath)
+      return `${stat.dev}:${stat.ino}:${stat.size}:${stat.mtimeMs}`
+    } catch (_e) {
+      return ''
+    }
+  }
+
+  public async getHeadIdentity(): Promise<string> {
+    return this.safeRun(['rev-parse', '--verify', 'HEAD'])
   }
 
   public async getDiffAll(category: DiffCategory): Promise<Map<string, Diff[]>> {

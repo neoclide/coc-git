@@ -92,7 +92,11 @@ In your vim/neovim, run command:
 
 - `git.realtimeGutters`: Update gutters in realtime, default: true., default: `true`
 
+- `git.enableStagedGutters`: Show staged changes in the sign column., default: `false`
+
 - `git.signPriority`: Priority of sign gutters, default to `10`.
+
+- `git.stagedSignPriority`: Priority of staged gutter signs., default: `9`.
 
 - `git.pushArguments`: Additional arguments passed to `git push`, default: `[]`.
 
@@ -115,6 +119,22 @@ In your vim/neovim, run command:
 - `git.changeRemovedSign.text`: Text of change removed sign., default: `"≃"`
 
 - `git.changeRemovedSign.hlGroup`: Highlight group for change removed sign., default: `"DiffChange"`
+
+- `git.stagedAddedSign.text`: Text of staged added sign., default: `"┃"`
+
+- `git.stagedAddedSign.hlGroup`: Highlight group for staged added sign., default: `"CocGitStagedAdd"`
+
+- `git.stagedChangedSign.text`: Text of staged changed sign., default: `"┃"`
+
+- `git.stagedChangedSign.hlGroup`: Highlight group for staged changed sign., default: `"CocGitStagedChange"`
+
+- `git.stagedRemovedSign.text`: Text of staged removed sign., default: `"╻"`
+
+- `git.stagedRemovedSign.hlGroup`: Highlight group for staged removed sign., default: `"CocGitStagedDelete"`
+
+- `git.mixedSign.text`: Text of a sign shared by staged and unstaged changes., default: `"┋"`
+
+- `git.mixedSign.hlGroup`: Highlight group for a mixed sign., default: `"CocGitMixed"`
 
 - `git.semanticCommit.filetypes`: Enabled filetypes, default: `["gitcommit","gina-commit"]`
 

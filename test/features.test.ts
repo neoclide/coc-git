@@ -31,6 +31,36 @@ describe('git blame format', () => {
 })
 
 describe('git chunk info', () => {
+  it('renders staged-only changes with a staged sign when enabled', async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'coc-git-staged-sign-'))
+    const config = workspace.getConfiguration('git')
+    try {
+      execSync('git init -q', { cwd: dir })
+      execSync('git config user.email test@example.com', { cwd: dir })
+      execSync('git config user.name test', { cwd: dir })
+      const file = path.join(dir, 'staged.txt')
+      fs.writeFileSync(file, 'one\ntwo\nthree\nfour\nfive\nsix\n')
+      execSync('git add staged.txt && git commit -q -m init', { cwd: dir })
+      fs.writeFileSync(file, 'one\nSTAGED\nthree\nfour\nSTAGED FIVE\nsix\n')
+      execSync('git add staged.txt', { cwd: dir })
+      await config.update('enableStagedGutters', true, true)
+      const document = await workspace.openTextDocument(file)
+      await workspace.nvim.command(`buffer ${document.bufnr}`)
+      const placed = await waitForPlacedSigns(document.bufnr)
+      assert.ok(placed.some(sign => sign.name === 'CocGitStagedChanged'))
+      await workspace.nvim.call('cursor', [1, 1])
+      await commands.executeCommand('git.nextChunk')
+      assert.equal(await workspace.nvim.call('line', '.'), 2)
+      await commands.executeCommand('git.nextChunk')
+      assert.equal(await workspace.nvim.call('line', '.'), 5)
+      await commands.executeCommand('git.prevChunk')
+      assert.equal(await workspace.nvim.call('line', '.'), 2)
+    } finally {
+      await config.update('enableStagedGutters', false, true)
+      fs.rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
   it('git.allChunkInfo returns chunks for a modified file', async () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'coc-git-chunks-'))
     try {
@@ -139,6 +169,27 @@ function waitForChunks(timeoutMs = 15000): Promise<any[]> {
           clearTimeout(timer)
           clearInterval(interval)
           resolve(chunks)
+        }
+      } catch (e) {
+        clearTimeout(timer)
+        clearInterval(interval)
+        reject(e)
+      }
+    }, 100)
+  })
+}
+
+function waitForPlacedSigns(bufnr: number, timeoutMs = 15000): Promise<any[]> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error('staged gutter sign did not appear in time')), timeoutMs)
+    const interval = setInterval(async () => {
+      try {
+        const placed = await workspace.nvim.call('sign_getplaced', [bufnr, { group: 'CocGit' }]) as any[]
+        const signs = placed?.[0]?.signs ?? []
+        if (signs.length > 0) {
+          clearTimeout(timer)
+          clearInterval(interval)
+          resolve(signs)
         }
       } catch (e) {
         clearTimeout(timer)

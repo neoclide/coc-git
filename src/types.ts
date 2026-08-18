@@ -11,7 +11,9 @@ export interface GitConfiguration {
   blameUseRealTime: boolean
   enableGutters: boolean
   realtimeGutters: boolean
+  enableStagedGutters: boolean
   signPriority: number
+  stagedSignPriority: number
   foldContext: number,
   pushArguments: string[]
   splitWindowCommand: string
@@ -33,6 +35,22 @@ export interface GitConfiguration {
     hlGroup: string
   }
   changeRemovedSign: {
+    text: string
+    hlGroup: string
+  }
+  stagedAddedSign: {
+    text: string
+    hlGroup: string
+  }
+  stagedChangedSign: {
+    text: string
+    hlGroup: string
+  }
+  stagedRemovedSign: {
+    text: string
+    hlGroup: string
+  }
+  mixedSign: {
     text: string
     hlGroup: string
   }
@@ -77,6 +95,33 @@ export enum ChangeType {
   Add = 'add',
   Change = 'changed',
   Delete = 'delete'
+}
+
+export type ChangeKind = 'add' | 'change' | 'delete' | 'topDelete' | 'changeDelete'
+
+export type ChangeLayer = 'staged' | 'unstaged'
+
+export interface GitChange {
+  kind: ChangeKind
+  layer: ChangeLayer
+  line: number
+  endLine?: number
+  /** Source line information used to map a staged hunk through working-tree edits. */
+  sourceLine?: number
+  sourceEndLine?: number
+  sourceCount?: number
+  targetCount?: number
+}
+
+export interface BufferGitState {
+  staged: GitChange[]
+  unstaged: GitChange[]
+}
+
+export interface GutterSign {
+  line: number
+  kind: ChangeKind | 'mixed'
+  layer: ChangeLayer | 'mixed'
 }
 
 export interface Decorator {
@@ -156,4 +201,3 @@ export enum ConflictPart {
   Incoming,
   Both,
 }
-
