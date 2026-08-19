@@ -77,6 +77,10 @@
         "command": "git.showCommit"
       },
       {
+        "title": "Show commit of current line in TreeView.",
+        "command": "git.showCommitTree"
+      },
+      {
         "title": "Open current line in browser, github url supported.",
         "command": "git.browserOpen"
       },
@@ -409,6 +413,12 @@
           "default": "above sp",
           "scope": "application",
           "description": "Command used when split new window for show commit."
+        },
+        "git.commitFiles.splitCommand": {
+          "type": "string",
+          "default": "belowright 40vs",
+          "scope": "application",
+          "description": "Command used to open the changed-files TreeView for a commit."
         },
         "git.showCommitInFloating": {
           "type": "boolean",

@@ -48,6 +48,11 @@ export function findCommitLine(lines: string[], relpath: string, targetLine: num
   return undefined
 }
 
+export interface CurrentCommit {
+  sha: string
+  line: number
+}
+
 export default class GitBuffer implements Disposable {
   private blameInfo: BlameInfo[] = []
   private diffs: Diff[] = []
@@ -759,27 +764,34 @@ export default class GitBuffer implements Disposable {
     }
   }
 
-  // show commit of current line in split window
-  public async showCommit(useFloating = false): Promise<void> {
+  public async getCurrentCommit(): Promise<CurrentCommit | undefined> {
     let indexed = await this.repo.isIndexed(this.relpath)
     if (!indexed) {
       window.showWarningMessage(`"${this.relpath}" not indexed.`)
-      return
+      return undefined
     }
     let nvim = workspace.nvim
     let line = await nvim.eval('line(".")') as number
     let args = ['--no-pager', 'blame', '-w', '--porcelain', '--root', `-L${line},${line}`, '--', this.relpath]
     let res = await this.repo.exec(args)
     let output = res.stdout.trim()
-    if (!output.length) return
+    if (!output.length) return undefined
     let match = output.match(/^(\S+)\s+(\d+)/)
-    if (!match) return
+    if (!match) return undefined
     let commit = match[1]
-    let commitLine = Number(match[2])
     if (/^0+$/.test(commit)) {
       window.showWarningMessage('not committed yet!')
-      return
+      return undefined
     }
+    return { sha: commit, line: Number(match[2]) }
+  }
+
+  // show commit of current line in split window
+  public async showCommit(useFloating = false): Promise<void> {
+    let current = await this.getCurrentCommit()
+    if (!current) return
+    let { sha: commit, line: commitLine } = current
+    let nvim = workspace.nvim
     if (!useFloating) useFloating = this.config.showCommitInFloating
     if (useFloating) {
       let content = await this.repo.safeRun(['--no-pager', 'show', commit])

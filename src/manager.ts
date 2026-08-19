@@ -336,6 +336,14 @@ export default class DocumentManager {
     if (buf) await buf.showCommit()
   }
 
+  public async getCurrentCommit(): Promise<{ sha: string; root: string; line: number } | undefined> {
+    let buf = await this.buffer
+    if (!buf) return undefined
+    let current = await buf.getCurrentCommit()
+    if (!current) return undefined
+    return { sha: current.sha, root: buf.repo.root, line: current.line }
+  }
+
   public async showBlameDoc(): Promise<void> {
     let buf = await this.buffer
     let line = await this.nvim.call('line', '.') as number

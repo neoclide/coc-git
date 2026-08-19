@@ -1,5 +1,5 @@
 import { ChildProcess } from 'child_process'
-import { ansiparse, BasicList, ListContext, ListTask, Neovim } from 'coc.nvim'
+import { ansiparse, BasicList, commands, ListContext, ListTask, Neovim } from 'coc.nvim'
 import { EventEmitter } from 'events'
 import readline from 'readline'
 import Manager from '../manager'
@@ -204,6 +204,11 @@ export default class Commits extends BasicList {
       let { commit } = item.data
       if (!commit) return
       nvim.command(`CocList gfiles ${commit}`, true)
+    })
+    this.addAction('changes', async item => {
+      let { commit, root } = item.data
+      if (!commit) return
+      await commands.executeCommand('git.commitFiles.open', commit, root)
     })
   }
 

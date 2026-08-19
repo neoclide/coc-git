@@ -26,6 +26,7 @@ In your vim/neovim, run command:
 - Always refresh on TextChange.
 - Powerful list support.
 - Semantic commit and github issues completion support.
+- Undo, stage & unstage change chunk under current cursor.
 
 ## Features
 
@@ -39,6 +40,7 @@ In your vim/neovim, run command:
 - Keymaps & commands for git conflicts.
 - Completion support for semantic commit.
 - Completion support for GitHub/GitLab issues.
+- Browse files changed by any commit in a read-only `Commit Files` TreeView.
 
 **Note** for GitHub issues completion support:
 
@@ -147,6 +149,8 @@ In your vim/neovim, run command:
 - `git.splitWindowCommand`: Command used when split new window for show commit., default: `"above sp"`
 
 - `git.showCommitInFloating`: Show commit in floating or popup window, default: `false`
+
+- `git.commitFiles.splitCommand`: Command used to open the changed-files TreeView for a commit, default: `"belowright 40vs"`
 
 - `git.floatConfig`: Configure style of float window/popup, extends from floatFactory.floatConfig, default: `{}`.
 
@@ -287,6 +291,7 @@ related commands.
 - `:CocCommand git.chunkUnstage` Unstage chunk that contains current line.
 - `:CocCommand git.diffCached` Show cached diff in preview window.
 - `:CocCommand git.showCommit` Show commit of current chunk.
+- `:CocCommand git.showCommitTree` Open the commit associated with the current tracked line in the `Commit Files` TreeView, show the historical file, and jump to its blamed line.
 - `:CocCommand git.showBlameDoc` Show blame details for the current line.
 - `:CocCommand git.browserOpen` Open current line in browser
 - `:CocCommand git.foldUnchanged` Fold unchanged lines of current buffer.
@@ -311,6 +316,41 @@ To move up&down on insertmode, use `<C-j>` and `<C-k>`
 
 To run a action, press `<tab>` and select the action.
 
+#### Commit Files TreeView
+
+The `commits` and `bcommits` lists provide a `changes` action that opens the
+selected commit in the `Commit Files` TreeView. The existing `files` action
+continues to open the complete file snapshot through the `gfiles` list.
+
+The tree compares an ordinary commit with its parent and an initial commit with
+the empty tree. Merge commits use the first parent by default; choose
+`Select parent…` from the root node actions to compare another parent. The root
+node starts expanded, and pressing `<CR>` on it runs `Show commit`. Pressing
+`<CR>` on a directory toggles it, while pressing `<CR>` on a file runs
+`Show code`.
+
+`Show code`, `Open before version`, `Open after version`, and
+`Open working tree file` open in the editor window that was active before the
+TreeView. For a text file, `Show code` opens a read-only
+`coc-git://<commit>/<path>` buffer with `buftype=nofile` and detects the
+filetype from its path. Added lines use the `DiffAdd` background, and deleted
+lines are rendered as virtual text using `DiffDelete`. Deleted files open their
+complete parent version; binary and non-blob entries show object metadata
+instead of text decorations.
+
+Use `<Plug>(coc-git-nextchunk)`, `<Plug>(coc-git-prevchunk)`, `git.nextChunk`,
+or `git.prevChunk` to navigate changed blocks in a `coc-git://` buffer. The
+navigation wraps when Vim's `wrapscan` option is enabled.
+
+When the buffer that opened the TreeView is one of the changed files, its
+parent directories are expanded and the file is focused. `git.showCommitTree`
+also opens that file's historical code automatically and places the cursor on
+the original line reported by `git blame`. The command reports the existing
+untracked or uncommitted-line warning when Git cannot associate the current
+line with a commit.
+
+Use `git.commitFiles.splitCommand` to configure how the TreeView split opens.
+
 For more advance usage, checkout `:h coc-list`.
 
 ### Issue autocomplete from multiple GitHub repositories
@@ -323,19 +363,6 @@ An issue repository specifier looks like this: `github/neoclide/coc-git`.
 - The third part specifies the repository name
 
 Multiple repositories can be specified using comma separation, like this: `github/neoclide/coc-git,github/neoclide/coc.nvim`
-
-## F.A.Q
-
-Q: Virtual text not working.
-
-A: Make sure your neovim/vim support virtual text by command `:echo has('nvim-0.5.0') || has('patch-9.0.0067')`.
-
-## Supporting
-
-If you like my extension, consider supporting me on Patreon or PayPal:
-
-<a href="https://www.patreon.com/chemzqm"><img src="https://c5.patreon.com/external/logo/become_a_patron_button.png" alt="Patreon donate button" /> </a>
-<a href="https://www.paypal.com/paypalme/chezqm"><img src="https://werwolv.net/assets/paypal_banner.png" alt="PayPal donate button" /> </a>
 
 ## License
 

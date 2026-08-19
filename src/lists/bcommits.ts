@@ -1,5 +1,5 @@
 import { ChildProcess } from 'child_process'
-import { ansiparse, BasicList, events, ListContext, ListTask, Neovim } from 'coc.nvim'
+import { ansiparse, BasicList, commands, events, ListContext, ListTask, Neovim } from 'coc.nvim'
 import { EventEmitter } from 'events'
 import readline from 'readline'
 import Manager from '../manager'
@@ -129,6 +129,11 @@ export default class Bcommits extends BasicList {
       nvim.command(`call setwinvar(winnr(), 'easygit_diff_origin', ${buffer.id})`, true)
       nvim.command(`call setpos('.', [bufnr('%'), 0, 0, 0])`, true)
       await nvim.resumeNotification()
+    })
+    this.addAction('changes', async item => {
+      let { commit, root } = item.data
+      if (!commit) return
+      await commands.executeCommand('git.commitFiles.open', commit, root)
     })
 
     events.on('BufEnter', async bufnr => {

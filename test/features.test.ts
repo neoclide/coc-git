@@ -157,6 +157,99 @@ describe('git chunk info', () => {
       fs.rmSync(dir, { recursive: true, force: true })
     }
   })
+
+  it('shows the commit associated with the current line in a TreeView', async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'coc-git-show-commit-tree-'))
+    try {
+      execSync('git init -q', { cwd: dir })
+      execSync('git config user.email test@example.com', { cwd: dir })
+      execSync('git config user.name test', { cwd: dir })
+      fs.mkdirSync(path.join(dir, 'src', 'nested'), { recursive: true })
+      const file = path.join(dir, 'src', 'nested', 'current.ts')
+      fs.writeFileSync(file, 'const first = 1\nconst second = 2\nconst third = 3\n')
+      execSync('git add src/nested/current.ts && git commit -q -m initial-line', { cwd: dir })
+      const initial = execSync('git rev-parse HEAD', { cwd: dir, encoding: 'utf8' }).trim()
+      fs.writeFileSync(file, 'const prefix = 0\nconst first = 1\nconst second = 2\nconst third = 3\n')
+      execSync('git add src/nested/current.ts && git commit -q -m later-line', { cwd: dir })
+      fs.writeFileSync(file, 'const prefix = 0\nconst first = 1\nconst second = 2\nconst third = 4\n')
+      const document = await workspace.openTextDocument(file)
+      await workspace.nvim.command(`buffer ${document.bufnr}`)
+      await waitForChunks()
+      await workspace.nvim.call('cursor', [3, 1])
+
+      await commands.executeCommand('git.showCommitTree')
+
+      assert.equal(await workspace.nvim.eval('bufname("%")'), `coc-git://${initial}/src/nested/current.ts`)
+      assert.equal(await workspace.nvim.call('line', ['.']), 2)
+      assert.equal(await workspace.nvim.call('getline', ['.']), 'const second = 2')
+      const buffers = await workspace.nvim.call('getbufinfo') as Array<{ bufnr: number; name: string }>
+      const tree = buffers.find(item => /^CocTree\d+$/.test(path.basename(item.name)))
+      assert.ok(tree)
+      const treeLines = await workspace.nvim.call('getbufline', [tree.bufnr, 1, '$']) as string[]
+      assert.ok(treeLines.some(line => line.includes(initial.slice(0, 7)) && line.includes('initial-line')))
+      assert.ok(treeLines.some(line => line.includes('nested')))
+      assert.ok(treeLines.some(line => line.includes('current.ts')))
+      assert.equal(Boolean(await workspace.nvim.call('getbufvar', [tree.bufnr, '&winfixbuf'])), false)
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('opens commit file content with decorations and chunk navigation', async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'coc-git-commit-document-'))
+    try {
+      execSync('git init -q', { cwd: dir })
+      execSync('git config user.email test@example.com', { cwd: dir })
+      execSync('git config user.name test', { cwd: dir })
+      fs.mkdirSync(path.join(dir, 'src'))
+      const file = path.join(dir, 'src', 'sample.ts')
+      fs.writeFileSync(file, Array.from({ length: 10 }, (_, index) => `const line${index + 1} = ${index + 1}`).join('\n') + '\n')
+      execSync('git add src/sample.ts && git commit -q -m initial', { cwd: dir })
+      const baseSha = execSync('git rev-parse HEAD', { cwd: dir, encoding: 'utf8' }).trim()
+      const lines = fs.readFileSync(file, 'utf8').trimEnd().split('\n')
+      lines[1] = 'const line2 = 20'
+      lines.splice(4, 1)
+      lines[7] = 'const line9 = 90'
+      fs.writeFileSync(file, lines.join('\n') + '\n')
+      execSync('git add src/sample.ts && git commit -q -m decorated', { cwd: dir })
+      const commitSha = execSync('git rev-parse HEAD', { cwd: dir, encoding: 'utf8' }).trim()
+      await workspace.nvim.command('tabnew')
+      const document = await workspace.openTextDocument(file)
+      await workspace.nvim.command(`buffer ${document.bufnr}`)
+      const comparison = {
+        commit: { sha: commitSha, shortSha: commitSha.slice(0, 7), parents: [baseSha], author: 'test', authoredAt: '', subject: 'decorated' },
+        baseSha,
+        parentIndex: 0,
+        changes: []
+      }
+      const change = { status: 'M', path: 'src/sample.ts', additions: 2, deletions: 3, binary: false }
+      await commands.executeCommand('git.commitFiles.openDocument', dir, comparison, change)
+
+      assert.equal(await workspace.nvim.eval('&buftype'), 'nofile')
+      assert.equal(await workspace.nvim.eval('&filetype'), 'typescript')
+      assert.equal(await workspace.nvim.eval('&modifiable'), 0)
+      assert.equal(await workspace.nvim.eval('getline(2)'), 'const line2 = 20')
+      assert.match(await workspace.nvim.eval('bufname("%")') as string, new RegExp(`^coc-git://${commitSha}/src/sample\\.ts$`))
+      const commitDocument = workspace.getDocument(await workspace.nvim.call('bufnr', ['%']) as number)
+      assert.ok(commitDocument)
+      const highlights = await commitDocument.buffer.getHighlights('coc-git-commit-add')
+      assert.deepEqual(highlights.map(item => item.lnum), [1, 7])
+      const namespaces = await workspace.nvim.namespaces
+      assert.equal(await workspace.nvim.call('coc#vtext#exists', [commitDocument.bufnr, namespaces['coc-git-commit-document']]), 1)
+
+      await workspace.nvim.call('cursor', [1, 1])
+      await commands.executeCommand('git.nextChunk')
+      assert.equal(await workspace.nvim.call('line', ['.']), 2)
+      await commands.executeCommand('git.nextChunk')
+      assert.equal(await workspace.nvim.call('line', ['.']), 4)
+      await commands.executeCommand('git.nextChunk')
+      assert.equal(await workspace.nvim.call('line', ['.']), 8)
+      await commands.executeCommand('git.prevChunk')
+      assert.equal(await workspace.nvim.call('line', ['.']), 4)
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true })
+    }
+  })
 })
 
 function waitForChunks(timeoutMs = 15000): Promise<any[]> {

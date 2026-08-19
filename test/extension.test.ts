@@ -20,6 +20,7 @@ const gitCommands = [
   'git.chunkUnstage',
   'git.chunkUndo',
   'git.showCommit',
+  'git.showCommitTree',
   'git.browserOpen',
   'git.copyUrl',
   'git.copyPermalink',
@@ -55,6 +56,7 @@ describe('coc-git extension', () => {
     assert.equal(properties['git.enableStagedGutters'].default, false)
     assert.equal(properties['git.stagedSignPriority'].default, 9)
     assert.equal(properties['git.mixedSign.hlGroup'].default, 'CocGitMixed')
+    assert.equal(properties['git.commitFiles.splitCommand'].default, 'belowright 40vs')
     assert.equal(manifest['coc-test'].entryFile, 'src/index.ts')
   })
 
@@ -87,5 +89,22 @@ describe('coc-git extension', () => {
     } finally {
       fs.rmSync(dir, { recursive: true, force: true })
     }
+  })
+
+  it('does not open a commit tree outside a git repository', async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'coc-git-commit-warning-'))
+    const original = window.showWarningMessage
+    const messages: string[] = []
+    window.showWarningMessage = ((message: string) => {
+      messages.push(message)
+      return Promise.resolve(undefined)
+    }) as unknown as typeof window.showWarningMessage
+    try {
+      await commands.executeCommand('git.commitFiles.open', 'HEAD', dir)
+    } finally {
+      window.showWarningMessage = original
+      fs.rmSync(dir, { recursive: true, force: true })
+    }
+    assert.equal(messages.includes("Can't resolve git repository for current buffer or cwd."), true)
   })
 })

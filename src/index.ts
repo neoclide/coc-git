@@ -8,10 +8,12 @@ import GStatus from './lists/gstatus'
 import GChunks from './lists/gchunks'
 import GChanges from './lists/gchanges'
 import Manager from './manager'
+import CommitDocumentProvider, { COMMIT_DOCUMENT_SCHEME } from './model/commitDocument'
 import Git from './model/git'
 import Resolver from './model/resolver'
 import GitService from './model/service'
 import addSource from './source'
+import CommitFilesController from './tree/commitFiles'
 import { findGit, formatBlameText, IGit } from './util'
 
 export { formatBlameText }
@@ -35,10 +37,18 @@ export async function activate(context: ExtensionContext): Promise<ExtensionApi 
   }
   const virtualTextSrcId = await workspace.nvim.createNamespace('coc-git-virtual')
   const conflictSrcId = await workspace.nvim.createNamespace('coc-git-conflicts')
+  const commitDocumentSrcId = await workspace.nvim.createNamespace('coc-git-commit-document')
   const { nvim } = workspace
   const service = new GitService(gitInfo)
   const manager = new Manager(nvim, service, virtualTextSrcId, conflictSrcId)
   subscriptions.push(manager)
+  const commitDocuments = new CommitDocumentProvider(service.git, commitDocumentSrcId)
+  subscriptions.push(commitDocuments)
+  subscriptions.push(workspace.registerTextDocumentContentProvider(COMMIT_DOCUMENT_SCHEME, commitDocuments))
+  nvim.command('highlight default link CocGitCommitAdd DiffAdd', true)
+  nvim.command('highlight default link CocGitCommitDelete DiffDelete', true)
+  const commitFiles = new CommitFilesController(manager)
+  subscriptions.push(commitFiles)
   addSource(context, service)
 
   subscriptions.push(commands.registerCommand('git.refresh', () => {
@@ -46,11 +56,11 @@ export async function activate(context: ExtensionContext): Promise<ExtensionApi 
   }))
 
   subscriptions.push(workspace.registerKeymap(['n'], 'git-nextchunk', async () => {
-    await manager.nextChunk()
+    if (!await commitDocuments.nextChunk()) await manager.nextChunk()
   }, { sync: false }))
 
   subscriptions.push(workspace.registerKeymap(['n'], 'git-prevchunk', async () => {
-    await manager.prevChunk()
+    if (!await commitDocuments.prevChunk()) await manager.prevChunk()
   }, { sync: false }))
 
   subscriptions.push(workspace.registerKeymap(['n'], 'git-nextconflict', async () => {
@@ -86,11 +96,11 @@ export async function activate(context: ExtensionContext): Promise<ExtensionApi 
   }, { sync: false }))
 
   subscriptions.push(commands.registerCommand("git.nextChunk", async () => {
-    await manager.nextChunk();
+    if (!await commitDocuments.nextChunk()) await manager.nextChunk();
   }));
 
   subscriptions.push(commands.registerCommand("git.prevChunk", async () => {
-    await manager.prevChunk();
+    if (!await commitDocuments.prevChunk()) await manager.prevChunk();
   }));
 
   subscriptions.push(commands.registerCommand('git.keepCurrent', async () => {
@@ -128,6 +138,28 @@ export async function activate(context: ExtensionContext): Promise<ExtensionApi 
   subscriptions.push(commands.registerCommand('git.showCommit', async () => {
     await manager.showCommit()
   }))
+
+  subscriptions.push(commands.registerCommand('git.commitFiles.open', async (revision?: string, root?: string) => {
+    await commitFiles.open(revision, root)
+  }, undefined, true))
+
+  subscriptions.push(commands.registerCommand('git.showCommitTree', async () => {
+    const current = await manager.getCurrentCommit()
+    if (current) await commitFiles.open(current.sha, current.root, { showCurrentFile: true, line: current.line })
+  }))
+
+  subscriptions.push(commands.registerCommand('git.commitFiles.invoke', async node => {
+    await commitFiles.invoke(node)
+  }, undefined, true))
+
+  subscriptions.push(commands.registerCommand('git.commitFiles.toggle', async node => {
+    await commitFiles.toggle(node)
+  }, undefined, true))
+
+  subscriptions.push(commands.registerCommand('git.commitFiles.openDocument', async (root, comparison, change, targetWinId?: number, line?: number) => {
+    targetWinId = targetWinId ?? await nvim.call('win_getid') as number
+    await commitDocuments.open(root, comparison, change, targetWinId, line)
+  }, undefined, true))
 
   subscriptions.push(commands.registerCommand('git.browserOpen', async () => {
     await manager.browser()
