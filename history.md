@@ -1,3 +1,10 @@
+## 2.7.9
+
+- docs: add coc-git logo (992064f)
+- feat: show staged git gutters and navigate chunks (9410092)
+- jump to the current code (641396b)
+- fix typo in warning (#222) (9317050)
+
 ## 2.7.8
 
 - use node24 for CI (eacd2a2)
