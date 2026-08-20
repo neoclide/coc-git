@@ -1,3 +1,8 @@
+## 2.7.10
+
+- docs: add MIT license (172bdca)
+- feat: add commit files TreeView (189d331)
+
 ## 2.7.9
 
 - add a read-only TreeView for files changed by a commit
