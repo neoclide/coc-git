@@ -1,3 +1,8 @@
+## 2.7.11
+
+- add AGENTS.md (34ea156)
+- feat: add git status tree view (4bc3f6e)
+
 ## 2.7.10
 
 - docs: add MIT license (172bdca)
