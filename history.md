@@ -5,6 +5,7 @@
 
 ## 2.7.9
 
+- add git.statusTree for browsing changed files by directory, opening deleted files from HEAD, and jumping to the first change
 - add a read-only TreeView for files changed by a commit
 - show complete commit files as decorated coc-git virtual documents with chunk navigation
 - docs: add coc-git logo (992064f)

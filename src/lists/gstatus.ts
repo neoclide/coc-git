@@ -3,7 +3,10 @@ import colors from 'colors/safe'
 import fs from 'fs'
 import path from 'path'
 import Manager from '../manager'
+import { parseStatusEntries } from '../model/statusEntry'
 import { spawnCommand } from '../util'
+
+export { parseStatusEntries } from '../model/statusEntry'
 
 const STATUS_MAP = {
   ' ': ' ',
@@ -16,26 +19,6 @@ const STATUS_MAP = {
   U: colors.blue('U'),
   '?': colors.gray('?'),
   '!': colors.gray('!')
-}
-
-export interface StatusEntry {
-  index: string
-  tree: string
-  relative: string
-}
-
-export function parseStatusEntries(output: string): StatusEntry[] {
-  let result: StatusEntry[] = []
-  let entries = output.split('\0')
-  for (let i = 0; i < entries.length; i++) {
-    let line = entries[i]
-    if (!line) continue
-    result.push({ index: line[0], tree: line[1], relative: line.slice(3) })
-    if (line[0] === 'R' || line[0] === 'C' || line[1] === 'R' || line[1] === 'C') {
-      i++ // porcelain -z emits the original path as the following record
-    }
-  }
-  return result
 }
 
 export default class GStatus extends BasicList {

@@ -9,6 +9,7 @@ import manifest from '../package.json'
 
 const gitCommands = [
   'git.refresh',
+  'git.statusTree',
   'git.nextChunk',
   'git.prevChunk',
   'git.keepCurrent',
@@ -57,6 +58,7 @@ describe('coc-git extension', () => {
     assert.equal(properties['git.stagedSignPriority'].default, 9)
     assert.equal(properties['git.mixedSign.hlGroup'].default, 'CocGitMixed')
     assert.equal(properties['git.commitFiles.splitCommand'].default, 'belowright 40vs')
+    assert.equal(properties['git.statusTree.splitCommand'].default, 'belowright 40vs')
     assert.equal(manifest['coc-test'].entryFile, 'src/index.ts')
   })
 

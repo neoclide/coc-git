@@ -33,6 +33,10 @@
         "command": "git.refresh"
       },
       {
+        "title": "Open changed files from Git status in a TreeView.",
+        "command": "git.statusTree"
+      },
+      {
         "title": "Navigate to the next changed chunk.",
         "command": "git.nextChunk"
       },
@@ -419,6 +423,12 @@
           "default": "belowright 40vs",
           "scope": "application",
           "description": "Command used to open the changed-files TreeView for a commit."
+        },
+        "git.statusTree.splitCommand": {
+          "type": "string",
+          "default": "belowright 40vs",
+          "scope": "application",
+          "description": "Command used to open the Git status TreeView."
         },
         "git.showCommitInFloating": {
           "type": "boolean",

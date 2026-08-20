@@ -14,6 +14,7 @@ import Resolver from './model/resolver'
 import GitService from './model/service'
 import addSource from './source'
 import CommitFilesController from './tree/commitFiles'
+import StatusFilesController from './tree/statusFiles'
 import { findGit, formatBlameText, IGit } from './util'
 
 export { formatBlameText }
@@ -49,11 +50,45 @@ export async function activate(context: ExtensionContext): Promise<ExtensionApi 
   nvim.command('highlight default link CocGitCommitDelete DiffDelete', true)
   const commitFiles = new CommitFilesController(manager)
   subscriptions.push(commitFiles)
+  const statusFiles = new StatusFilesController(manager, commitDocuments)
+  subscriptions.push(statusFiles)
   addSource(context, service)
 
   subscriptions.push(commands.registerCommand('git.refresh', () => {
     manager.refresh()
   }))
+
+  subscriptions.push(commands.registerCommand('git.statusTree', async () => {
+    await statusFiles.open()
+  }))
+
+  subscriptions.push(commands.registerCommand('git.statusFiles.open', async node => {
+    await statusFiles.openFile(node)
+  }, undefined, true))
+
+  subscriptions.push(commands.registerCommand('git.statusFiles.add', async node => {
+    await statusFiles.addFile(node)
+  }, undefined, true))
+
+  subscriptions.push(commands.registerCommand('git.statusFiles.restoreStaged', async node => {
+    await statusFiles.restoreStagedFile(node)
+  }, undefined, true))
+
+  subscriptions.push(commands.registerCommand('git.statusFiles.restoreWorkingTree', async node => {
+    await statusFiles.restoreWorkingTreeFile(node)
+  }, undefined, true))
+
+  subscriptions.push(commands.registerCommand('git.statusFiles.refresh', async () => {
+    await statusFiles.refresh()
+  }, undefined, true))
+
+  subscriptions.push(commands.registerCommand('git.statusFiles.toggle', async node => {
+    await statusFiles.toggle(node)
+  }, undefined, true))
+
+  subscriptions.push(commands.registerCommand('git.statusFiles.close', () => {
+    statusFiles.close()
+  }, undefined, true))
 
   subscriptions.push(workspace.registerKeymap(['n'], 'git-nextchunk', async () => {
     if (!await commitDocuments.nextChunk()) await manager.nextChunk()

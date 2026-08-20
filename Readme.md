@@ -152,6 +152,8 @@ In your vim/neovim, run command:
 
 - `git.commitFiles.splitCommand`: Command used to open the changed-files TreeView for a commit, default: `"belowright 40vs"`
 
+- `git.statusTree.splitCommand`: Command used to open the Git status TreeView, default: `"belowright 40vs"`
+
 - `git.floatConfig`: Configure style of float window/popup, extends from floatFactory.floatConfig, default: `{}`.
 
 - `git.gitlab.hosts`: Custom GitLab hosts, default: `["gitlab.com"]`
@@ -279,6 +281,7 @@ related commands.
 - `:CocCommand git.copyUrl` Copy url of current line to clipboard.
 - `:CocCommand git.copyPermalink` Copy a permalink for the current line to clipboard.
 - `:CocCommand git.refresh` Refresh Git information for all buffers.
+- `:CocCommand git.statusTree` Open files reported by Git status in a TreeView. File nodes show staged and unstaged status; opening a file jumps to its first changed line when Git can determine one.
 - `:CocCommand git.nextChunk` Navigate to the next chunk.
 - `:CocCommand git.prevChunk` Navigate to the previous chunk.
 - `:CocCommand git.chunkInfo` Show chunk info under cursor.
@@ -350,6 +353,21 @@ untracked or uncommitted-line warning when Git cannot associate the current
 line with a commit.
 
 Use `git.commitFiles.splitCommand` to configure how the TreeView split opens.
+
+#### Git Status TreeView
+
+Use `:CocCommand git.statusTree` to display staged, unstaged, conflicted, and
+untracked files grouped by directory. Each file shows Git's two-column status
+and a readable staged/unstaged description. Press `<CR>` on a file to open its
+working-tree version in the previous editor window. For tracked files, the
+cursor moves to the first changed line when Git provides a diff location;
+otherwise it opens at line 1. Files deleted from the working tree open the
+read-only `HEAD` version through the `coc-git:` scheme. The root node refreshes
+the status snapshot. File actions follow each file's status: `Add` stages
+unstaged or untracked files, `Restore staged changes` unstages a file, and
+`Restore working tree changes` discards its tracked working-tree changes.
+
+Use `git.statusTree.splitCommand` to configure how the TreeView split opens.
 
 For more advance usage, checkout `:h coc-list`.
 

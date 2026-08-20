@@ -14,14 +14,26 @@ export interface CommitDocumentHunk {
   deletedAlign: 'above' | 'below'
 }
 
-interface CommitDocumentResource {
+interface BaseDocumentResource {
   uri: Uri
   root: string
-  comparison: CommitComparison
-  change: CommitChange
   content?: string
   hunks?: CommitDocumentHunk[]
 }
+
+interface ComparisonDocumentResource extends BaseDocumentResource {
+  kind: 'comparison'
+  comparison: CommitComparison
+  change: CommitChange
+}
+
+interface RevisionDocumentResource extends BaseDocumentResource {
+  kind: 'revision'
+  revision: string
+  relativePath: string
+}
+
+type CommitDocumentResource = ComparisonDocumentResource | RevisionDocumentResource
 
 function count(value: string | undefined): number {
   return value === undefined ? 1 : Number(value)
@@ -66,9 +78,13 @@ function patchArguments(comparison: CommitComparison, change: CommitChange): str
 }
 
 function commitUri(comparison: CommitComparison, relativePath: string): Uri {
+  return revisionUri(comparison.commit.sha, relativePath)
+}
+
+function revisionUri(revision: string, relativePath: string): Uri {
   return Uri.from({
     scheme: COMMIT_DOCUMENT_SCHEME,
-    authority: comparison.commit.sha,
+    authority: revision,
     path: `/${relativePath}`
   })
 }
@@ -99,7 +115,29 @@ export default class CommitDocumentProvider implements Disposable {
 
   public async open(root: string, comparison: CommitComparison, change: CommitChange, targetWinId: number, line?: number): Promise<void> {
     const uri = commitUri(comparison, change.path)
-    const resource: CommitDocumentResource = { uri, root, comparison, change }
+    const resource: ComparisonDocumentResource = { kind: 'comparison', uri, root, comparison, change }
+    await this.openResource(resource, targetWinId, line)
+  }
+
+  public async openRevision(root: string, revision: string, relativePath: string, targetWinId: number, line?: number): Promise<void> {
+    const result = await this.git.exec(root, ['rev-parse', '--verify', '--end-of-options', `${revision}^{commit}`])
+    const sha = result.stdout.trim()
+    if (!sha) throw new Error(`Invalid Git revision: ${revision}`)
+    const object = `${sha}:${relativePath}`
+    const type = (await this.git.exec(root, ['cat-file', '-t', object])).stdout.trim()
+    if (type !== 'blob') throw new Error(`Git path is not a file: ${relativePath}`)
+    const resource: RevisionDocumentResource = {
+      kind: 'revision',
+      uri: revisionUri(sha, relativePath),
+      root,
+      revision: sha,
+      relativePath
+    }
+    await this.openResource(resource, targetWinId, line)
+  }
+
+  private async openResource(resource: CommitDocumentResource, targetWinId: number, line?: number): Promise<void> {
+    const { uri } = resource
     this.resources.set(uri.toString(), resource)
     const moved = await workspace.nvim.call('win_gotoid', [targetWinId]) as number
     if (!moved) await workspace.nvim.command('new')
@@ -123,6 +161,14 @@ export default class CommitDocumentProvider implements Disposable {
   private async load(resource: CommitDocumentResource, token?: CancellationToken): Promise<void> {
     if (resource.content !== undefined && resource.hunks) return
     const options = token ? { cancellationToken: token } : undefined
+    if (resource.kind === 'revision') {
+      const object = `${resource.revision}:${resource.relativePath}`
+      const content = await this.git.exec(resource.root, ['cat-file', '-p', object], options)
+      if (token?.isCancellationRequested) return
+      resource.content = content.stdout.replace(/\r?\n$/, '')
+      resource.hunks = []
+      return
+    }
     const object = `${resource.comparison.commit.sha}:${resource.change.path}`
     const [content, patch] = await Promise.all([
       this.git.exec(resource.root, ['cat-file', '-p', object], options),

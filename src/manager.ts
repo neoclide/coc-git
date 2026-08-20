@@ -416,8 +416,11 @@ export default class DocumentManager {
       window.showWarningMessage(`not belongs to git repository.`)
       return null
     }
-    let repo = this.service.getRepoFromRoot(root)
-    return repo.getDiffAll(category)
+    return this.getDiffAllForRoot(root, category)
+  }
+
+  public async getDiffAllForRoot(root: string, category: DiffCategory): Promise<Map<string, Diff[]>> {
+    return this.service.getRepoFromRoot(root).getDiffAll(category)
   }
 
   public dispose(): void {
