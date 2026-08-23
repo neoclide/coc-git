@@ -1,5 +1,5 @@
 import { exec, spawn } from 'child_process'
-import { Event, window } from 'coc.nvim'
+import { Event, Neovim, window } from 'coc.nvim'
 import { BlameInfo, StageChunk } from './types'
 import path from 'path'
 import which from 'which'
@@ -31,7 +31,7 @@ export function quoteGitPath(filepath: string): string {
 
 export function createUnstagePatch(relpath: string, chunk: StageChunk): string {
   if (chunk.remove.count == 0 && chunk.add.count == 0) return ''
-  let head = `@@ -${chunk.add.lnum},${chunk.add.count} +${chunk.add.lnum + 1 - chunk.add.count},${chunk.remove.count} @@`
+  let head = `@@ -${chunk.add.lnum},${chunk.add.count} +${chunk.remove.lnum},${chunk.remove.count} @@`
   if (!head) return ''
   const from = quoteGitPath(`a/${relpath}`)
   const to = quoteGitPath(`b/${relpath}`)
@@ -168,14 +168,22 @@ export function getUrl(fix: string, repoURL: string, name: string, filepath: str
   }
   const encodePath = (value: string): string => value.split('/').map(encodeURIComponent).join('/')
   let url = repoURL + '/blob/' + encodePath(name) + '/' + encodePath(filepath) + (anchor ? '#' + encodeURIComponent(anchor) : '')
-  let parts = fix.split('|')
-  if (parts.length < 2) return url
+  const separator = fix.lastIndexOf('|')
+  if (separator === -1) return url
   try {
-    let match = RegExp(parts[0]), result = parts[1]
+    let match = RegExp(fix.slice(0, separator)), result = fix.slice(separator + 1)
     return url.replace(match, result)
   } catch (_e) {
     return url
   }
+}
+
+export async function feedTreeToggleKey(nvim: Neovim, configuredKey: string): Promise<void> {
+  let key = configuredKey
+  if (/^<[^"\\\r\n]+>$/.test(configuredKey)) {
+    key = await nvim.call('eval', [`"\\${configuredKey}"`]) as string
+  }
+  await nvim.call('feedkeys', [key, 'in'])
 }
 
 function parseVersion(raw: string): string {

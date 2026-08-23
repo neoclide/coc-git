@@ -14,6 +14,10 @@ interface Issue {
   shouldIncludeOrganizationNameAndRepoNameInAbbr?: boolean
 }
 
+export function isIssuePage(value: unknown): value is Array<Record<string, any>> {
+  return Array.isArray(value)
+}
+
 function byteSlice(content: string, start: number, end?: number): string {
   let buf = Buffer.from(content, 'utf8')
   return buf.slice(start, end).toString('utf8')
@@ -109,7 +113,7 @@ export default function addSource(context: ExtensionContext, service: GitService
         const pageUri = `${uri}&page=${pageIndex}`
         pageIndex++
         let info = await fetch(pageUri, { headers: { 'Private-Token': token } })
-        if (!info.length) {
+        if (!isIssuePage(info) || info.length === 0) {
           break
         }
 
@@ -148,7 +152,7 @@ export default function addSource(context: ExtensionContext, service: GitService
       page_idx++
       try {
         let info = await fetch(page_uri, { headers })
-        if (info.length == 0) {
+        if (!isIssuePage(info) || info.length === 0) {
           break
         }
         for (let i = 0, len = info.length; i < len; i++) {

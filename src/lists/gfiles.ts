@@ -20,15 +20,12 @@ export default class Gfiles extends BasicList {
 
   constructor(nvim: Neovim, private manager: Manager) {
     super()
-    const preferences = workspace.getConfiguration('coc.preferences')
-    let jumpCommand = preferences.get<string>('jumpCommand', 'edit')
-
     for (let name of ['edit', 'tabe', 'vsplit', 'split']) {
       this.addAction(name, async (item, ctx) => {
         let { root, sha, filepath, branch } = item.data
         if (!sha) return
         if (branch == 'HEAD') {
-          let cmd = name == 'edit' ? jumpCommand : name
+          let cmd = name == 'edit' ? workspace.getConfiguration('coc.preferences').get<string>('jumpCommand', 'edit') : name
           if (ctx.options.position === 'tab') cmd = 'tabe'
           let fullpath = path.join(root, filepath)
           await workspace.jumpTo(Uri.file(fullpath).toString(), null, cmd)
@@ -36,7 +33,7 @@ export default class Gfiles extends BasicList {
         }
         let content = (await this.manager.git.exec(root, ['cat-file', '-p', sha])).stdout
         let lines = content.replace(/\n$/, '').split('\n')
-        let cmd = name == 'edit' ? jumpCommand : name
+        let cmd = name == 'edit' ? workspace.getConfiguration('coc.preferences').get<string>('jumpCommand', 'edit') : name
         let bufferName = await nvim.call('fnameescape', [`(${branch}) ${filepath}`]) as string
         nvim.pauseNotification()
         nvim.command(`${cmd} ${bufferName}`, true)

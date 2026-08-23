@@ -10,7 +10,7 @@ import { parseDiffPath, Repo } from '../src/model/repo'
 import { parseStatusEntries } from '../src/lists/gstatus'
 import { parseTreeEntry } from '../src/lists/gfiles'
 import { DiffCategory } from '../src/types'
-import { createUnstagePatch } from '../src/util'
+import { createUnstagePatch, getUrl } from '../src/util'
 import { createLineMapping, mapIndexChangesToBuffer, mergeGutterSigns } from '../src/model/staged'
 
 const tempDirs: string[] = []
@@ -131,6 +131,44 @@ process.exit(result.status == null ? 1 : result.status)
     assert.equal(groups.has(relative), true)
   })
 
+  it('unapplies staged additions and deletions with their original hunk coordinates', async () => {
+    const { dir, repo } = createRepo()
+    const relative = 'tracked.txt'
+    fs.writeFileSync(path.join(dir, relative), 'one\ntwo\nthree\n')
+    commitAll(dir)
+
+    fs.writeFileSync(path.join(dir, relative), 'one\ntwo\nthree\nfour\n')
+    git(dir, 'add', '--', relative)
+    let chunks = (await repo.getStagedChunks(relative))[relative]
+    assert.equal(chunks.length, 1)
+    await repo.exec(['apply', '--cached', '--unidiff-zero', '-'], {
+      input: createUnstagePatch(relative, chunks[0])
+    })
+    assert.equal(git(dir, 'diff', '--cached', '--name-only').trim(), '')
+
+    fs.writeFileSync(path.join(dir, relative), 'one\nthree\n')
+    git(dir, 'add', '--', relative)
+    chunks = (await repo.getStagedChunks(relative))[relative]
+    assert.equal(chunks.length, 1)
+    await repo.exec(['apply', '--cached', '--unidiff-zero', '-'], {
+      input: createUnstagePatch(relative, chunks[0])
+    })
+    assert.equal(git(dir, 'diff', '--cached', '--name-only').trim(), '')
+  })
+
+  it('inverts staged hunk coordinates directly', () => {
+    assert.match(createUnstagePatch('tracked.txt', {
+      remove: { lnum: 3, count: 0 },
+      add: { lnum: 4, count: 1 },
+      lines: ['+four']
+    }), /^@@ -4,1 \+3,0 @@$/m)
+    assert.match(createUnstagePatch('tracked.txt', {
+      remove: { lnum: 2, count: 1 },
+      add: { lnum: 2, count: 2 },
+      lines: ['-two', '+TWO', '+extra']
+    }), /^@@ -2,2 \+2,1 @@$/m)
+  })
+
   it('marks tracked deletions as working-tree changes', async () => {
     const { dir, repo } = createRepo()
     fs.writeFileSync(path.join(dir, 'tracked.txt'), 'content\n')
@@ -215,6 +253,13 @@ describe('edge-case parsing and navigation', () => {
 
   it('parses unquoted diff paths containing the separator text', () => {
     assert.equal(parseDiffPath('diff --git a/x b/y b/x b/y'), 'x b/y')
+  })
+
+  it('splits URL fixes at the final separator so regex alternation is preserved', () => {
+    assert.equal(
+      getUrl('(main|master)|branch', 'https://example.com/owner/repo', 'master', 'file.ts'),
+      'https://example.com/owner/repo/blob/branch/file.ts'
+    )
   })
 
   it('parses NUL-delimited rename records using the destination path', () => {

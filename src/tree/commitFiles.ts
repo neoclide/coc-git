@@ -3,6 +3,7 @@ import path from 'path'
 import { CancellationTokenSource, Command, commands, Disposable, Emitter, Neovim, TreeDataProvider, TreeItem, TreeItemAction, TreeItemCollapsibleState, TreeItemIcon, TreeView, Uri, window, workspace } from 'coc.nvim'
 import Manager from '../manager'
 import { assertParentAvailable, CommitChange, CommitComparison, loadComparisonForCommit, resolveCommit } from '../model/commit'
+import { feedTreeToggleKey } from '../util'
 
 interface CommitTreeAggregate {
   fileCount: number
@@ -377,9 +378,7 @@ export default class CommitFilesController implements Disposable {
     const element = node as CommitTreeNode
     if (element.kind !== 'root' && element.kind !== 'directory') return
     const configuredKey = workspace.getConfiguration('tree').get<string>('key.toggle', 't')
-    const key = configuredKey.startsWith('<') && configuredKey.endsWith('>') ? `\\${configuredKey}` : configuredKey
-    const escaped = key.replace(/\\/g, '\\\\').replace(/"/g, '\\"')
-    await workspace.nvim.call('eval', [`feedkeys("${escaped}", "in")`])
+    await feedTreeToggleKey(workspace.nvim, configuredKey)
   }
 
   public async open(revision?: string, requestedRoot?: string, options: CommitFilesOpenOptions = {}): Promise<void> {

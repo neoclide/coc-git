@@ -8,6 +8,22 @@ import { spawnCommand } from '../util'
 
 export { parseStatusEntries } from '../model/statusEntry'
 
+export async function commitWithFugitive(nvim: Neovim, items: ListItem[]): Promise<void> {
+  let { root } = items[0].data
+  const cwd = await nvim.call('getcwd') as string
+  let escapedRoot = await nvim.call('fnameescape', [root]) as string
+  let escapedCwd = await nvim.call('fnameescape', [cwd]) as string
+  await nvim.command(`lcd ${escapedRoot}`)
+  try {
+    let escapedFiles = await Promise.all(items.map(item => nvim.call('fnameescape', [item.data.relative]) as Promise<string>))
+    await nvim.command(`G commit -v -- ${escapedFiles.join(' ')}`)
+  } catch (e) {
+    window.showErrorMessage(`G commit command failed, make sure fugitive installed.`)
+  } finally {
+    await nvim.command(`lcd ${escapedCwd}`)
+  }
+}
+
 const STATUS_MAP = {
   ' ': ' ',
   M: colors.cyan('~'),
@@ -46,15 +62,7 @@ export default class GStatus extends BasicList {
     })
 
     this.addMultipleAction('commit', async items => {
-      let { root } = items[0].data
-      let escapedRoot = await nvim.call('fnameescape', [root]) as string
-      await nvim.command(`lcd ${escapedRoot}`)
-      let escapedFiles = await Promise.all(items.map(item => nvim.call('fnameescape', [item.data.relative]) as Promise<string>))
-      try {
-        await nvim.command(`G commit -v -- ${escapedFiles.join(' ')}`)
-      } catch (e) {
-        window.showErrorMessage(`G commit command failed, make sure fugitive installed.`)
-      }
+      await commitWithFugitive(nvim, items)
     })
 
     this.addAction('reset', async item => {

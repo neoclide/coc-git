@@ -167,14 +167,7 @@ export default class GitBuffer implements Disposable {
       window.showErrorMessage('Not positioned in git chunk')
       return
     }
-    let head: string
-    if (diff.changeType === ChangeType.Add) {
-      head = `@@ -${diff.removed.start + 1},0 +${diff.removed.start + 1},${diff.added.count} @@`
-    } else if (diff.changeType === ChangeType.Delete) {
-      head = `@@ -${diff.removed.start},${diff.removed.count} +${diff.removed.start},0 @@`
-    } else if (diff.changeType === ChangeType.Change) {
-      head = `@@ -${diff.removed.start},${diff.removed.count} +${diff.removed.start},${diff.added.count} @@`
-    }
+    const head = diff.head
     const from = quoteGitPath(`a/${relpath}`)
     const to = quoteGitPath(`b/${relpath}`)
     const lines = [

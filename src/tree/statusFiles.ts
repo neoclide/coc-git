@@ -5,6 +5,7 @@ import Manager from '../manager'
 import CommitDocumentProvider from '../model/commitDocument'
 import { StatusEntry, parseStatusEntries } from '../model/statusEntry'
 import { DiffCategory } from '../types'
+import { feedTreeToggleKey } from '../util'
 
 interface StatusAggregate {
   fileCount: number
@@ -342,9 +343,7 @@ export default class StatusFilesController implements Disposable {
     const element = node as StatusTreeNode
     if (element.kind !== 'root' && element.kind !== 'directory') return
     const configuredKey = workspace.getConfiguration('tree').get<string>('key.toggle', 't')
-    const key = configuredKey.startsWith('<') && configuredKey.endsWith('>') ? `\\${configuredKey}` : configuredKey
-    const escaped = key.replace(/\\/g, '\\\\').replace(/"/g, '\\"')
-    await workspace.nvim.call('eval', [`feedkeys("${escaped}", "in")`])
+    await feedTreeToggleKey(workspace.nvim, configuredKey)
   }
 
   public async refresh(): Promise<void> {

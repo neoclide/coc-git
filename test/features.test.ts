@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { execSync } from 'node:child_process'
+import { execFileSync, execSync } from 'node:child_process'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
@@ -79,6 +79,28 @@ describe('git chunk info', () => {
       assert.ok(typeof chunk.start === 'number' && chunk.start >= 1)
       assert.ok(typeof chunk.end === 'number' && chunk.end >= chunk.start)
       assert.ok(['add', 'changed', 'delete'].includes(chunk.changeType))
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('stages a pure addition at the end of a file', async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'coc-git-stage-addition-'))
+    try {
+      execFileSync('git', ['init', '-q'], { cwd: dir })
+      execFileSync('git', ['config', 'user.email', 'test@example.com'], { cwd: dir })
+      execFileSync('git', ['config', 'user.name', 'test'], { cwd: dir })
+      const file = path.join(dir, 'a.txt')
+      fs.writeFileSync(file, 'one\ntwo\nthree\n')
+      execFileSync('git', ['add', '--', 'a.txt'], { cwd: dir })
+      execFileSync('git', ['commit', '-q', '-m', 'init'], { cwd: dir })
+      fs.writeFileSync(file, 'one\ntwo\nthree\nfour\n')
+      const document = await workspace.openTextDocument(file)
+      await workspace.nvim.command(`buffer ${document.bufnr}`)
+      await waitForChunks()
+      await workspace.nvim.call('cursor', [4, 1])
+      await commands.executeCommand('git.chunkStage')
+      assert.equal(execFileSync('git', ['diff', '--cached', '--name-only'], { cwd: dir, encoding: 'utf8' }).trim(), 'a.txt')
     } finally {
       fs.rmSync(dir, { recursive: true, force: true })
     }

@@ -2,6 +2,23 @@ import { IList, ListAction, ListContext, ListItem, Neovim, window } from 'coc.nv
 import colors from 'colors/safe'
 import Manager from '../manager'
 
+export interface BranchItemData {
+  current: boolean
+  branch: string
+  remote: boolean
+}
+
+export function parseBranchLine(line: string): BranchItemData | undefined {
+  const name = line.slice(2)
+  if (!name || name.includes(' -> ')) return undefined
+  const remote = name.startsWith('remotes/')
+  return {
+    current: line[0] == '*',
+    branch: remote ? name.slice('remotes/'.length) : name,
+    remote
+  }
+}
+
 export default class Branches implements IList {
   public readonly name = 'branches'
   public readonly description = 'git branches'
@@ -74,15 +91,14 @@ export default class Branches implements IList {
     if (output == null) return
     output = output.replace(/\s+$/, '')
     for (let line of output.split(/\r?\n/)) {
-      let remote = line.slice(2).startsWith('remotes/')
+      const data = parseBranchLine(line)
+      if (!data) continue
       res.push({
         label: colors.yellow(line.slice(0, 2)) + line.slice(2),
         filterText: line.slice(2),
         data: {
-          current: line[0] == '*',
           root,
-          branch: remote ? line.slice(10) : line.slice(2),
-          remote
+          ...data
         }
       })
     }
