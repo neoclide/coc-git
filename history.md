@@ -1,3 +1,7 @@
+## 2.7.12
+
+- fix: address audited git workflow issues (eb6ee85)
+
 ## 2.7.11
 
 - add AGENTS.md (34ea156)
