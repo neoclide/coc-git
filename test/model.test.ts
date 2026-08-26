@@ -1,8 +1,10 @@
 import assert from 'node:assert/strict'
 import { execFileSync } from 'node:child_process'
+import { EventEmitter } from 'node:events'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
+import { PassThrough } from 'node:stream'
 import { afterEach, describe, it } from 'node:test'
 import { getPreviousConflict } from '../src/model/buffer'
 import { Git } from '../src/model/git'
@@ -194,6 +196,37 @@ process.exit(result.status == null ? 1 : result.status)
       untrackedDecorator: '?'
     })
     assert.match(status, /\?$/)
+  })
+
+  it('waits for stdout after the Git process exits', async () => {
+    const stdout = new PassThrough()
+    const child = new EventEmitter() as any
+    child.stdout = stdout
+    child.kill = () => true
+    const model = {
+      exec: async (_cwd: string, args: string[]) => ({
+        exitCode: 0,
+        stdout: args[0] === 'symbolic-ref' ? 'master\n' : '',
+        stderr: ''
+      }),
+      stream: () => {
+        queueMicrotask(() => {
+          child.emit('exit', 0)
+          stdout.end('untracked.txt\n')
+          child.emit('close', 0)
+        })
+        return child
+      }
+    }
+    const repo = new Repo(model as any, channel, os.tmpdir())
+
+    const status = await repo.getStatus('', {
+      changedDecorator: '*',
+      conflictedDecorator: 'x',
+      stagedDecorator: '+',
+      untrackedDecorator: '?'
+    })
+    assert.equal(status, 'master?')
   })
 
   it('recognizes ignored non-ASCII paths without parsing localized output', async () => {

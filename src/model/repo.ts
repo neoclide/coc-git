@@ -113,7 +113,7 @@ export class Repo {
         cp.kill('SIGKILL')
         finish(true)
       })
-      cp.on('exit', () => {
+      cp.on('close', () => {
         finish(false)
       })
       cp.on('error', () => {
