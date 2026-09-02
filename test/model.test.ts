@@ -95,6 +95,28 @@ process.exit(result.status == null ? 1 : result.status)
     assert.equal(diffs[0].added.count, 1)
   })
 
+  it('returns no diff for files Git does not track', async () => {
+    const { dir, repo } = createRepo()
+    fs.writeFileSync(path.join(dir, 'tracked.txt'), 'content\n')
+    commitAll(dir)
+    fs.writeFileSync(path.join(dir, 'new.txt'), 'one\ntwo\n')
+
+    const diffs = await repo.getDiff('new.txt', 'one\ntwo\n')
+    assert.equal(diffs.length, 0)
+  })
+
+  it('diffs a newly staged file against the index', async () => {
+    const { dir, repo } = createRepo()
+    fs.writeFileSync(path.join(dir, 'new.txt'), 'one\ntwo\n')
+    git(dir, 'add', 'new.txt')
+    fs.writeFileSync(path.join(dir, 'new.txt'), 'one\nchanged\n')
+
+    const diffs = await repo.getDiff('new.txt', 'one\nchanged\n')
+    assert.equal(diffs.length, 1)
+    assert.equal(diffs[0].added.count, 1)
+    assert.equal(diffs[0].removed.count, 1)
+  })
+
   it('preserves trailing spaces in diff content', async () => {
     const { dir, repo } = createRepo()
     fs.writeFileSync(path.join(dir, 'spaces.txt'), 'before\n')

@@ -143,7 +143,18 @@ export class Repo {
 
   public async getDiff(relFilepath: string, content: string, revision = '', encoding = 'utf8'): Promise<Diff[]> {
     if (relFilepath.startsWith(`.git${path.sep}`)) return
-    const base = await this.getFileContent(relFilepath, revision || ':', encoding)
+    const object = revision.endsWith(':') ? revision : `${revision}:`
+    const base = await this.getFileContent(relFilepath, object, encoding)
+    // Git doesn't diff untracked files: when the file is missing from the diff
+    // base, comparing against an empty base would mark every line as added.
+    // An empty base can also be a tracked empty file, so verify the path exists.
+    if (!base) {
+      const exists = await this.exec(
+        ['rev-parse', '--verify', '--quiet', `${object}${toUnixSlash(relFilepath)}`],
+        { allowedExitCodes: [1], log: false }
+      )
+      if (exists.exitCode !== 0) return []
+    }
     return this.getDiffFromContents(base ? base + '\n' : '', content)
   }
 
