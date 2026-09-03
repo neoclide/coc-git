@@ -1,3 +1,7 @@
+## 2.7.14
+
+- not use sign for files not indexed (3b6f63f)
+
 ## 2.7.13
 
 - fix failure test (3cb8919)
