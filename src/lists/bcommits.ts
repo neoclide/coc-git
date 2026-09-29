@@ -3,6 +3,7 @@ import { ansiparse, BasicList, commands, events, ListContext, ListTask, Neovim }
 import { EventEmitter } from 'events'
 import readline from 'readline'
 import Manager from '../manager'
+import { previewDiff } from './preview'
 
 class CommitsTask extends EventEmitter implements ListTask {
   private process: ChildProcess
@@ -63,12 +64,7 @@ export default class Bcommits extends BasicList {
         let content = (await this.manager.git.exec(root, ['--no-pager', 'show', commit])).stdout
         lines = content.trim().split('\n')
       }
-      await this.preview({
-        lines,
-        filetype: 'git',
-        sketch: true,
-        bufname: commit ? `[commit ${commit}]` : ''
-      }, context)
+      await previewDiff(this, nvim, context, lines, commit ? `[commit ${commit}]` : '')
     })
     this.addAction('show', async (item, ctx) => {
       let { commit, root } = item.data

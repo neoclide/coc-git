@@ -1,6 +1,7 @@
 import { BasicList, ListAction, ListContext, ListItem, Neovim, Uri, workspace } from 'coc.nvim'
 import path from 'path'
 import Manager from '../manager'
+import { previewDiff } from './preview'
 
 export function parseTreeEntry(entry: string): { sha: string, filepath: string } | undefined {
   const separator = entry.indexOf('\t')
@@ -51,12 +52,7 @@ export default class Gfiles extends BasicList {
       if (!sha) return
       let content = (await this.manager.git.exec(root, ['--no-pager', 'diff', ...this.manager.diffOptions, '--no-ext-diff', branch, '--', filepath])).stdout
       let lines = content.replace(/\n$/, '').split('\n')
-      await this.preview({
-        lines,
-        filetype: 'diff',
-        sketch: true,
-        bufname: `(diff ${branch}) ${path.basename(filepath)}`
-      }, context)
+      await previewDiff(this, nvim, context, lines, `(diff ${branch}) ${path.basename(filepath)}`)
     })
   }
 

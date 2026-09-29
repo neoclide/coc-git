@@ -319,6 +319,10 @@ To move up&down on insertmode, use `<C-j>` and `<C-k>`
 
 To run a action, press `<tab>` and select the action.
 
+Diff previews in `gstatus`, `gfiles`, `commits`, and `bcommits` use syntax folding.
+Move to the preview window and use `zc` or `zM` to fold file diffs, and `zo` or
+`zR` to expand them.
+
 #### Commit Files TreeView
 
 The `commits` and `bcommits` lists provide a `changes` action that opens the
