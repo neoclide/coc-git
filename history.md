@@ -1,3 +1,7 @@
+## 2.7.15
+
+- feat(lists): enable syntax folding in diff previews (af046f6)
+
 ## 2.7.14
 
 - not use sign for files not indexed (3b6f63f)
